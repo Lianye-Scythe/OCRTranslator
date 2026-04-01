@@ -1,0 +1,1 @@
+"""OCRTranslator application package."""

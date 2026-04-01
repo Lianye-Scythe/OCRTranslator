@@ -8,7 +8,9 @@
   "ui_language": "zh-TW",
   "hotkey": "Shift+Win+A",
   "overlay_font_family": "Microsoft JhengHei UI",
-  "overlay_font_size": 16,
+  "overlay_font_size": 12,
+  "overlay_opacity": 96,
+  "overlay_pinned": false,
   "active_profile_name": "Default Gemini",
   "api_profiles": [
     {
