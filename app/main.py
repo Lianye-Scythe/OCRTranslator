@@ -2,6 +2,7 @@ import base64
 import hashlib
 import io
 import json
+import shutil
 import sys
 import threading
 import time
@@ -14,6 +15,7 @@ import requests
 from PIL import Image, ImageGrab
 from pynput import keyboard
 from PySide6.QtCore import QObject, QPoint, QRect, QSize, Qt, Signal, QEvent, QLockFile
+from PySide6.QtCore import QBuffer, QByteArray
 from PySide6.QtGui import QAction, QColor, QFont, QGuiApplication, QIcon, QMouseEvent, QPainter, QPen, QPixmap, QTextDocument
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import (
@@ -403,13 +405,24 @@ class SelectionOverlay(QWidget):
         self.setCursor(Qt.CrossCursor)
         self.rubber_band = QRubberBand(QRubberBand.Rectangle, self)
         self.origin = QPoint()
-        self.virtual_rect = QGuiApplication.primaryScreen().virtualGeometry()
+        self.virtual_rect = self._get_virtual_rect()
         self.setGeometry(self.virtual_rect)
 
+    def _get_virtual_rect(self) -> QRect:
+        screens = QGuiApplication.screens()
+        if not screens:
+            return QRect(0, 0, 1920, 1080)
+        rect = screens[0].geometry()
+        for screen in screens[1:]:
+            rect = rect.united(screen.geometry())
+        return rect
+
     def show_overlay(self):
-        self.setGeometry(QGuiApplication.primaryScreen().virtualGeometry())
+        self.virtual_rect = self._get_virtual_rect()
+        self.setGeometry(self.virtual_rect)
         self.rubber_band.hide()
-        self.showFullScreen()
+        self.show()
+        self.raise_()
         self.activateWindow()
 
     def mousePressEvent(self, event: QMouseEvent):
@@ -439,7 +452,7 @@ class SelectionOverlay(QWidget):
         if rect.width() < 20 or rect.height() < 20:
             self.cancelled.emit()
             return
-        self.selected.emit((rect.left(), rect.top(), rect.right(), rect.bottom()))
+        self.selected.emit((rect.left(), rect.top(), rect.right() + 1, rect.bottom() + 1))
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
@@ -983,9 +996,17 @@ class MainWindow(QMainWindow):
         if message == "show":
             self.log("Received activation request from another launch")
             self.show_main_window()
+        elif message == "capture":
+            self.log("Received capture request from another launch")
+            self.show_main_window()
+            self.start_selection()
         socket.disconnectFromServer()
 
     def setup_tray(self):
+        if not QSystemTrayIcon.isSystemTrayAvailable():
+            self.tray = None
+            self.log("System tray is not available on this environment")
+            return
         self.tray = QSystemTrayIcon(self.icon, self)
         self.tray.setToolTip(self.tr("tray_title"))
         menu = QMenu(self)
@@ -997,17 +1018,22 @@ class MainWindow(QMainWindow):
         self.tray_quit_action.triggered.connect(self.quit_app)
         menu.addAction(self.tray_show_action)
         menu.addAction(self.tray_capture_action)
-        menu.addSeparator()
+        if menu.actions():
+            menu.addSeparator()
         menu.addAction(self.tray_quit_action)
         self.tray.setContextMenu(menu)
         self.tray.activated.connect(self.on_tray_activated)
         self.tray.show()
 
     def on_tray_activated(self, reason):
+        if not self.tray:
+            return
         if reason in (QSystemTrayIcon.Trigger, QSystemTrayIcon.DoubleClick):
             self.show_main_window()
 
     def update_tray_texts(self):
+        if not self.tray:
+            return
         self.tray.setToolTip(self.tr("tray_title"))
         self.tray_show_action.setText(self.tr("tray_show"))
         self.tray_capture_action.setText(self.tr("tray_capture"))
@@ -1347,8 +1373,23 @@ class MainWindow(QMainWindow):
         self.set_status("capture_cancelled")
         self.show_tray_toast(self.tr("capture_cancelled"))
 
+    def capture_bbox_image(self, bbox) -> Image.Image:
+        left, top, right, bottom = bbox
+        width = max(1, right - left)
+        height = max(1, bottom - top)
+        screen = QGuiApplication.screenAt(QPoint(int((left + right) / 2), int((top + bottom) / 2))) or QGuiApplication.primaryScreen()
+        pixmap = screen.grabWindow(0, left, top, width, height)
+        if pixmap.isNull():
+            return ImageGrab.grab(bbox=(left, top, right, bottom), all_screens=True)
+        byte_array = QByteArray()
+        buffer = QBuffer(byte_array)
+        buffer.open(QBuffer.WriteOnly)
+        pixmap.save(buffer, "PNG")
+        buffer.close()
+        return Image.open(io.BytesIO(byte_array.data())).convert("RGB")
+
     def handle_selection(self, bbox):
-        image = ImageGrab.grab(bbox=bbox, all_screens=True)
+        image = self.capture_bbox_image(bbox)
         self.update_preview(image)
         self.set_status("capturing")
         self.show_tray_toast(self.tr("tray_capturing"))
@@ -1474,8 +1515,9 @@ class MainWindow(QMainWindow):
     def minimize_to_tray(self):
         self.hide()
         self.translation_overlay.hide()
-        self.set_status("tray_minimized")
-        self.show_tray_toast(self.tr("tray_minimized"))
+        if self.tray:
+            self.set_status("tray_minimized")
+            self.show_tray_toast(self.tr("tray_minimized"))
 
     def show_main_window(self):
         self.show()
@@ -1508,7 +1550,8 @@ class MainWindow(QMainWindow):
             self.instance_server.close()
             QLocalServer.removeServer(APP_SERVER_NAME)
         self.translation_overlay.close()
-        self.tray.hide()
+        if self.tray:
+            self.tray.hide()
         QApplication.instance().quit()
 
 
@@ -1576,9 +1619,24 @@ def _migrate_legacy_config(data: dict) -> AppConfig:
 
 
 def load_config() -> AppConfig:
-    if CONFIG_PATH.exists():
-        return _migrate_legacy_config(json.loads(CONFIG_PATH.read_text(encoding="utf-8")))
     config = AppConfig()
+    if CONFIG_PATH.exists():
+        try:
+            return _migrate_legacy_config(json.loads(CONFIG_PATH.read_text(encoding="utf-8")))
+        except Exception:  # noqa: BLE001
+            backup_path = CONFIG_PATH.with_suffix(f".broken-{time.strftime('%Y%m%d-%H%M%S')}.json")
+            try:
+                shutil.copy2(CONFIG_PATH, backup_path)
+            except Exception:  # noqa: BLE001
+                backup_path = None
+            message = (
+                f"Failed to load config.json. A fresh config will be created."
+                + (f" Backup: {backup_path.name}" if backup_path else "")
+            )
+            try:
+                show_startup_warning(message)
+            except Exception:  # noqa: BLE001
+                pass
     save_config(config)
     return config
 
@@ -1595,25 +1653,37 @@ def acquire_single_instance_lock() -> QLockFile | None:
     return None
 
 
-def request_existing_instance_raise() -> bool:
+def request_existing_instance_action(action: str) -> bool:
     socket = QLocalSocket()
     socket.connectToServer(APP_SERVER_NAME)
     if not socket.waitForConnected(400):
         return False
-    socket.write(b"show")
+    socket.write(action.encode("utf-8"))
     socket.flush()
     socket.waitForBytesWritten(400)
     socket.disconnectFromServer()
     return True
 
 
+def show_startup_warning(message: str):
+    app = QApplication.instance() or QApplication([])
+    QMessageBox.warning(None, "OCRTranslator", message)
+
+
+def should_forward_capture_request() -> bool:
+    args = {arg.lower() for arg in sys.argv[1:]}
+    return any(arg in {"--capture", "/capture", "capture"} for arg in args)
+
+
 def run_app():
+    QGuiApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     app = QApplication.instance() or QApplication([])
     app.setQuitOnLastWindowClosed(False)
     app.setApplicationName("OCRTranslator")
     lock = acquire_single_instance_lock()
     if lock is None:
-        if not request_existing_instance_raise():
+        action = "capture" if should_forward_capture_request() else "show"
+        if not request_existing_instance_action(action):
             message_config = load_config()
             lang = message_config.ui_language if message_config.ui_language in I18N else "zh-TW"
             QMessageBox.information(None, I18N[lang]["already_running_title"], I18N[lang]["already_running_message"])
