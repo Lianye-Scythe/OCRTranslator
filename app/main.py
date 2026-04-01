@@ -61,7 +61,7 @@ PROVIDER_LABELS = {
     "openai": {"zh-TW": "OpenAI 相容", "en": "OpenAI Compatible"},
 }
 DEFAULT_PROMPT = (
-    "You will receive a screenshot that mainly contains Japanese novel, light novel, or web text. "
+    "You will receive a screenshot that may contain text in any language. "
     "Please do the following directly:\n"
     "1. Recognize the text in the image;\n"
     "2. Translate it into the specified target language;\n"
@@ -74,8 +74,8 @@ DEFAULT_PROMPT = (
 I18N = {
     "zh-TW": {
         "window_title": "OCR 翻譯器",
-        "title": "日文閱讀 OCR 翻譯工具",
-        "subtitle": "為輕小說、網文與漫畫對話框打造的桌面 OCR 翻譯工作台",
+        "title": "多語 OCR 翻譯工具",
+        "subtitle": "為閱讀、研究與日常螢幕內容翻譯打造的桌面 OCR 翻譯工作台",
         "quick_actions": "快速操作",
         "api_keys_hidden": "API Keys（已隱藏）",
         "show_api_keys": "顯示 Key",
@@ -142,8 +142,8 @@ I18N = {
     },
     "en": {
         "window_title": "OCR Translator",
-        "title": "Japanese Reading OCR Translator",
-        "subtitle": "A desktop OCR translation workspace for light novels, web novels, and dialogue-heavy reading",
+        "title": "Multilingual OCR Translator",
+        "subtitle": "A desktop OCR translation workspace for reading, research, and everyday on-screen text",
         "quick_actions": "Quick Actions",
         "api_keys_hidden": "API Keys (Hidden)",
         "show_api_keys": "Show Keys",
