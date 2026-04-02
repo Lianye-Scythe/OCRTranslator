@@ -353,6 +353,32 @@ class MainWindowLayoutMixin:
         self.reading_validation_label.hide()
         reading_layout.addWidget(self.reading_validation_label)
 
+        self.advanced_group, advanced_layout, self.advanced_group_title_label = self.create_section_card()
+        content_layout.addWidget(self.advanced_group)
+        advanced_grid = QGridLayout()
+        advanced_grid.setHorizontalSpacing(14)
+        advanced_grid.setVerticalSpacing(14)
+        advanced_layout.addLayout(advanced_grid)
+
+        self.temperature_label = QLabel()
+        self.temperature_spin = ScrollSafeDoubleSpinBox()
+        self.temperature_spin.setRange(0.0, 2.0)
+        self.temperature_spin.setSingleStep(0.1)
+        self.overlay_width_label = QLabel()
+        self.overlay_width_spin = ScrollSafeSpinBox()
+        self.overlay_width_spin.setRange(240, 1600)
+        self.overlay_height_label = QLabel()
+        self.overlay_height_spin = ScrollSafeSpinBox()
+        self.overlay_height_spin.setRange(220, 1600)
+        self.overlay_margin_label = QLabel()
+        self.overlay_margin_spin = ScrollSafeSpinBox()
+        self.overlay_margin_spin.setRange(8, 120)
+
+        advanced_grid.addWidget(self.create_field_block(self.temperature_label, self.temperature_spin), 0, 0)
+        advanced_grid.addWidget(self.create_field_block(self.overlay_margin_label, self.overlay_margin_spin), 0, 1)
+        advanced_grid.addWidget(self.create_field_block(self.overlay_width_label, self.overlay_width_spin), 1, 0)
+        advanced_grid.addWidget(self.create_field_block(self.overlay_height_label, self.overlay_height_spin), 1, 1)
+
         self.quick_group, quick_layout, self.quick_group_title_label = self.create_section_card()
         content_layout.addWidget(self.quick_group)
         action_row = QHBoxLayout()
@@ -379,6 +405,10 @@ class MainWindowLayoutMixin:
         self.overlay_font_combo.currentFontChanged.connect(self.on_form_input_changed)
         self.overlay_font_size_spin.valueChanged.connect(self.on_form_input_changed)
         self.retry_count_spin.valueChanged.connect(self.on_form_input_changed)
+        self.temperature_spin.valueChanged.connect(self.on_form_input_changed)
+        self.overlay_width_spin.valueChanged.connect(self.on_form_input_changed)
+        self.overlay_height_spin.valueChanged.connect(self.on_form_input_changed)
+        self.overlay_margin_spin.valueChanged.connect(self.on_form_input_changed)
         self.retry_interval_spin.valueChanged.connect(self.on_form_input_changed)
 
         content_layout.addStretch(1)
@@ -411,6 +441,8 @@ class MainWindowLayoutMixin:
         log_header.addWidget(self.log_group_title_label)
         log_header.addStretch(1)
         self.clear_logs_button = self.create_button(self.clear_logs, accent=False, compact=True)
+        self.export_logs_button = self.create_button(self.export_logs, secondary=True, compact=True)
+        log_header.addWidget(self.export_logs_button)
         log_header.addWidget(self.clear_logs_button)
         log_layout.insertLayout(0, log_header)
         layout.addWidget(self.log_group, 2)
@@ -473,6 +505,10 @@ class MainWindowLayoutMixin:
             #NavButton:checked {
                 background:qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 #1a2435, stop:1 #162030);
                 border:1px solid #7085ff;
+                color:#f7f9fe;
+            }
+            #NavButton:focus {
+                border:1px solid #90a4ff;
                 color:#f7f9fe;
             }
             #HintCard {
@@ -648,7 +684,10 @@ class MainWindowLayoutMixin:
                 min-height:18px;
             }
             QPushButton:hover {
-                border-color:rgba(255,255,255,0.08);
+                border-color:#4b607f;
+            }
+            QPushButton:focus {
+                border-color:#90a4ff;
             }
             QPushButton:pressed {
                 padding-top:13px;
@@ -767,6 +806,7 @@ class MainWindowLayoutMixin:
         self.profile_group_title_label.setText(self.tr("section_profiles"))
         self.api_group_title_label.setText(self.tr("section_api"))
         self.reading_group_title_label.setText(self.tr("section_reading"))
+        self.advanced_group_title_label.setText(self.tr("section_advanced"))
         self.quick_group_title_label.setText(self.tr("quick_actions"))
         self.preview_group_title_label.setText(self.tr("preview_panel"))
         self.log_group_title_label.setText(self.tr("activity_panel"))
@@ -784,6 +824,10 @@ class MainWindowLayoutMixin:
         self.api_keys_label_row.setText(self.tr("api_keys_hidden") if not self.api_keys_visible else self.tr("api_keys"))
         self.api_keys_hint.setText(self.tr("api_keys_mask_hint") if not self.api_keys_visible else self.tr("api_keys_hint"))
         self.retry_count_label.setText(self.tr("retry_count"))
+        self.temperature_label.setText(self.tr("temperature"))
+        self.overlay_width_label.setText(self.tr("overlay_width"))
+        self.overlay_height_label.setText(self.tr("overlay_height"))
+        self.overlay_margin_label.setText(self.tr("overlay_margin"))
         self.retry_interval_label.setText(self.tr("retry_interval"))
         self.target_language_label.setText(self.tr("target_language"))
         self.ui_language_label.setText(self.tr("ui_language"))
@@ -802,6 +846,7 @@ class MainWindowLayoutMixin:
         self.preview_capture_button.setToolTip(self.tr("start_capture"))
         self.clear_logs_button.setToolTip(self.tr("clear_logs"))
         self.fetch_models_button.setToolTip(self.tr("fetch_models"))
+        self.export_logs_button.setToolTip(self.tr("export_logs"))
         self.test_button.setToolTip(self.tr("test_api"))
         self.save_button.setToolTip(self.tr("save_settings"))
         self.mode_label.setText(self.tr("display_mode"))
@@ -809,6 +854,7 @@ class MainWindowLayoutMixin:
         self.test_button.setText(self.tr("test_api"))
         self.save_button.setText(self.tr("save_settings"))
         self.api_keys_toggle_button.setText(self.tr("show_api_keys") if not self.api_keys_visible else self.tr("hide_api_keys"))
+        self.export_logs_button.setText(self.tr("export_logs"))
         self.update_provider_options()
         self.update_mode_options()
         self.refresh_page_header()

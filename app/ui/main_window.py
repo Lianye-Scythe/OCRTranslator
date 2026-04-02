@@ -1,14 +1,15 @@
 import io
 import time
 from collections import deque
+from pathlib import Path
 from types import SimpleNamespace
 
 from PIL import Image, ImageGrab
 from pynput import keyboard
-from PySide6.QtCore import QBuffer, QByteArray, QRect, Qt
+from PySide6.QtCore import QBuffer, QByteArray, QRect, Qt, QTimer
 from PySide6.QtGui import QAction, QGuiApplication, QPixmap
 from PySide6.QtNetwork import QLocalServer
-from PySide6.QtWidgets import QApplication, QMainWindow, QMenu, QMessageBox, QSystemTrayIcon
+from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QMenu, QMessageBox, QSystemTrayIcon
 
 from ..api_client import ApiClient
 from ..config_store import load_config, save_config
@@ -17,7 +18,7 @@ from ..profile_utils import normalize_model_value, normalize_provider_name, uniq
 from ..workers import AppBridge, WorkerThread
 from .main_window_layout import MainWindowLayoutMixin
 from .main_window_profiles import MainWindowProfilesMixin
-from .overlay_positioning import compute_overlay_position, fit_overlay_size
+from .overlay_positioning import compute_overlay_position, fit_overlay_size, get_target_screen_rect
 from .selection_overlay import SelectionOverlay
 from .translation_overlay import TranslationOverlay
 
@@ -60,6 +61,9 @@ class MainWindow(MainWindowLayoutMixin, MainWindowProfilesMixin, QMainWindow):
         self._test_profile_request_id = 0
         self.pending_capture_profile = None
         self.pending_capture_target_language = self.config.target_language
+        self.config_save_timer = QTimer(self)
+        self.config_save_timer.setSingleShot(True)
+        self.config_save_timer.timeout.connect(self.persist_config_now)
 
         self.selection_overlay = SelectionOverlay()
         self.selection_overlay.selected.connect(self.handle_selection)
@@ -228,6 +232,41 @@ class MainWindow(MainWindowLayoutMixin, MainWindowProfilesMixin, QMainWindow):
         self.refresh_log_view()
         self.set_status("logs_cleared")
 
+    def persist_config_now(self):
+        try:
+            save_config(self.config)
+        except Exception as exc:  # noqa: BLE001
+            self.handle_error(exc)
+
+    def export_logs(self):
+        try:
+            if not self.logs:
+                self.set_status("logs_export_empty")
+                return
+            default_name = f"ocrtranslator-log-{time.strftime('%Y%m%d-%H%M%S')}.txt"
+            target_path, _ = QFileDialog.getSaveFileName(
+                self,
+                self.tr("export_logs_dialog_title"),
+                str(Path.cwd() / default_name),
+                self.tr("export_logs_filter"),
+            )
+            if not target_path:
+                return
+            Path(target_path).write_text("\n".join(reversed(self.logs)) + "\n", encoding="utf-8")
+            self.log(f"Runtime log exported: {target_path}")
+            self.set_status("logs_exported", path=Path(target_path).name)
+        except Exception as exc:  # noqa: BLE001
+            self.handle_error(exc)
+
+    def schedule_config_persist(self, delay_ms: int = 350):
+        self.config_save_timer.start(delay_ms)
+
+    def flush_pending_config_save(self):
+        if not self.config_save_timer.isActive():
+            return
+        self.config_save_timer.stop()
+        self.persist_config_now()
+
     def normalize_hotkey(self, hotkey_text: str) -> str:
         parts = [part.strip().lower() for part in hotkey_text.replace("-", "+").split("+") if part.strip()]
         key_map = {
@@ -268,6 +307,8 @@ class MainWindow(MainWindowLayoutMixin, MainWindowProfilesMixin, QMainWindow):
             self.hotkey_listener = None
         self.registered_hotkey = None
         try:
+            if not self.hotkey_has_modifier(self.config.hotkey):
+                raise ValueError(self.tr("validation_hotkey_requires_modifier"))
             normalized = self.normalize_hotkey(self.config.hotkey)
             self.hotkey_listener = keyboard.GlobalHotKeys({normalized: self.bridge.hotkey_triggered.emit})
             self.hotkey_listener.start()
@@ -494,7 +535,7 @@ class MainWindow(MainWindowLayoutMixin, MainWindowProfilesMixin, QMainWindow):
             operation_key="translation",
         )
 
-    def show_translation(self, bbox, text: str):
+    def show_translation(self, bbox, text: str, *, preserve_manual_position: bool = False, reflow_only: bool = False):
         text = text or self.tr("empty_result")
         overlay_config = SimpleNamespace(
             mode=self.current_mode(),
@@ -505,15 +546,25 @@ class MainWindow(MainWindowLayoutMixin, MainWindowProfilesMixin, QMainWindow):
         self.translation_overlay.apply_typography()
         width, height = self.translation_overlay.calculate_size(text)
         width, height = fit_overlay_size(overlay_config, self.translation_overlay, bbox, text, width, height)
-        x, y = compute_overlay_position(overlay_config, bbox, width, height)
+        if preserve_manual_position and self.translation_overlay.last_geometry is not None:
+            screen_rect = get_target_screen_rect(bbox)
+            margin = overlay_config.margin
+            soft_margin = max(42, margin * 2)
+            x = max(screen_rect.left() + margin, min(self.translation_overlay.last_geometry.x(), screen_rect.right() - width - margin + 1))
+            y = max(screen_rect.top() + soft_margin, min(self.translation_overlay.last_geometry.y(), screen_rect.bottom() - height - soft_margin + 1))
+        else:
+            x, y = compute_overlay_position(overlay_config, bbox, width, height)
         self.translation_overlay.remember_context(bbox, text)
-        self.translation_overlay.show_text(text, x, y, width, height)
-        self.finish_capture_workflow()
-        self.restore_pinned_overlay_after_capture = False
-        self.set_status("translated")
-        self.log("Translation finished")
+        self.translation_overlay.show_text(text, x, y, width, height, keep_manual_position=preserve_manual_position)
+        if not reflow_only:
+            self.finish_capture_workflow()
+            self.restore_pinned_overlay_after_capture = False
+            self.set_status("translated")
+            self.log("Translation finished")
 
     def adjust_overlay_font_size(self, direction: int):
+        if self.translation_in_progress:
+            return
         current_size = self.current_overlay_font_size()
         new_size = max(10, min(32, current_size + direction))
         if new_size == current_size:
@@ -524,11 +575,16 @@ class MainWindow(MainWindowLayoutMixin, MainWindowProfilesMixin, QMainWindow):
             self.overlay_font_size_spin.setValue(new_size)
         finally:
             self._suppress_form_tracking = False
-        save_config(self.config)
+        self.schedule_config_persist()
         self.translation_overlay.apply_typography()
         self.set_status("font_zoomed", size=new_size)
         if self.translation_overlay.isVisible() and self.translation_overlay.last_bbox and self.translation_overlay.last_text:
-            self.show_translation(self.translation_overlay.last_bbox, self.translation_overlay.last_text)
+            self.show_translation(
+                self.translation_overlay.last_bbox,
+                self.translation_overlay.last_text,
+                preserve_manual_position=self.translation_overlay.manual_positioned,
+                reflow_only=True,
+            )
 
     def update_preview(self, image: Image.Image):
         preview = image.copy()
@@ -620,6 +676,7 @@ class MainWindow(MainWindowLayoutMixin, MainWindowProfilesMixin, QMainWindow):
         if hasattr(self, "instance_server") and self.instance_server and self.instance_server.isListening():
             self.instance_server.close()
             QLocalServer.removeServer(APP_SERVER_NAME)
+        self.flush_pending_config_save()
         self.translation_overlay.close()
         if self.tray:
             self.tray.hide()

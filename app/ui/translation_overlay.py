@@ -12,8 +12,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ..config_store import save_config
-
 
 class TranslationOverlay(QWidget):
     request_font_zoom = Signal(int)
@@ -24,6 +22,7 @@ class TranslationOverlay(QWidget):
         self.last_bbox = None
         self.last_text = ""
         self.last_geometry = None
+        self.manual_positioned = False
         self._drag_offset = QPoint()
         self.setup_ui()
 
@@ -175,6 +174,10 @@ class TranslationOverlay(QWidget):
             #overlayCloseButton:hover {
                 background:#1d2839;
             }
+            #overlayActionButton:focus,
+            #overlayCloseButton:focus {
+                border:1px solid #90a4ff;
+            }
             #overlayActionButton:hover {
                 background:#243245;
             }
@@ -253,7 +256,7 @@ class TranslationOverlay(QWidget):
 
     def toggle_pin(self, checked: bool):
         self.app_window.config.overlay_pinned = bool(checked)
-        save_config(self.app_window.config)
+        self.app_window.schedule_config_persist()
         self.apply_surface_state()
         self.app_window.set_status("overlay_pinned" if checked else "overlay_unpinned")
 
@@ -263,16 +266,17 @@ class TranslationOverlay(QWidget):
         if next_value == current:
             return
         self.app_window.config.overlay_opacity = next_value
-        save_config(self.app_window.config)
+        self.app_window.schedule_config_persist()
         self.apply_surface_state()
         self.app_window.set_status("overlay_opacity_set", value=next_value)
 
-    def show_text(self, text: str, x: int, y: int, width: int, height: int):
+    def show_text(self, text: str, x: int, y: int, width: int, height: int, *, keep_manual_position: bool = False):
         self.apply_surface_state()
         self.setGeometry(x, y, width, height)
         self.last_geometry = self.geometry()
         self.body.setPlainText(text)
         self.last_text = text
+        self.manual_positioned = bool(keep_manual_position)
         self.show()
         self.raise_()
 
@@ -292,6 +296,7 @@ class TranslationOverlay(QWidget):
     def mouseMoveEvent(self, event: QMouseEvent):
         if event.buttons() & Qt.LeftButton:
             self.move(event.globalPosition().toPoint() - self._drag_offset)
+            self.manual_positioned = True
             self.last_geometry = self.geometry()
 
     def eventFilter(self, watched, event):

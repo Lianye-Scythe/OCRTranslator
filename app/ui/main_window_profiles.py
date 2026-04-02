@@ -77,13 +77,13 @@ class MainWindowProfilesMixin:
         active_provider = normalize_provider_name(provider or self.provider_combo.currentData() or self.get_active_profile().provider)
         return normalize_model_value(model_name, active_provider)
 
-    def update_mode_options(self):
-        current = self.mode_combo.currentData() or self.config.mode
+    def update_mode_options(self, current: str | None = None):
+        current_value = current or self.mode_combo.currentData() or self.config.mode
         self.mode_combo.blockSignals(True)
         self.mode_combo.clear()
         self.mode_combo.addItem(self.tr("mode_book_lr"), "book_lr")
         self.mode_combo.addItem(self.tr("mode_web_ud"), "web_ud")
-        index = self.mode_combo.findData(current)
+        index = self.mode_combo.findData(current_value)
         self.mode_combo.setCurrentIndex(max(0, index))
         self.mode_combo.blockSignals(False)
 
@@ -197,6 +197,10 @@ class MainWindowProfilesMixin:
             self.api_keys_actual_text = self.api_keys_edit.toPlainText()
         return getattr(self, "api_keys_actual_text", "")
 
+    def hotkey_has_modifier(self, hotkey_text: str) -> bool:
+        parts = {part.strip().lower() for part in hotkey_text.replace("-", "+").split("+") if part.strip()}
+        return any(part in {"ctrl", "control", "alt", "shift", "cmd", "win", "windows", "meta"} for part in parts)
+
     def _refresh_widget_style(self, widget):
         widget.style().unpolish(widget)
         widget.style().polish(widget)
@@ -271,6 +275,8 @@ class MainWindowProfilesMixin:
         else:
             try:
                 self.normalize_hotkey(hotkey_value)
+                if not self.hotkey_has_modifier(hotkey_value):
+                    mark_invalid(self.hotkey_edit, self.tr("validation_hotkey_requires_modifier"), reading_errors)
             except Exception as exc:  # noqa: BLE001
                 mark_invalid(self.hotkey_edit, self.tr("validation_hotkey_invalid", error=exc), reading_errors)
 
@@ -357,11 +363,17 @@ class MainWindowProfilesMixin:
                     return True
                 hotkey_text = self._format_hotkey_from_event(event)
                 if hotkey_text:
+                    if not self.hotkey_has_modifier(hotkey_text):
+                        self.set_status("validation_hotkey_requires_modifier")
+                        self.validate_form_inputs()
+                        return True
                     self.hotkey_edit.setText(hotkey_text)
                     self.hotkey_recording = False
                     self.hotkey_record_button.setText(self.tr("record_hotkey"))
                     self.validate_form_inputs()
                     self.set_status("hotkey_recorded", hotkey=hotkey_text)
+                elif event.key() not in {Qt.Key_Control, Qt.Key_Shift, Qt.Key_Alt, Qt.Key_Meta}:
+                    self.set_status("validation_hotkey_requires_modifier")
                 return True
             if event.type() in {QEvent.Type.ShortcutOverride, QEvent.Type.KeyRelease}:
                 return True
@@ -390,8 +402,12 @@ class MainWindowProfilesMixin:
             self.ui_language_combo.setCurrentText(self.config.ui_language)
             self.hotkey_edit.setText(self.config.hotkey)
             self.overlay_font_combo.setCurrentFont(QFont(self.config.overlay_font_family))
+            self.temperature_spin.setValue(self.config.temperature)
             self.overlay_font_size_spin.setValue(self.config.overlay_font_size)
-            self.update_mode_options()
+            self.overlay_width_spin.setValue(self.config.overlay_width)
+            self.overlay_height_spin.setValue(self.config.overlay_height)
+            self.overlay_margin_spin.setValue(self.config.margin)
+            self.update_mode_options(self.config.mode)
         finally:
             self._suppress_form_tracking = False
         self.apply_language()
@@ -497,7 +513,11 @@ class MainWindowProfilesMixin:
         self.config.ui_language = self.ui_language_combo.currentText().strip() or "zh-TW"
         self.config.hotkey = self.hotkey_edit.text().strip() or "Shift+Win+A"
         self.config.overlay_font_family = self.overlay_font_combo.currentFont().family()
+        self.config.temperature = self.temperature_spin.value()
         self.config.overlay_font_size = self.overlay_font_size_spin.value()
+        self.config.overlay_width = self.overlay_width_spin.value()
+        self.config.overlay_height = self.overlay_height_spin.value()
+        self.config.margin = self.overlay_margin_spin.value()
         self.config.mode = self.mode_combo.currentData() or "book_lr"
         self.translation_overlay.apply_typography()
         if hasattr(self, "refresh_shell_state"):
@@ -511,6 +531,8 @@ class MainWindowProfilesMixin:
                 self.set_status("validation_failed")
                 return False
             previous_language, profile = self.sync_form_to_config()
+            if hasattr(self, "config_save_timer") and self.config_save_timer.isActive():
+                self.config_save_timer.stop()
             save_config(self.config)
             self.apply_language()
             self.load_profile_to_form(self.config.active_profile_name)

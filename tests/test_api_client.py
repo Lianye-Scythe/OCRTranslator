@@ -51,7 +51,7 @@ class ApiClientTests(unittest.TestCase):
         self.assertEqual(result, "第一行\n第二行")
 
     @patch("app.api_client.requests.post")
-    def test_translate_gemini_returns_empty_when_candidates_missing(self, mock_post):
+    def test_translate_gemini_raises_block_reason_when_prompt_is_blocked(self, mock_post):
         profile = ApiProfile(
             name="Gemini",
             provider="gemini",
@@ -61,12 +61,28 @@ class ApiClientTests(unittest.TestCase):
         )
         response = Mock()
         response.raise_for_status.return_value = None
-        response.json.return_value = {"candidates": []}
+        response.json.return_value = {"promptFeedback": {"blockReason": "SAFETY"}, "candidates": []}
         mock_post.return_value = response
 
-        result = self.client._translate_gemini(profile, "demo-key", "prompt", "base64", 0.2)
+        with self.assertRaisesRegex(RuntimeError, "Gemini blocked the request: SAFETY"):
+            self.client._translate_gemini(profile, "demo-key", "prompt", "base64", 0.2)
 
-        self.assertEqual(result, "")
+    @patch("app.api_client.requests.post")
+    def test_translate_openai_raises_content_filter_reason(self, mock_post):
+        response = Mock()
+        response.raise_for_status.return_value = None
+        response.json.return_value = {
+            "choices": [
+                {
+                    "finish_reason": "content_filter",
+                    "message": {"content": ""},
+                }
+            ]
+        }
+        mock_post.return_value = response
+
+        with self.assertRaisesRegex(RuntimeError, "OpenAI blocked the response with content_filter"):
+            self.client._translate_openai(self.profile, "demo-key", "prompt", "base64", 0.2)
 
 
 if __name__ == "__main__":

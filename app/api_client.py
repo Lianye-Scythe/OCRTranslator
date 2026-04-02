@@ -69,6 +69,56 @@ class ApiClient:
             return f"{base}/models?key={api_key}"
         return f"{base}/v1beta/models?key={api_key}"
 
+    @staticmethod
+    def _openai_content_text(content) -> str:
+        if isinstance(content, list):
+            return "\n".join(item.get("text", "") for item in content if isinstance(item, dict) and item.get("text")).strip()
+        return content.strip() if isinstance(content, str) else ""
+
+    @staticmethod
+    def _gemini_finish_reason_text(finish_reason: str | None) -> str:
+        if not finish_reason:
+            return ""
+        return str(finish_reason).strip()
+
+    def _extract_openai_translation_text(self, data: dict) -> str:
+        if not isinstance(data, dict):
+            raise RuntimeError("OpenAI returned an unexpected payload")
+        choices = data.get("choices", [])
+        if not choices or not isinstance(choices[0], dict):
+            raise RuntimeError("OpenAI returned no choices")
+        choice = choices[0]
+        content = self._openai_content_text(choice.get("message", {}).get("content", ""))
+        if content:
+            return content
+        finish_reason = str(choice.get("finish_reason") or "").strip()
+        if finish_reason == "content_filter":
+            raise RuntimeError("OpenAI blocked the response with content_filter")
+        if finish_reason:
+            raise RuntimeError(f"OpenAI finished without text (finish_reason={finish_reason})")
+        raise RuntimeError("OpenAI returned an empty message")
+
+    def _extract_gemini_translation_text(self, data: dict) -> str:
+        if not isinstance(data, dict):
+            raise RuntimeError("Gemini returned an unexpected payload")
+        prompt_feedback = data.get("promptFeedback") if isinstance(data, dict) else None
+        if isinstance(prompt_feedback, dict):
+            block_reason = str(prompt_feedback.get("blockReason") or "").strip()
+            if block_reason:
+                raise RuntimeError(f"Gemini blocked the request: {block_reason}")
+        candidates = data.get("candidates", [])
+        if not candidates or not isinstance(candidates[0], dict):
+            raise RuntimeError("Gemini returned no candidates")
+        candidate = candidates[0]
+        parts = candidate.get("content", {}).get("parts", [])
+        text = "\n".join(part.get("text", "") for part in parts if isinstance(part, dict) and part.get("text")).strip()
+        if text:
+            return text
+        finish_reason = self._gemini_finish_reason_text(candidate.get("finishReason"))
+        if finish_reason and finish_reason != "STOP":
+            raise RuntimeError(f"Gemini finished without text (finishReason={finish_reason})")
+        raise RuntimeError("Gemini returned an empty response")
+
     def _request_openai_models(self, profile: ApiProfile, api_key: str) -> list[str]:
         response = requests.get(self._openai_url(profile.base_url, "/models"), headers={"Authorization": f"Bearer {api_key}"}, timeout=30)
         self._ensure_success(response)
@@ -154,13 +204,7 @@ class ApiClient:
         )
         self._ensure_success(response)
         data = response.json()
-        choices = data.get("choices", [])
-        if not choices or not isinstance(choices[0], dict):
-            return ""
-        content = choices[0].get("message", {}).get("content", "")
-        if isinstance(content, list):
-            return "\n".join(item.get("text", "") for item in content if isinstance(item, dict) and item.get("text"))
-        return content if isinstance(content, str) else ""
+        return self._extract_openai_translation_text(data)
 
     def _translate_gemini(self, profile: ApiProfile, api_key: str, prompt: str, image_base64: str, temperature: float) -> str:
         response = requests.post(
@@ -174,8 +218,4 @@ class ApiClient:
         )
         self._ensure_success(response)
         data = response.json()
-        candidates = data.get("candidates", [])
-        if not candidates or not isinstance(candidates[0], dict):
-            return ""
-        parts = candidates[0].get("content", {}).get("parts", [])
-        return "\n".join(part.get("text", "") for part in parts if isinstance(part, dict) and part.get("text"))
+        return self._extract_gemini_translation_text(data)
