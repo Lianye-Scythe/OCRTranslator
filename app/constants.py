@@ -22,6 +22,10 @@ PROVIDER_LABELS = {
     "gemini": {"zh-TW": "Gemini 相容", "en": "Gemini Compatible"},
     "openai": {"zh-TW": "OpenAI 相容", "en": "OpenAI Compatible"},
 }
+AUTHOR_NAME_ZH = "鐮夜"
+AUTHOR_NAME_EN = "scythenight"
+REPOSITORY_NAME = "Lianye-Scythe/OCRTranslator"
+REPOSITORY_URL = "https://github.com/Lianye-Scythe/OCRTranslator"
 DEFAULT_PROMPT = (
     "You will receive a screenshot that may contain text in any language. "
     "Please do the following directly:\n"
@@ -53,6 +57,9 @@ I18N = {
         "section_preview_logs": "預覽與即時 Log",
         "profile": "API 設定檔",
         "sidebar_hint_title": "使用提示",
+        "sidebar_about_title": "作者與倉庫",
+        "about_author_label": "作者",
+        "about_repo_label": "倉庫",
         "new_profile": "新增設定檔",
         "page_settings_title": "OCR 工作台設定",
         "page_settings_subtitle": "整理 API 設定檔、閱讀偏好與全域快捷鍵，讓截圖翻譯保持輕巧順手。",
@@ -192,6 +199,9 @@ I18N = {
         "section_preview_logs": "Preview & Runtime Log",
         "profile": "API Profile",
         "sidebar_hint_title": "Usage Tip",
+        "sidebar_about_title": "Author & Repository",
+        "about_author_label": "Author",
+        "about_repo_label": "Repository",
         "new_profile": "New Profile",
         "page_settings_title": "Workspace Settings",
         "page_settings_subtitle": "Tune API profiles, reading preferences, and the global hotkey in a calmer, more compact workspace.",

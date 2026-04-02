@@ -20,6 +20,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ..constants import (
+    AUTHOR_NAME_EN,
+    AUTHOR_NAME_ZH,
+    REPOSITORY_NAME,
+    REPOSITORY_URL,
+)
 from ..profile_utils import normalize_provider_name
 
 
@@ -143,6 +149,23 @@ class MainWindowLayoutMixin:
         hint_layout.addWidget(self.hint_title_label)
         hint_layout.addWidget(self.hint_label)
         sidebar_layout.addWidget(self.hint_card)
+
+        self.about_card = QFrame()
+        self.about_card.setObjectName("AboutCard")
+        about_layout = QVBoxLayout(self.about_card)
+        about_layout.setContentsMargins(14, 14, 14, 14)
+        about_layout.setSpacing(8)
+        self.about_title_label = QLabel()
+        self.about_title_label.setObjectName("AboutTitleLabel")
+        self.about_meta_label = QLabel()
+        self.about_meta_label.setObjectName("AboutMetaLabel")
+        self.about_meta_label.setWordWrap(True)
+        self.about_meta_label.setOpenExternalLinks(True)
+        self.about_meta_label.setTextFormat(Qt.RichText)
+        self.about_meta_label.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        about_layout.addWidget(self.about_title_label)
+        about_layout.addWidget(self.about_meta_label)
+        sidebar_layout.addWidget(self.about_card)
 
         shell.addWidget(self.sidebar)
 
@@ -525,6 +548,20 @@ class MainWindowLayoutMixin:
                 color:#8592a5;
                 line-height:1.45;
             }
+            #AboutCard {
+                background:#0f1722;
+                border:1px solid #233244;
+                border-radius:20px;
+            }
+            #AboutTitleLabel {
+                color:#d9e3f8;
+                font-size:13px;
+                font-weight:700;
+            }
+            #AboutMetaLabel {
+                color:#90a0b6;
+                line-height:1.5;
+            }
             #HeaderCard {
                 background:qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #161f2d, stop:0.55 #131b28, stop:1 #0f1621);
                 border:1px solid #263243;
@@ -803,6 +840,17 @@ class MainWindowLayoutMixin:
         self.nav_monitor_button.setText(self.tr("tab_monitor"))
         self.hint_title_label.setText(self.tr("sidebar_hint_title"))
         self.hint_label.setText(self.tr("hint"))
+        self.about_title_label.setText(self.tr("sidebar_about_title"))
+        self.about_meta_label.setText(
+            "<span style='color:#90a0b6;'>"
+            f"{self.tr('about_author_label')}：</span>"
+            f"<span style='color:#eef3fb;'>{AUTHOR_NAME_ZH}</span>"
+            f" <span style='color:#70809b;'>/</span> "
+            f"<span style='color:#cfdaf0;'>{AUTHOR_NAME_EN}</span>"
+            "<br/>"
+            f"<span style='color:#90a0b6;'>{self.tr('about_repo_label')}：</span>"
+            f"<a href='{REPOSITORY_URL}' style='color:#9db1ff; text-decoration:none;'>{REPOSITORY_NAME}</a>"
+        )
         self.profile_group_title_label.setText(self.tr("section_profiles"))
         self.api_group_title_label.setText(self.tr("section_api"))
         self.reading_group_title_label.setText(self.tr("section_reading"))
