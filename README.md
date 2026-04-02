@@ -1,44 +1,130 @@
 # OCRTranslator
 
-一個可對螢幕任意文字區域做 OCR 與翻譯的桌面工具。
+OCRTranslator 是一款以**桌面即時閱讀**為核心的**便攜式 OCR 翻譯軟體**。你可以直接框選螢幕上的任意區域，將截圖交給多模態模型進行文字辨識與翻譯，並把結果以懸浮面板顯示在原文附近，適合用於漫畫、網頁、PDF、遊戲介面、文件截圖與各種桌面內容。
 
-## 現況
+目前版本的 UI 已完成一輪較完整的迭代，後續功能開發會**延續現有的 UI 設計與互動方向**，在這個基礎上持續擴充，而不是重頭推翻重做。
 
-專案 UI 已改為 **PySide6 / Qt Widgets**，並開始做第一輪現代化風格重構。
+---
 
-目前方向：
+## 專案定位
 
-- 主視窗改成更有層次的深色桌面工具風格
-- 新增 hero card 與快速操作區
-- 設定頁調整為雙欄卡片布局
-- monitor 頁面改成大預覽 + 右側 log 面板
-- 翻譯浮窗補上陰影與更清楚的分層
+OCRTranslator 不是傳統的「先本地 OCR，再把文字送去另一個翻譯服務」的雙階段工具。
 
-## 目前功能
+它目前的核心流程是：
 
-- 框選螢幕任意區域截圖
-- 將截圖送給 Gemini / OpenAI 相容多模態 API 做 OCR + 翻譯
-- 不限制來源語言，交由模型直接辨識並翻譯成目標語言
-- 翻譯結果以浮窗顯示在截圖區域對側
-- 支援兩種定位模式：
-  - `book_lr`：適合左右閱讀情境，截右側顯示在左邊，截左側顯示在右邊
-  - `web_ud`：適合上下閱讀情境，截上半顯示在下方，截下半顯示在上方
-- 支援全域快捷鍵觸發截圖
-- 支援最小化到 System Tray（系統匣）
-- 主視窗右上角 `X` 會直接退出程式
-- System Tray 點擊可快速還原主視窗
-- 主視窗與系統匣共用同一套程式圖示
-- UI 可切換繁體中文 / English
-- 支援多個 API 設定檔、模型列表拉取、API 測試
-- 同一個 URL 可設定多個 API Key，自動輪循與重試
-- API Key 預設遮罩顯示，可用眼睛按鈕切換顯示
-- 模型下拉選單會隱藏 `models/` 前綴，顯示更乾淨
-- 相容格式改為唯讀下拉選單，不再可自由輸入
-- 內建最近 100 條記憶體 log 顯示，不落地保存
-- 翻譯浮窗支援自訂字型與字級
-- 可在翻譯浮窗內使用 `Ctrl + 滑鼠滾輪` 即時放大 / 縮小字體
+1. 擷取你選取的螢幕區域
+2. 將圖片送到 **Gemini / OpenAI 相容多模態 API**
+3. 直接讓模型完成：
+   - 圖中文字辨識
+   - 原始語言判斷
+   - 翻譯成目標語言
+   - 依閱讀順序整理輸出
+4. 將翻譯結果顯示在原文附近的懸浮視窗中
 
-## 安裝
+這讓它更適合「快速閱讀、隨手理解、盡量不打斷視線」的桌面使用情境。
+
+---
+
+## 目前特色
+
+### 即時框選翻譯
+- 可直接框選螢幕任意區域
+- 將截圖送給多模態模型進行 OCR + 翻譯
+- 不限制來源語言，由模型自行辨識
+- 可自訂目標語言
+
+### 兩種閱讀定位模式
+- `book_lr`
+  - 適合左右閱讀情境，例如漫畫、雙頁內容
+  - 優先把翻譯浮窗放在原文左右對側
+- `web_ud`
+  - 適合上下閱讀情境，例如網頁、長文、聊天記錄
+  - 優先把翻譯浮窗放在原文上下對側
+
+### 多 API 設定檔管理
+- 支援多個 API Profile
+- 支援 `Gemini Compatible` / `OpenAI Compatible`
+- 每個設定檔都可獨立設定：
+  - 名稱
+  - Provider
+  - Base URL
+  - 多個 API Keys
+  - 模型
+  - 重試次數與間隔
+
+### 多 Key 輪循與重試
+- 同一個設定檔可填入多個 API Key
+- 請求失敗時會輪替下一個 Key
+- 支援自動重試與重試間隔
+
+### 可交互的翻譯浮窗
+- 會盡量顯示在原文附近且避免遮擋
+- 可複製翻譯結果
+- 可 Pin / 取消 Pin
+- 可調整透明度
+- 可拖曳移動
+- 可自訂字型與字級
+- 支援 `Ctrl + 滑鼠滾輪` 即時縮放字體
+
+### 桌面工具整合
+- 支援全域快捷鍵啟動截圖
+- 支援 System Tray（系統匣）
+- 支援單實例保護
+- 重複啟動時可喚回現有視窗或直接轉發截圖動作
+
+### 便攜式配置
+- `config.json` 預設保存在專案根目錄 / exe 同層
+- 可直接整包搬移、備份與分發
+- 不依賴使用者 AppData 路徑
+
+### 工程化細節
+- 損壞的 `config.json` 會自動備份後重建
+- 可遷移舊版單一 API 設定格式
+- 執行紀錄保存在記憶體中，不預設落地
+- 提供基礎單元測試
+- 提供 Windows 雙擊啟動與打包腳本
+
+---
+
+## 目前產品狀態
+
+目前這個版本已經不是原型，而是一個功能閉環完整的桌面工具版本：
+
+- 現有 UI 已可作為後續版本的設計基線
+- 核心 OCR / 翻譯 / 顯示流程已可穩定使用
+- 接下來更適合做的是**增量優化與功能擴充**
+- 當前定位非常清楚：**便攜、快速、為閱讀體驗服務的 OCR 翻譯工作台**
+
+---
+
+## 功能總覽
+
+| 模組 | 目前能力 |
+|---|---|
+| 螢幕擷取 | 框選任意區域，多螢幕環境下盡量依目標螢幕定位 |
+| 翻譯 | 透過多模態模型直接完成 OCR + 翻譯 |
+| API | 支援 Gemini / OpenAI 相容接口 |
+| 設定檔 | 多 Profile 管理、切換、建立、刪除 |
+| 模型管理 | 拉取模型列表、模型名稱正規化顯示 |
+| 快捷鍵 | 全域快捷鍵觸發截圖 |
+| 浮窗 | 複製、固定、透明度調整、拖曳、字體縮放 |
+| 托盤 | 還原主視窗、托盤截圖、退出程式 |
+| 配置 | 根目錄 `config.json`，便攜式保存 |
+| 日誌 | 最近 100 筆執行紀錄，記憶體保存 |
+| 啟動 | 單實例保護、重複啟動轉發動作 |
+| 打包 | `build_exe.bat` 打包成單檔 exe |
+
+---
+
+## 技術棧
+
+- Python 3.11+
+- PySide6
+- Pillow
+- requests
+- pynput
+
+安裝依賴：
 
 ```bash
 python -m venv .venv
@@ -46,139 +132,427 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-## 專案結構
+---
 
-```text
-OCRTranslator/
-├─ app/                    # 主程式碼
-│  ├─ main.py              # 程式入口，處理單實例與啟動流程
-│  ├─ config_store.py      # 設定檔讀寫、遷移、原子保存
-│  ├─ api_client.py        # Gemini / OpenAI 相容 API 呼叫
-│  ├─ profile_utils.py     # provider / model / key 正規化工具
-│  ├─ workers.py           # 背景工作執行與 Qt bridge
-│  └─ ui/                  # PySide6 UI 元件
-│     ├─ main_window.py            # 主視窗流程編排
-│     ├─ main_window_layout.py     # 主視窗布局、樣式、按鈕/圖示建構
-│     ├─ main_window_profiles.py   # 設定檔表單、保存、切換邏輯
-│     ├─ overlay_positioning.py    # 翻譯浮窗尺寸與定位策略
-│     ├─ selection_overlay.py      # 截圖框選浮層
-│     └─ translation_overlay.py    # 翻譯結果浮窗
-├─ tests/                  # 最小可用測試
-│  ├─ test_config_store.py # 設定遷移與欄位正規化測試
-│  └─ test_api_client.py   # API 錯誤解析與回應格式測試
-├─ launcher.pyw            # GUI 啟動包裝器，負責顯示啟動錯誤
-├─ start.bat               # 建議的雙擊啟動入口
-├─ build_exe.bat           # 打包腳本，輸出 release\
-├─ config.example.json     # 公開分享用設定範本
-├─ README.md               # 專案說明
-└─ requirements.txt        # Python 依賴
-```
+## 快速開始
 
-- `.limcode/`：本輪設計與實作過程留下的設計/計畫文件，屬於開發輔助資料。
-- `config.json`：你的本機設定檔，預設放在專案根目錄 / exe 同層，不進版控，可能包含 API key。
-
-## 設定檔與敏感資訊
-
-- `config.json` 會保存你本機的 API key 與個人使用偏好
-- 預設位置就是專案根目錄 / exe 同層：`config.json`
-- 這樣整個資料夾可直接搬移、打包、備份，維持便攜式使用方式
-- 若把整個 `release\` 資料夾拷到另一台電腦，`config.json` 也可一起帶走
-- 建議把程式放在可寫入的普通資料夾中使用；若放到 `Program Files` 之類受保護目錄，可能無法更新 `config.json`
-
-- `config.json` 已加入 `.gitignore`，不會進版控
-- 提供 `config.example.json` 當公開/分享用範本
-- 若要給別人使用，請只提供 `config.example.json` 或讓程式首次啟動自動生成空白 `config.json`
-
-
-## 測試
-
-```bash
-python -m unittest discover -v
-```
-
-## 啟動方式
-
-### 方式 1：命令列
+### 方式 1：命令列啟動
 
 ```bash
 python -m app.main
 ```
 
-### 方式 2：雙擊直接啟動
+### 方式 2：雙擊啟動（推薦）
 
 直接雙擊：
 
 - `start.bat`
 
-> 現在主要的雙擊入口已改成 `start.bat`。它會自動檢查 `.venv` 與依賴，並透過 `launcher.pyw` 啟動；若啟動時有例外，也會跳出錯誤視窗，而不是靜默閃退。
->
-> 程式已加入單實例保護；若你重複雙擊，第二份不會再真的啟動，而是會通知並喚回已經開啟的主視窗。
+它會自動：
 
-你也可以直接用：
+1. 檢查 `.venv`
+2. 補裝 `requirements.txt` 依賴
+3. 透過 `launcher.pyw` 啟動 GUI
+4. 若啟動期有例外，跳出錯誤視窗而不是靜默閃退
+
+### 方式 3：直接啟動 GUI 包裝器
+
+也可以直接執行：
 
 - `launcher.pyw`
 
-但一般建議優先雙擊 `start.bat`。
+但一般仍建議以 `start.bat` 作為主要入口。
 
-## 打包 exe
+---
 
-雙擊：
+## 命令列參數
+
+支援直接要求現有實例開始截圖：
+
+```bash
+python -m app.main --capture
+```
+
+可識別參數：
+
+- `--capture`
+- `/capture`
+- `capture`
+
+行為如下：
+
+- 若尚未啟動：開啟程式並直接進入截圖
+- 若已有執行中的實例：轉發「開始截圖」動作給現有實例
+
+---
+
+## 設定檔
+
+### 位置
+
+預設設定檔位置：
+
+- `config.json`
+
+路徑規則：
+
+- 原始碼模式：專案根目錄
+- 打包 exe 模式：exe 所在目錄
+
+這代表：
+
+- 可以整個資料夾直接搬到另一台電腦
+- 可以選擇把 `config.json` 一起帶走
+- 也可以不附帶 `config.json`，讓新環境首次啟動時自動建立預設檔
+
+### 設定內容
+
+目前 `config.json` 主要保存：
+
+- 目標語言
+- 顯示模式
+- 全域快捷鍵
+- 浮窗字型 / 字級 / 透明度 / 是否固定
+- 當前啟用的 API Profile
+- 全部 API Profiles
+
+可參考範例：
+
+- `config.example.json`
+
+### 敏感資訊提醒
+
+`config.json` 可能包含：
+
+- API Keys
+- 私有 Base URL
+- 個人偏好設定
+
+因此倉庫已忽略：
+
+- `config.json`
+- `.venv/`
+- `build/`
+- `dist/`
+- `release/`
+
+如果要分享給別人，建議只提供：
+
+- `OCRTranslator.exe`
+- `README.md`
+- `config.example.json`
+
+不要直接提供你自己的 `config.json`。
+
+---
+
+## API 設定說明
+
+### 支援的 Provider
+
+#### Gemini Compatible
+預設示例：
+
+- Base URL：`https://generativelanguage.googleapis.com`
+- 模型：`models/gemini-3.1-flash-lite-preview`
+
+#### OpenAI Compatible
+預設示例：
+
+- Base URL：`https://api.openai.com`
+- 模型：由使用者自行填寫或拉取
+
+### API Keys
+
+- `API Keys` 欄位支援每行一個 Key
+- 同一個設定檔中的 Key 會自動輪替
+- 某個 Key 失敗時可繼續嘗試其他 Key
+
+### 模型列表
+
+- `Fetch Models` 會使用目前表單內容直接請求 API
+- 成功後回填模型列表到目前表單
+- Gemini 模型顯示時會隱藏 `models/` 前綴，方便閱讀
+- 儲存時仍保留正規化模型值
+
+### API 測試
+
+- `Test API` 會用目前表單內容實際驗證連線
+- 不會偷偷自動儲存設定
+- 結果會寫入執行紀錄區
+
+---
+
+## 使用流程
+
+### 1. 先完成 API 設定
+在設定頁中填好：
+
+- Provider
+- Base URL
+- API Keys
+- Model
+- Target Language
+- Global Hotkey
+
+然後建議依序執行：
+
+- `Fetch Models`（可選）
+- `Test API`（建議）
+- `Save Settings`
+
+### 2. 開始截圖
+你可以透過以下任一方式啟動截圖：
+
+- 主畫面的 `Start Screen Capture`
+- 托盤選單中的截圖項目
+- 全域快捷鍵
+- 用 `--capture` 參數啟動
+
+### 3. 查看翻譯結果
+截圖完成後：
+
+- 最近一次截圖會顯示在 `Preview & Log` 頁面
+- 翻譯結果會以懸浮視窗顯示在原文旁邊
+- 執行過程會記錄到記憶體日誌
+
+### 4. 操作翻譯浮窗
+浮窗目前支援：
+
+- `Copy Result`：複製翻譯內容
+- `Pin`：固定懸浮窗
+- `+ / -`：調整透明度
+- `Ctrl + 滑鼠滾輪`：縮放字體
+- 滑鼠拖曳：移動位置
+
+---
+
+## 介面結構
+
+### Settings
+主要負責：
+
+- API Profile 管理
+- Provider / URL / Keys / Model 設定
+- 目標語言與 UI 語言切換
+- 全域快捷鍵錄製
+- 翻譯字型與字級設定
+- 常用操作入口
+
+### Preview & Log
+主要負責：
+
+- 顯示最近一次截圖預覽
+- 顯示最近 100 筆執行紀錄
+- 從這個頁面直接重新發起截圖
+
+### Selection Overlay
+截圖時會顯示全螢幕半透明覆蓋層：
+
+- 左鍵拖曳選取範圍
+- `Esc` 或右鍵取消
+
+### Translation Overlay
+翻譯結果使用獨立無邊框置頂視窗顯示：
+
+- 自動貼近原文
+- 盡量降低遮擋原文的機率
+- 可維持較好的閱讀節奏
+
+---
+
+## 單實例與托盤行為
+
+### 單實例
+應用會使用鎖檔與本地 server 保證單實例。
+
+重複啟動時：
+
+- 普通啟動：喚回現有主視窗
+- `--capture` 啟動：喚回現有實例並直接開始截圖
+
+### 托盤
+- 點選 `最小化到系統匣` 後會隱藏主視窗
+- 點擊托盤圖示可還原主視窗
+- 托盤選單提供：
+  - 顯示主視窗
+  - 開始截圖
+  - 退出程式
+
+> 注意：目前右上角 `X` 的行為是**直接退出程式**，不是縮到系統匣。
+
+---
+
+## 日誌與錯誤處理
+
+### 執行日誌
+- 僅保存在記憶體中
+- 最多保留最近 100 筆
+- 預設不寫入磁碟
+
+### 設定檔損壞恢復
+如果 `config.json` 解析失敗：
+
+- 會先嘗試備份舊檔
+- 備份檔命名格式：
+
+```text
+config.broken-YYYYMMDD-HHMMSS.json
+```
+
+- 接著建立新的預設設定檔
+
+### 啟動期錯誤顯示
+`launcher.pyw` 會優先使用 Qt 顯示錯誤訊息；若失敗，再退回 Tkinter；再不行才輸出到標準錯誤。
+
+---
+
+## 打包成 exe
+
+直接雙擊：
 
 - `build_exe.bat`
 
-打包完成後會重新建立 `release\` 發行資料夾，輸出位置：
+它會自動：
 
-- `release\OCRTranslator.exe`
+1. 建立或檢查 `.venv`
+2. 安裝 `requirements.txt` 與 `pyinstaller`
+3. 清理舊的 `build/`、`dist/`、`release/`
+4. 輸出：
 
-### 打包注意
+```text
+release\OCRTranslator.exe
+```
 
-- `release\README.md` 與 `release\config.example.json` 會由打包腳本自動從根目錄複製
-- 打包後程式會以 exe 所在目錄作為設定檔根目錄
-- 也就是說，分享給別人時可以選擇不附帶 `config.json`，讓對方首次啟動自行建立
-- 若你需要真正的便攜包，也可以把 `config.json` 一起放在 exe 同層打包帶走
+5. 複製：
+   - `README.md`
+   - `config.example.json`
 
+### 建議分發內容
 
-## API 管理
+推薦：
 
-- 預設提供一個 `Default Gemini` 設定檔
-- 預設 URL：`https://generativelanguage.googleapis.com`
-- 預設模型：`models/gemini-3.1-flash-lite-preview`
-- `API Keys` 欄位可每行放一個 key
-- `Fetch Models`：拉取模型列表並回填到目前表單
-- `Test API`：驗證 URL / API key 是否可用，結果會寫到 log 區
-- `Retry Count` / `Retry Interval`：控制失敗後的自動重試次數與秒數
-- 模型顯示會自動去掉 `models/` 前綴，但儲存時仍保留完整模型名稱
-- `Fetch Models` / `Test API` 會使用目前表單內容進行請求，不會再偷偷幫你存檔
-- 若表單仍有未儲存變更，切換設定檔或退出時會提示你先儲存 / 捨棄
+```text
+release\OCRTranslator.exe
+release\README.md
+release\config.example.json
+```
 
-## 翻譯浮窗顯示
+不建議：
 
-- 可在 `閱讀與翻譯設定` 中調整：
-  - `翻譯字型 / Translation Font`
-  - `翻譯字級 / Translation Font Size`
-- 浮窗會依據文字內容長度與字級自動估算寬高
-- 浮窗會優先保持在原文對側，降低遮擋原文的機率
-- 已顯示浮窗時，可直接用 `Ctrl + 滑鼠滾輪` 即時縮放字體
+```text
+config.json
+.venv\
+build\
+dist\
+*.spec
+```
 
-## Release 包
+---
 
-若要分享給他人，建議提供：
+## 測試
 
-- `release\OCRTranslator.exe`
-- `release\config.example.json`
-- `release\README.md`
+執行單元測試：
 
-不要提供：
+```bash
+python -m unittest discover -v
+```
 
-- 你的 `config.json`
-- 你的 `.venv`
-- 開發過程產生的 `build/`、`dist/`、`*.spec`
+目前測試涵蓋的重點包括：
 
-## 接下來的 UI 方向
+- API 錯誤訊息解析
+- OpenAI / Gemini 回應格式處理
+- 設定遷移與欄位正規化
+- 損壞設定檔重建
+- 便攜式設定讀取路徑
 
-第一輪已先把基礎視覺往現代化方向推進；下一輪還可以繼續做：
+---
 
-- 自訂左側 navigation rail
-- 更精緻的卡片層次與顏色系統
-- 翻譯浮窗 pin / copy / opacity 控制
-- Qt 化的錯誤彈窗與更多細緻互動
+## 專案結構
+
+```text
+OCRTranslator/
+├─ app/
+│  ├─ __init__.py
+│  ├─ api_client.py                # Gemini / OpenAI compatible API 呼叫
+│  ├─ config_store.py              # 設定載入、遷移、儲存、損壞恢復
+│  ├─ constants.py                 # 常數、預設值、多語系文案
+│  ├─ main.py                      # 入口、單實例控制、啟動流程
+│  ├─ models.py                    # AppConfig / ApiProfile 資料結構
+│  ├─ profile_utils.py             # Provider / Model 正規化工具
+│  ├─ workers.py                   # 背景執行緒與 Qt bridge
+│  └─ ui/
+│     ├─ __init__.py
+│     ├─ main_window.py            # 主流程、截圖、翻譯、托盤、錯誤處理
+│     ├─ main_window_layout.py     # 主介面版面、樣式、元件建構
+│     ├─ main_window_profiles.py   # 設定表單邏輯、驗證、儲存
+│     ├─ overlay_positioning.py    # 翻譯浮窗尺寸與位置計算
+│     ├─ selection_overlay.py      # 全螢幕框選覆蓋層
+│     └─ translation_overlay.py    # 翻譯結果懸浮窗
+├─ tests/
+│  ├─ __init__.py
+│  ├─ test_api_client.py
+│  └─ test_config_store.py
+├─ launcher.pyw                    # GUI 啟動器，負責啟動期錯誤提示
+├─ start.bat                       # 推薦啟動入口
+├─ build_exe.bat                   # Windows 打包腳本
+├─ config.example.json             # 設定範本
+├─ requirements.txt
+├─ README.md
+└─ .gitignore
+```
+
+`.limcode/` 目錄是本地設計與實作過程文件，屬於開發輔助資料，不是程式執行必要部分。
+
+---
+
+## 已知邊界
+
+以下屬於目前產品設計上的已知邊界，不等於故障：
+
+- 辨識與翻譯品質高度依賴所接入的多模態模型
+- 目前不內建離線 OCR 引擎
+- 工程與啟動腳本主要面向 Windows 使用情境
+- 浮窗定位以「閱讀不遮擋」為主，不是嚴格排版系統
+- 日誌預設只保留在記憶體，不適合做長期審計
+
+---
+
+## 後續方向
+
+目前版本已具備穩定的產品基線，後續更適合沿著這些方向繼續演進：
+
+- 接入更多 Provider / 模型
+- 增強翻譯結果後處理與分段表現
+- 補強浮窗定位與操作細節
+- 提升錯誤提示與可觀測性
+- 擴充測試覆蓋與發布流程
+
+整體來說，下一步不是「重新定義 UI 長什麼樣」，而是持續沿用現在這套設計系統做功能延伸與體驗打磨。
+
+---
+
+## 開發者入口建議
+
+如果要繼續維護，建議先從以下檔案開始閱讀：
+
+1. `app/main.py` —— 啟動與單實例入口
+2. `app/ui/main_window.py` —— 主工作流程
+3. `app/ui/main_window_profiles.py` —— 設定表單與驗證邏輯
+4. `app/ui/translation_overlay.py` —— 翻譯浮窗互動
+5. `app/api_client.py` —— Provider 請求實作
+
+---
+
+## License
+
+目前倉庫中尚未看到明確的 License 檔案。
+
+如果之後要公開釋出、讓其他人協作，建議補上：
+
+- `LICENSE`
+- 版本策略
+- Release 說明
+- 截圖或 GIF 展示
+
+這樣整個專案會更完整。
