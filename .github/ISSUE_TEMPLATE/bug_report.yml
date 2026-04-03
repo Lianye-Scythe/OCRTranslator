@@ -1,0 +1,69 @@
+name: Bug Report
+description: 回報程式錯誤、閃退、行為異常或相容性問題
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感謝你回報問題。請盡量附上重現步驟、畫面截圖、執行紀錄，以及根目錄中的 crash log（若有）。
+  - type: textarea
+    id: summary
+    attributes:
+      label: 問題摘要
+      description: 簡單描述發生了什麼事
+      placeholder: 例如：按下全域快捷鍵後程式直接關閉
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 重現步驟
+      description: 請列出可以穩定重現問題的步驟
+      placeholder: |
+        1. 開啟程式
+        2. 切換到某個設定檔
+        3. 按下快捷鍵
+        4. 程式閃退
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 預期結果
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 實際結果
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 版本 / Commit
+      description: 如果知道目前使用的 commit 或 release，請填上
+      placeholder: 例如：main@3e16875
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: 執行方式
+      options:
+        - 原始碼執行
+        - 打包 exe
+        - 不確定
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: 環境資訊
+      description: 作業系統、Python 版本、顯示器數量、是否高 DPI 等
+      placeholder: Windows 11 / Python 3.11 / 雙螢幕 / 150% 縮放
+  - type: textarea
+    id: logs
+    attributes:
+      label: 相關日誌或 crash log
+      description: 請貼上關鍵片段，不要直接貼 API Key
+      render: text

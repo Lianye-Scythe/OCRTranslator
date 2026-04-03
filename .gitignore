@@ -11,3 +11,4 @@ release/
 config.json
 *.log
 .limcode/
+ocrtranslator-crash-*.log

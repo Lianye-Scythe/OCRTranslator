@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: OCRTranslator Repository
+    url: https://github.com/Lianye-Scythe/OCRTranslator
+    about: 先閱讀 README、CONTRIBUTING 與 SECURITY 再建立 issue。

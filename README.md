@@ -1,5 +1,7 @@
 # OCRTranslator
 
+[![CI](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml/badge.svg)](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml)
+
 OCRTranslator 是一款以**桌面即時閱讀**為核心的**便攜式 OCR 翻譯軟體**。你可以直接框選螢幕上的任意區域，將截圖交給多模態模型進行文字辨識與翻譯，並把結果以懸浮面板顯示在原文附近，適合用於漫畫、網頁、PDF、遊戲介面、文件截圖與各種桌面內容。
 
 目前版本的 UI 已完成一輪較完整的迭代，後續功能開發會**延續現有的 UI 設計與互動方向**，在這個基礎上持續擴充，而不是重頭推翻重做。
@@ -405,6 +407,17 @@ config.broken-YYYYMMDD-HHMMSS.json
 ### 啟動期錯誤顯示
 `launcher.pyw` 會優先使用 Qt 顯示錯誤訊息；若失敗，再退回 Tkinter；再不行才輸出到標準錯誤。
 
+### Crash Log
+若程式遇到未處理例外而異常退出，會自動在根目錄留下 crash log：
+
+```text
+ocrtranslator-crash-YYYYMMDD-HHMMSS.log
+```
+
+- 原始碼執行時：保存在專案根目錄
+- 打包為 exe 時：保存在 exe 同層目錄
+- 建議回報問題時附上 crash log 內容，但請先確認其中沒有 API Key 等敏感資訊
+
 ---
 
 ## 打包成 exe
@@ -464,6 +477,7 @@ python -m unittest discover -v
 - OpenAI / Gemini 回應格式處理
 - 設定遷移與欄位正規化
 - 損壞設定檔重建
+- crash log 生成與落盤
 - 便攜式設定讀取路徑
 
 ---
@@ -477,6 +491,7 @@ OCRTranslator/
 │  ├─ api_client.py                # Gemini / OpenAI compatible API 呼叫
 │  ├─ config_store.py              # 設定載入、遷移、儲存、損壞恢復
 │  ├─ constants.py                 # 常數、預設值、多語系文案
+│  ├─ crash_reporter.py            # 未處理例外 crash log 生成與落盤
 │  ├─ main.py                      # 入口、單實例控制、啟動流程
 │  ├─ models.py                    # AppConfig / ApiProfile 資料結構
 │  ├─ profile_utils.py             # Provider / Model 正規化工具
@@ -492,10 +507,15 @@ OCRTranslator/
 ├─ tests/
 │  ├─ __init__.py
 │  ├─ test_api_client.py
+│  ├─ test_crash_reporter.py
 │  └─ test_config_store.py
 ├─ launcher.pyw                    # GUI 啟動器，負責啟動期錯誤提示
 ├─ start.bat                       # 推薦啟動入口
 ├─ build_exe.bat                   # Windows 打包腳本
+├─ .github/                        # CI、Issue/PR 模板
+├─ CONTRIBUTING.md                 # 協作與提交建議
+├─ SECURITY.md                     # 安全性回報說明
+├─ CHANGELOG.md                    # 重要變更紀錄骨架
 ├─ config.example.json             # 設定範本
 ├─ requirements.txt
 ├─ README.md
@@ -539,6 +559,21 @@ OCRTranslator/
 3. `app/ui/main_window_profiles.py` —— 設定表單與驗證邏輯
 4. `app/ui/translation_overlay.py` —— 翻譯浮窗互動
 5. `app/api_client.py` —— Provider 請求實作
+
+---
+
+## GitHub 協作與治理
+
+目前倉庫已補上較正式的協作檔案，可直接搭配 GitHub 使用：
+
+- `.github/workflows/ci.yml` —— push / PR 自動跑測試與 compile 檢查
+- `.github/ISSUE_TEMPLATE/` —— bug / feature issue 模板
+- `.github/PULL_REQUEST_TEMPLATE.md` —— PR 檢查清單
+- `CONTRIBUTING.md` —— 提交與協作建議
+- `SECURITY.md` —— 安全性回報注意事項
+- `CHANGELOG.md` —— 重要變更紀錄骨架
+
+如果之後要對外發布版本，建議開始固定維護 `CHANGELOG.md`。
 
 ---
 

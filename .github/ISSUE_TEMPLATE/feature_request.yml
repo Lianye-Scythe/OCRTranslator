@@ -1,0 +1,37 @@
+name: Feature Request
+description: 提出新功能、互動改進或使用流程優化建議
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: 需求目標
+      description: 你想解決什麼問題？
+      placeholder: 例如：希望浮窗可以記住每個模式下的最後位置
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建議方案
+      description: 如果你有具體想法，可以直接描述
+  - type: textarea
+    id: use_case
+    attributes:
+      label: 使用情境
+      description: 這個功能會在什麼情況下派上用場？
+      placeholder: 例如：閱讀漫畫時常常需要調整浮窗位置
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 影響範圍
+      options:
+        - UI / UX
+        - OCR / 翻譯流程
+        - API / Provider
+        - 打包 / 發布
+        - 設定與資料保存
+        - 其他

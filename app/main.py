@@ -11,6 +11,16 @@ from .constants import APP_LOCK_PATH, APP_SERVER_NAME, I18N, LOCK_STALE_MS
 from .ui.main_window import MainWindow
 
 
+class CrashAwareApplication(QApplication):
+    def notify(self, receiver, event):
+        try:
+            return super().notify(receiver, event)
+        except Exception as exc:  # noqa: BLE001
+            sys.excepthook(type(exc), exc, exc.__traceback__)
+            self.quit()
+            return False
+
+
 def acquire_single_instance_lock() -> QLockFile | None:
     Path(APP_LOCK_PATH).parent.mkdir(parents=True, exist_ok=True)
     lock = QLockFile(APP_LOCK_PATH)
@@ -47,7 +57,7 @@ def should_forward_capture_request() -> bool:
 
 def run_app():
     QGuiApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
-    app = QApplication.instance() or QApplication([])
+    app = QApplication.instance() or CrashAwareApplication([])
     app.setQuitOnLastWindowClosed(False)
     app.setApplicationName("OCRTranslator")
 
