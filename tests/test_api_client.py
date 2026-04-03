@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch
 
 import requests
 
-from app.api_client import ApiClient
+from app.api_client import ApiClient, ApiClientError
 from app.models import ApiProfile
 
 
@@ -83,6 +83,42 @@ class ApiClientTests(unittest.TestCase):
 
         with self.assertRaisesRegex(RuntimeError, "OpenAI blocked the response with content_filter"):
             self.client._translate_openai(self.profile, "demo-key", "prompt", "base64", 0.2)
+
+    @patch("app.api_client.time.sleep")
+    def test_translate_image_retry_count_one_only_runs_one_round_of_keys(self, mock_sleep):
+        profile = ApiProfile(
+            name="Retry Test",
+            provider="openai",
+            base_url="https://api.openai.com",
+            api_keys=["key-1", "key-2", "key-3"],
+            model="gpt-4o-mini",
+            retry_count=1,
+            retry_interval=0,
+        )
+
+        with patch.object(self.client, "_translate_openai", side_effect=RuntimeError("boom")) as mock_translate:
+            with self.assertRaisesRegex(RuntimeError, "boom"):
+                self.client.translate_image(Mock(), profile, "繁體中文", 0.2)
+
+        self.assertEqual(mock_translate.call_count, 3)
+        mock_sleep.assert_not_called()
+
+    def test_translate_image_stops_retrying_when_error_is_non_retryable(self):
+        profile = ApiProfile(
+            name="Retry Stop",
+            provider="gemini",
+            base_url="https://generativelanguage.googleapis.com",
+            api_keys=["key-1", "key-2", "key-3"],
+            model="models/gemini-1.5-flash",
+            retry_count=3,
+            retry_interval=0,
+        )
+
+        with patch.object(self.client, "_image_to_base64", return_value="base64"), patch.object(self.client, "_translate_gemini", side_effect=ApiClientError("Gemini finished without text (finishReason=PROHIBITED_CONTENT)", user_message="blocked", retryable=False)) as mock_translate:
+            with self.assertRaisesRegex(ApiClientError, "PROHIBITED_CONTENT"):
+                self.client.translate_image(Mock(), profile, "繁體中文", 0.2)
+
+        self.assertEqual(mock_translate.call_count, 1)
 
 
 if __name__ == "__main__":

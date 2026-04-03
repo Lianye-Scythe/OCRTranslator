@@ -645,7 +645,8 @@ class MainWindow(MainWindowLayoutMixin, MainWindowProfilesMixin, QMainWindow):
             self.restore_pinned_overlay_after_capture = False
         self.set_status("translate_failed" if is_capture_error else "operation_failed")
         self.log(f"Error: {actual_exc}")
-        QMessageBox.critical(self if self.isVisible() else None, self.tr("error_title"), str(actual_exc))
+        display_message = getattr(actual_exc, "user_message", str(actual_exc))
+        QMessageBox.critical(self if self.isVisible() else None, self.tr("error_title"), display_message)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

@@ -10,6 +10,13 @@ from .constants import DEFAULT_PROMPT
 from .models import ApiProfile
 
 
+class ApiClientError(RuntimeError):
+    def __init__(self, technical_message: str, *, user_message: str | None = None, retryable: bool = True):
+        super().__init__(technical_message)
+        self.user_message = user_message or technical_message
+        self.retryable = retryable
+
+
 class ApiClient:
     def __init__(self, log_func):
         self.log = log_func
@@ -83,41 +90,68 @@ class ApiClient:
 
     def _extract_openai_translation_text(self, data: dict) -> str:
         if not isinstance(data, dict):
-            raise RuntimeError("OpenAI returned an unexpected payload")
+            raise ApiClientError("OpenAI returned an unexpected payload")
         choices = data.get("choices", [])
         if not choices or not isinstance(choices[0], dict):
-            raise RuntimeError("OpenAI returned no choices")
+            raise ApiClientError("OpenAI returned no choices")
         choice = choices[0]
         content = self._openai_content_text(choice.get("message", {}).get("content", ""))
         if content:
             return content
         finish_reason = str(choice.get("finish_reason") or "").strip()
         if finish_reason == "content_filter":
-            raise RuntimeError("OpenAI blocked the response with content_filter")
+            raise ApiClientError(
+                "OpenAI blocked the response with content_filter",
+                user_message="OpenAI 因內容安全策略拒絕了這次翻譯。請縮小截圖範圍，或改用其他模型 / Provider 再試一次。",
+                retryable=False,
+            )
         if finish_reason:
-            raise RuntimeError(f"OpenAI finished without text (finish_reason={finish_reason})")
-        raise RuntimeError("OpenAI returned an empty message")
+            raise ApiClientError(
+                f"OpenAI finished without text (finish_reason={finish_reason})",
+                user_message=f"OpenAI 沒有回傳可顯示的翻譯內容（finish_reason={finish_reason}）。",
+            )
+        raise ApiClientError("OpenAI returned an empty message", user_message="OpenAI 沒有回傳可顯示的翻譯內容。")
 
     def _extract_gemini_translation_text(self, data: dict) -> str:
         if not isinstance(data, dict):
-            raise RuntimeError("Gemini returned an unexpected payload")
+            raise ApiClientError("Gemini returned an unexpected payload")
         prompt_feedback = data.get("promptFeedback") if isinstance(data, dict) else None
         if isinstance(prompt_feedback, dict):
             block_reason = str(prompt_feedback.get("blockReason") or "").strip()
             if block_reason:
-                raise RuntimeError(f"Gemini blocked the request: {block_reason}")
+                raise ApiClientError(
+                    f"Gemini blocked the request: {block_reason}",
+                    user_message=(
+                        f"Gemini 因內容安全策略拒絕了這次請求（{block_reason}）。"
+                        "請縮小截圖範圍、避開敏感內容，或改用其他模型 / Provider 再試一次。"
+                    ),
+                    retryable=False,
+                )
         candidates = data.get("candidates", [])
         if not candidates or not isinstance(candidates[0], dict):
-            raise RuntimeError("Gemini returned no candidates")
+            raise ApiClientError("Gemini returned no candidates", user_message="Gemini 沒有回傳可用候選結果。")
         candidate = candidates[0]
         parts = candidate.get("content", {}).get("parts", [])
         text = "\n".join(part.get("text", "") for part in parts if isinstance(part, dict) and part.get("text")).strip()
         if text:
             return text
         finish_reason = self._gemini_finish_reason_text(candidate.get("finishReason"))
+        if finish_reason == "PROHIBITED_CONTENT":
+            raise ApiClientError(
+                "Gemini finished without text (finishReason=PROHIBITED_CONTENT)",
+                user_message="Gemini 因內容安全策略拒絕了這次翻譯。請縮小截圖範圍、避開敏感內容，或改用其他模型 / Provider 再試一次。",
+                retryable=False,
+            )
         if finish_reason and finish_reason != "STOP":
-            raise RuntimeError(f"Gemini finished without text (finishReason={finish_reason})")
-        raise RuntimeError("Gemini returned an empty response")
+            raise ApiClientError(
+                f"Gemini finished without text (finishReason={finish_reason})",
+                user_message=f"Gemini 沒有回傳可顯示的翻譯內容（finishReason={finish_reason}）。",
+            )
+        raise ApiClientError("Gemini returned an empty response", user_message="Gemini 沒有回傳可顯示的翻譯內容。")
+
+    @staticmethod
+    def _is_retryable_exception(exc: Exception) -> bool:
+        return bool(getattr(exc, "retryable", True))
 
     def _request_openai_models(self, profile: ApiProfile, api_key: str) -> list[str]:
         response = requests.get(self._openai_url(profile.base_url, "/models"), headers={"Authorization": f"Bearer {api_key}"}, timeout=30)
@@ -152,36 +186,46 @@ class ApiClient:
     def translate_image(self, image: Image.Image, profile: ApiProfile, target_language: str, temperature: float) -> str:
         keys = [key.strip() for key in profile.api_keys if key.strip()]
         if not keys:
-            raise RuntimeError("No API key configured")
+            raise ApiClientError("No API key configured", user_message="目前設定檔沒有可用的 API Key。")
         if not profile.model.strip():
-            raise RuntimeError("No model configured")
+            raise ApiClientError("No model configured", user_message="目前設定檔沒有設定模型名稱。")
 
         prompt = f"{DEFAULT_PROMPT}\n\nTarget language: {target_language}"
         image_base64 = self._image_to_base64(image)
-        attempts_total = max(1, profile.retry_count + 1) * len(keys)
+        retry_rounds = max(1, int(profile.retry_count))
+        attempts_total = retry_rounds * len(keys)
         profile_key = f"{profile.provider}|{profile.base_url}|{profile.name}"
         start_index = self.profile_key_index.get(profile_key, 0) % len(keys)
         last_error = None
 
         for attempt in range(attempts_total):
             key_index = (start_index + attempt) % len(keys)
+            round_index = (attempt // len(keys)) + 1
             api_key = keys[key_index]
             self.profile_key_index[profile_key] = (key_index + 1) % len(keys)
             try:
-                self.log(f"Translate attempt {attempt + 1}/{attempts_total} | provider={profile.provider} | model={profile.model} | key#{key_index + 1}")
+                self.log(
+                    f"Translate attempt {attempt + 1}/{attempts_total} | round {round_index}/{retry_rounds} | "
+                    f"provider={profile.provider} | model={profile.model} | key#{key_index + 1}"
+                )
                 if profile.provider == "openai":
                     result = self._translate_openai(profile, api_key, prompt, image_base64, temperature)
                 else:
                     result = self._translate_gemini(profile, api_key, prompt, image_base64, temperature)
                 if result:
                     return result.strip()
-                raise RuntimeError("Empty response")
+                raise ApiClientError("Empty response", user_message="模型沒有回傳可顯示的翻譯內容。")
             except Exception as exc:  # noqa: BLE001
                 last_error = exc
                 self.log(f"Translate failed on attempt {attempt + 1}: {exc}")
+                if not self._is_retryable_exception(exc):
+                    self.log("Translate retries stopped because the error is non-retryable")
+                    break
                 if attempt < attempts_total - 1 and profile.retry_interval > 0:
                     time.sleep(profile.retry_interval)
-        raise RuntimeError(str(last_error) if last_error else "Translation failed")
+        if last_error:
+            raise last_error
+        raise ApiClientError("Translation failed", user_message="翻譯失敗。")
 
     def _translate_openai(self, profile: ApiProfile, api_key: str, prompt: str, image_base64: str, temperature: float) -> str:
         response = requests.post(

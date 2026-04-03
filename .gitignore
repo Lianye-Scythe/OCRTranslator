@@ -12,3 +12,4 @@ config.json
 *.log
 .limcode/
 ocrtranslator-crash-*.log
+ocrtranslator-log-*.txt
