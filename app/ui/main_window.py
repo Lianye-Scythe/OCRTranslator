@@ -5,20 +5,31 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from PIL import Image, ImageGrab
-from pynput import keyboard
-from PySide6.QtCore import QBuffer, QByteArray, QRect, Qt, QTimer
-from PySide6.QtGui import QAction, QGuiApplication, QPixmap
+from PySide6.QtCore import QBuffer, QByteArray, QPoint, QRect, Qt, QTimer
+from PySide6.QtGui import QAction, QCursor, QGuiApplication, QPixmap
 from PySide6.QtNetwork import QLocalServer
 from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QMenu, QMessageBox, QSystemTrayIcon
 
 from ..api_client import ApiClient
 from ..config_store import load_config, save_config
+from ..hotkey_listener import HotkeyListener
 from ..constants import APP_SERVER_NAME, I18N
+from ..prompt_utils import build_image_request_prompt, build_text_request_prompt
 from ..profile_utils import normalize_model_value, normalize_provider_name, unique_non_empty
+from ..selected_text_capture import capture_selected_text
 from ..workers import AppBridge, WorkerThread
 from .main_window_layout import MainWindowLayoutMixin
+from .main_window_prompts import MainWindowPromptPresetsMixin
 from .main_window_profiles import MainWindowProfilesMixin
-from .overlay_positioning import compute_overlay_position, fit_overlay_size, get_target_screen_rect
+from .overlay_positioning import (
+    clamp_overlay_size_to_screen,
+    compute_overlay_position,
+    compute_overlay_position_for_point,
+    fit_overlay_size,
+    get_screen_rect_for_point,
+    get_target_screen_rect,
+)
+from .prompt_input_dialog import PromptInputDialog
 from .selection_overlay import SelectionOverlay
 from .translation_overlay import TranslationOverlay
 
@@ -30,19 +41,22 @@ class OperationError(RuntimeError):
         self.original = original
 
 
-class MainWindow(MainWindowLayoutMixin, MainWindowProfilesMixin, QMainWindow):
+class MainWindow(MainWindowLayoutMixin, MainWindowPromptPresetsMixin, MainWindowProfilesMixin, QMainWindow):
     def __init__(self):
         super().__init__()
         self.bridge = AppBridge()
-        self.bridge.hotkey_triggered.connect(self.start_selection)
+        self.bridge.action_requested.connect(self.handle_action_request)
         self.bridge.worker_success.connect(self._handle_worker_success)
         self.bridge.worker_error.connect(self.handle_error)
+        self.bridge.hotkey_recorded.connect(self.handle_recorded_hotkey)
 
         self.config = load_config()
         self.logs = deque(maxlen=100)
         self.api_client = ApiClient(self.log)
         self.hotkey_listener = None
-        self.registered_hotkey = None
+        self.hotkey_record_listener = None
+        self.hotkey_listener_paused_for_recording = False
+        self.registered_hotkeys: dict[str, str] = {}
         self.preview_pixmap = None
         self.current_status_key = "ready"
         self.current_status_kwargs = {}
@@ -61,6 +75,7 @@ class MainWindow(MainWindowLayoutMixin, MainWindowProfilesMixin, QMainWindow):
         self._test_profile_request_id = 0
         self.pending_capture_profile = None
         self.pending_capture_target_language = self.config.target_language
+        self.pending_capture_prompt_preset = None
         self.config_save_timer = QTimer(self)
         self.config_save_timer.setSingleShot(True)
         self.config_save_timer.timeout.connect(self.persist_config_now)
@@ -71,12 +86,14 @@ class MainWindow(MainWindowLayoutMixin, MainWindowProfilesMixin, QMainWindow):
 
         self.translation_overlay = TranslationOverlay(self)
         self.translation_overlay.request_font_zoom.connect(self.adjust_overlay_font_size)
+        self.translation_overlay.overlay_resized.connect(self.handle_overlay_resized)
 
         self.build_ui()
         self.setup_tray()
         self.apply_styles()
         self.apply_language()
         self.load_profile_to_form(self.config.active_profile_name)
+        self.load_prompt_preset_to_form(self.config.active_prompt_preset_name)
         self.setup_instance_server()
         self.setup_hotkey_listener(initial=True)
         self.log("Application started")
@@ -103,6 +120,16 @@ class MainWindow(MainWindowLayoutMixin, MainWindowProfilesMixin, QMainWindow):
             return self.hotkey_edit.text().strip() or self.config.hotkey
         return self.config.hotkey
 
+    def current_selection_hotkey(self) -> str:
+        if hasattr(self, "selection_hotkey_edit"):
+            return self.selection_hotkey_edit.text().strip() or self.config.selection_hotkey
+        return self.config.selection_hotkey
+
+    def current_input_hotkey(self) -> str:
+        if hasattr(self, "input_hotkey_edit"):
+            return self.input_hotkey_edit.text().strip() or self.config.input_hotkey
+        return self.config.input_hotkey
+
     def current_mode(self) -> str:
         if hasattr(self, "mode_combo"):
             return self.mode_combo.currentData() or self.config.mode
@@ -117,6 +144,51 @@ class MainWindow(MainWindowLayoutMixin, MainWindowProfilesMixin, QMainWindow):
         if hasattr(self, "overlay_font_size_spin"):
             return self.overlay_font_size_spin.value()
         return self.config.overlay_font_size
+
+    def handle_action_request(self, action: str):
+        action_map = {
+            "capture": self.start_selection,
+            "selection_text": self.translate_selected_text,
+            "manual_input": self.open_prompt_input_dialog,
+        }
+        handler = action_map.get(action)
+        if handler:
+            handler()
+
+    def handle_overlay_resized(self, width: int, height: int):
+        self.config.overlay_width = int(width)
+        self.config.overlay_height = int(height)
+        self._suppress_form_tracking = True
+        try:
+            if hasattr(self, "overlay_width_spin"):
+                self.overlay_width_spin.setValue(int(width))
+            if hasattr(self, "overlay_height_spin"):
+                self.overlay_height_spin.setValue(int(height))
+        finally:
+            self._suppress_form_tracking = False
+        self.schedule_config_persist()
+        self.set_status("overlay_resized", width=int(width), height=int(height))
+
+    def background_busy(self) -> bool:
+        return self.fetch_models_in_progress or self.test_profile_in_progress or self.translation_in_progress
+
+    def prepare_request_context(self, *, focus_first_invalid: bool = True):
+        if self.capture_workflow_active:
+            self.log("Request ignored because another capture workflow is still active")
+            return None
+        if self.background_busy():
+            self.log("Request ignored because another background operation is still running")
+            return None
+        valid, first_error = self.validate_form_inputs(focus_first_invalid=focus_first_invalid)
+        if not valid:
+            self.set_status("validation_failed")
+            self.log(f"Request blocked by validation: {first_error}")
+            return None
+        return {
+            "profile": self.build_profile_from_form(),
+            "target_language": self.current_target_language(),
+            "prompt_preset": self.build_prompt_preset_from_form(),
+        }
 
     def set_operation_state(self, operation: str, active: bool):
         setattr(self, f"{operation}_in_progress", active)
@@ -305,17 +377,37 @@ class MainWindow(MainWindowLayoutMixin, MainWindowProfilesMixin, QMainWindow):
         if self.hotkey_listener:
             self.hotkey_listener.stop()
             self.hotkey_listener = None
-        self.registered_hotkey = None
+        self.registered_hotkeys = {}
         try:
-            if not self.hotkey_has_modifier(self.config.hotkey):
-                raise ValueError(self.tr("validation_hotkey_requires_modifier"))
-            normalized = self.normalize_hotkey(self.config.hotkey)
-            self.hotkey_listener = keyboard.GlobalHotKeys({normalized: self.bridge.hotkey_triggered.emit})
+            hotkey_actions = {
+                "capture": self.config.hotkey,
+                "selection_text": self.config.selection_hotkey,
+                "manual_input": self.config.input_hotkey,
+            }
+            normalized_actions = {}
+            for action, hotkey in hotkey_actions.items():
+                if not self.hotkey_has_modifier(hotkey):
+                    raise ValueError(self.tr("validation_hotkey_requires_modifier"))
+                normalized = self.normalize_hotkey(hotkey)
+                if normalized in normalized_actions:
+                    raise ValueError(self.tr("validation_hotkey_duplicate", hotkey=hotkey))
+                normalized_actions[normalized] = action
+            self.hotkey_listener = HotkeyListener(
+                hotkey_actions,
+                lambda action: self.bridge.action_requested.emit(action),
+                normalize_hotkey=self.normalize_hotkey,
+                log_func=self.log,
+            )
             self.hotkey_listener.start()
-            self.registered_hotkey = self.config.hotkey
-            self.log(f"Hotkey listener registered: {self.config.hotkey}")
+            self.registered_hotkeys = hotkey_actions
+            self.log(
+                "Hotkeys registered: "
+                f"capture={self.config.hotkey} | "
+                f"selection_text={self.config.selection_hotkey} | "
+                f"manual_input={self.config.input_hotkey}"
+            )
             if not initial:
-                self.set_status("hotkey_registered", hotkey=self.config.hotkey)
+                self.set_status("hotkeys_registered")
         except Exception as exc:  # noqa: BLE001
             self.log(f"Hotkey registration failed: {exc}")
             if not initial:
@@ -448,24 +540,124 @@ class MainWindow(MainWindowLayoutMixin, MainWindowProfilesMixin, QMainWindow):
         self.current_status_kwargs = kwargs
         self.status_label.setText(self.tr(key, **kwargs))
 
+    def show_response_overlay(
+        self,
+        text: str,
+        *,
+        bbox=None,
+        anchor_point: QPoint | None = None,
+        preset_name: str = "",
+        preserve_manual_position: bool = False,
+        reflow_only: bool = False,
+        complete_capture_flow: bool = False,
+    ):
+        text = text or self.tr("empty_result")
+        overlay_config = SimpleNamespace(
+            mode=self.current_mode(),
+            margin=self.config.margin,
+            overlay_width=self.config.overlay_width,
+            overlay_height=self.config.overlay_height,
+        )
+        self.translation_overlay.apply_typography()
+        width, height = self.translation_overlay.calculate_size(text)
+
+        if bbox is not None:
+            width, height = fit_overlay_size(overlay_config, self.translation_overlay, bbox, text, width, height)
+            target_screen_rect = get_target_screen_rect(bbox)
+            if preserve_manual_position and self.translation_overlay.last_geometry is not None:
+                margin = overlay_config.margin
+                soft_margin = max(42, margin * 2)
+                x = max(target_screen_rect.left() + margin, min(self.translation_overlay.last_geometry.x(), target_screen_rect.right() - width - margin + 1))
+                y = max(target_screen_rect.top() + soft_margin, min(self.translation_overlay.last_geometry.y(), target_screen_rect.bottom() - height - soft_margin + 1))
+            else:
+                x, y = compute_overlay_position(overlay_config, bbox, width, height)
+        else:
+            anchor_point = anchor_point or self.translation_overlay.last_anchor_point or QCursor.pos()
+            target_screen_rect = get_screen_rect_for_point(anchor_point)
+            width, height = clamp_overlay_size_to_screen(overlay_config, self.translation_overlay, target_screen_rect, text, width, height)
+            if preserve_manual_position and self.translation_overlay.last_geometry is not None:
+                margin = overlay_config.margin
+                soft_margin = max(42, margin * 2)
+                x = max(target_screen_rect.left() + margin, min(self.translation_overlay.last_geometry.x(), target_screen_rect.right() - width - margin + 1))
+                y = max(target_screen_rect.top() + soft_margin, min(self.translation_overlay.last_geometry.y(), target_screen_rect.bottom() - height - soft_margin + 1))
+            else:
+                x, y = compute_overlay_position_for_point(overlay_config, anchor_point, width, height)
+
+        self.translation_overlay.remember_context(bbox, text, anchor_point=anchor_point, preset_name=preset_name)
+        self.translation_overlay.show_text(text, x, y, width, height, keep_manual_position=preserve_manual_position)
+        if complete_capture_flow and not reflow_only:
+            self.finish_capture_workflow()
+            self.restore_pinned_overlay_after_capture = False
+        if not reflow_only:
+            self.set_status("translated")
+            self.log(f"Request finished | preset={preset_name or 'default'}")
+
+    def submit_text_request(self, text: str, *, profile, target_language: str, prompt_preset, anchor_point: QPoint, source_key: str):
+        prompt = build_text_request_prompt(prompt_preset.text_prompt, text, target_language=target_language)
+        self.set_status(source_key)
+        self.log(f"Submitting text request | preset={prompt_preset.name} | chars={len(text)}")
+        self.show_tray_toast(self.tr(source_key))
+        preserve_manual_position = bool(self.translation_overlay.isVisible() and self.translation_overlay.manual_positioned)
+        self.run_worker(
+            lambda: self.api_client.request_text(prompt, profile, self.config.temperature),
+            lambda result, anchor_point=anchor_point, preset_name=prompt_preset.name, preserve_manual_position=preserve_manual_position: self.show_response_overlay(
+                result,
+                anchor_point=anchor_point,
+                preset_name=preset_name,
+                preserve_manual_position=preserve_manual_position,
+            ),
+            operation_key="translation",
+        )
+
+    def translate_selected_text(self):
+        try:
+            request_context = self.prepare_request_context(focus_first_invalid=True)
+            if not request_context:
+                return
+            self.log("Attempting to capture selected text via clipboard preservation")
+            selected_text = capture_selected_text(hotkey_text=self.current_selection_hotkey())
+            if not selected_text:
+                self.set_status("selected_text_empty")
+                self.log("Selected text capture returned no usable text")
+                self.show_tray_toast(self.tr("selected_text_empty"))
+                return
+            self.submit_text_request(
+                selected_text,
+                profile=request_context["profile"],
+                target_language=request_context["target_language"],
+                prompt_preset=request_context["prompt_preset"],
+                anchor_point=QCursor.pos(),
+                source_key="selected_text_processing",
+            )
+        except Exception as exc:  # noqa: BLE001
+            self.handle_error(exc)
+
+    def open_prompt_input_dialog(self):
+        try:
+            request_context = self.prepare_request_context(focus_first_invalid=True)
+            if not request_context:
+                return
+            dialog = PromptInputDialog(self, request_context["prompt_preset"].name, request_context["target_language"])
+            if not dialog.exec():
+                return
+            self.submit_text_request(dialog.input_text(), profile=request_context["profile"], target_language=request_context["target_language"], prompt_preset=request_context["prompt_preset"], anchor_point=dialog.last_anchor_point or QCursor.pos(), source_key="manual_input_processing")
+        except Exception as exc:  # noqa: BLE001
+            self.handle_error(exc)
+
     def start_selection(self):
         try:
-            if self.capture_workflow_active:
-                self.log("Capture request ignored because another capture workflow is still active")
-                return
-            if self.fetch_models_in_progress or self.test_profile_in_progress or self.translation_in_progress:
-                self.log("Capture request ignored because another background operation is still running")
-                return
-            valid, first_error = self.validate_form_inputs(focus_first_invalid=True)
-            if not valid:
-                self.set_status("validation_failed")
-                self.log(f"Capture blocked by validation: {first_error}")
+            request_context = self.prepare_request_context(focus_first_invalid=True)
+            if not request_context:
                 return
             restore_window_after_capture = self.isVisible() and not self.isMinimized()
-            self.pending_capture_profile = self.build_profile_from_form()
-            self.pending_capture_target_language = self.current_target_language()
+            self.pending_capture_profile = request_context["profile"]
+            self.pending_capture_target_language = request_context["target_language"]
+            self.pending_capture_prompt_preset = request_context["prompt_preset"]
             self.restore_pinned_overlay_after_capture = bool(
                 self.translation_overlay.isVisible() and self.translation_overlay.is_pinned and self.translation_overlay.last_text.strip()
+            )
+            self.log(
+                f"Starting capture workflow | preset={self.pending_capture_prompt_preset.name} | target={self.pending_capture_target_language}"
             )
             self.capture_workflow_active = True
             self.restore_window_after_capture = restore_window_after_capture
@@ -482,6 +674,7 @@ class MainWindow(MainWindowLayoutMixin, MainWindowProfilesMixin, QMainWindow):
         self.restore_window_after_capture = False
         self.pending_capture_profile = None
         self.pending_capture_target_language = self.current_target_language()
+        self.pending_capture_prompt_preset = None
         self.update_action_states()
         if should_restore:
             self.show_main_window()
@@ -529,38 +722,31 @@ class MainWindow(MainWindowLayoutMixin, MainWindowProfilesMixin, QMainWindow):
         self.show_tray_toast(self.tr("tray_capturing"))
         profile = self.pending_capture_profile or self.build_profile_from_form()
         target_language = self.pending_capture_target_language or self.current_target_language()
+        prompt_preset = self.pending_capture_prompt_preset or self.build_prompt_preset_from_form()
+        prompt = build_image_request_prompt(prompt_preset.image_prompt, target_language=target_language)
         self.run_worker(
-            lambda: self.api_client.translate_image(image, profile, target_language, self.config.temperature),
-            lambda text: self.show_translation(bbox, text),
+            lambda: self.api_client.request_image(image, profile, prompt, self.config.temperature),
+            lambda text, bbox=bbox, preset_name=prompt_preset.name: self.show_translation(bbox, text, preset_name=preset_name),
             operation_key="translation",
         )
 
-    def show_translation(self, bbox, text: str, *, preserve_manual_position: bool = False, reflow_only: bool = False):
-        text = text or self.tr("empty_result")
-        overlay_config = SimpleNamespace(
-            mode=self.current_mode(),
-            margin=self.config.margin,
-            overlay_width=self.config.overlay_width,
-            overlay_height=self.config.overlay_height,
+    def show_translation(
+        self,
+        bbox,
+        text: str,
+        *,
+        preset_name: str = "",
+        preserve_manual_position: bool = False,
+        reflow_only: bool = False,
+    ):
+        self.show_response_overlay(
+            text,
+            bbox=bbox,
+            preset_name=preset_name,
+            preserve_manual_position=preserve_manual_position,
+            reflow_only=reflow_only,
+            complete_capture_flow=not reflow_only,
         )
-        self.translation_overlay.apply_typography()
-        width, height = self.translation_overlay.calculate_size(text)
-        width, height = fit_overlay_size(overlay_config, self.translation_overlay, bbox, text, width, height)
-        if preserve_manual_position and self.translation_overlay.last_geometry is not None:
-            screen_rect = get_target_screen_rect(bbox)
-            margin = overlay_config.margin
-            soft_margin = max(42, margin * 2)
-            x = max(screen_rect.left() + margin, min(self.translation_overlay.last_geometry.x(), screen_rect.right() - width - margin + 1))
-            y = max(screen_rect.top() + soft_margin, min(self.translation_overlay.last_geometry.y(), screen_rect.bottom() - height - soft_margin + 1))
-        else:
-            x, y = compute_overlay_position(overlay_config, bbox, width, height)
-        self.translation_overlay.remember_context(bbox, text)
-        self.translation_overlay.show_text(text, x, y, width, height, keep_manual_position=preserve_manual_position)
-        if not reflow_only:
-            self.finish_capture_workflow()
-            self.restore_pinned_overlay_after_capture = False
-            self.set_status("translated")
-            self.log("Translation finished")
 
     def adjust_overlay_font_size(self, direction: int):
         if self.translation_in_progress:
@@ -578,13 +764,23 @@ class MainWindow(MainWindowLayoutMixin, MainWindowProfilesMixin, QMainWindow):
         self.schedule_config_persist()
         self.translation_overlay.apply_typography()
         self.set_status("font_zoomed", size=new_size)
-        if self.translation_overlay.isVisible() and self.translation_overlay.last_bbox and self.translation_overlay.last_text:
-            self.show_translation(
-                self.translation_overlay.last_bbox,
-                self.translation_overlay.last_text,
-                preserve_manual_position=self.translation_overlay.manual_positioned,
-                reflow_only=True,
-            )
+        if self.translation_overlay.isVisible() and self.translation_overlay.last_text:
+            if self.translation_overlay.last_bbox is not None:
+                self.show_translation(
+                    self.translation_overlay.last_bbox,
+                    self.translation_overlay.last_text,
+                    preset_name=self.translation_overlay.last_preset_name,
+                    preserve_manual_position=self.translation_overlay.manual_positioned,
+                    reflow_only=True,
+                )
+            else:
+                self.show_response_overlay(
+                    self.translation_overlay.last_text,
+                    anchor_point=self.translation_overlay.last_anchor_point,
+                    preset_name=self.translation_overlay.last_preset_name,
+                    preserve_manual_position=self.translation_overlay.manual_positioned,
+                    reflow_only=True,
+                )
 
     def update_preview(self, image: Image.Image):
         preview = image.copy()
@@ -670,10 +866,14 @@ class MainWindow(MainWindowLayoutMixin, MainWindowProfilesMixin, QMainWindow):
             self.selection_overlay.hide()
         except Exception:  # noqa: BLE001
             pass
+        try:
+            self.stop_hotkey_recording(cancelled=False)
+        except Exception:  # noqa: BLE001
+            pass
         if self.hotkey_listener:
             self.hotkey_listener.stop()
             self.hotkey_listener = None
-        self.registered_hotkey = None
+        self.registered_hotkeys = {}
         if hasattr(self, "instance_server") and self.instance_server and self.instance_server.isListening():
             self.instance_server.close()
             QLocalServer.removeServer(APP_SERVER_NAME)

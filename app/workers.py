@@ -19,6 +19,7 @@ class WorkerThread(threading.Thread):
 
 
 class AppBridge(QObject):
-    hotkey_triggered = Signal()
+    action_requested = Signal(str)
     worker_success = Signal(object, object)
     worker_error = Signal(object)
+    hotkey_recorded = Signal(str, str)

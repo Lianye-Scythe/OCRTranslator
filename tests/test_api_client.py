@@ -50,6 +50,23 @@ class ApiClientTests(unittest.TestCase):
 
         self.assertEqual(result, "第一行\n第二行")
 
+    @patch("app.api_client.requests.post")
+    def test_request_text_openai_uses_plain_text_message_content(self, mock_post):
+        response = Mock()
+        response.raise_for_status.return_value = None
+        response.json.return_value = {
+            "choices": [
+                {
+                    "message": {"content": "OK"},
+                }
+            ]
+        }
+        mock_post.return_value = response
+
+        self.client.request_text("plain prompt", self.profile, 0.2)
+
+        self.assertEqual(mock_post.call_args.kwargs["json"]["messages"][0]["content"], "plain prompt")
+
     def test_translate_image_rotates_keys_between_successful_requests(self):
         profile = ApiProfile(
             name="Rotation",

@@ -43,11 +43,16 @@ class ConfigStoreMigrationTests(unittest.TestCase):
         self.assertEqual(config.overlay_height, 1600)
         self.assertEqual(config.margin, 8)
         self.assertEqual(config.ui_language, "zh-TW")
-        self.assertEqual(config.hotkey, "Shift+Win+A")
+        self.assertEqual(config.hotkey, "Shift+Win+X")
+        self.assertEqual(config.selection_hotkey, "Shift+Win+C")
+        self.assertEqual(config.input_hotkey, "Shift+Win+Z")
         self.assertEqual(config.overlay_font_family, "Microsoft JhengHei UI")
         self.assertEqual(config.overlay_font_size, 10)
         self.assertEqual(config.overlay_opacity, 55)
         self.assertTrue(config.overlay_pinned)
+        self.assertEqual(config.active_prompt_preset_name, "翻譯")
+        self.assertEqual(len(config.prompt_presets), 3)
+        self.assertEqual(config.prompt_presets[0].builtin_id, "translate")
         self.assertEqual(len(config.api_profiles), 1)
 
         profile = config.api_profiles[0]
@@ -77,13 +82,17 @@ class ConfigStoreMigrationTests(unittest.TestCase):
         self.assertEqual(config.active_profile_name, "Default Gemini")
         self.assertEqual(config.overlay_opacity, 96)
         self.assertFalse(config.overlay_pinned)
+        self.assertEqual(config.selection_hotkey, "Shift+Win+C")
+        self.assertEqual(config.input_hotkey, "Shift+Win+Z")
         self.assertEqual(len(config.api_profiles), 1)
+        self.assertEqual(len(config.prompt_presets), 3)
 
         profile = config.api_profiles[0]
         self.assertEqual(profile.provider, "gemini")
         self.assertEqual(profile.api_keys, ["legacy-key"])
         self.assertEqual(profile.model, "models/gemini-1.5-flash")
         self.assertEqual(profile.available_models, ["models/gemini-1.5-flash"])
+        self.assertEqual(config.active_prompt_preset_name, "翻譯")
 
     def test_load_config_reads_existing_portable_config_from_root(self):
         with TemporaryDirectory() as temp_dir:

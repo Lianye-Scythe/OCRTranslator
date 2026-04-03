@@ -102,15 +102,15 @@ class ApiClient:
         if finish_reason == "content_filter":
             raise ApiClientError(
                 "OpenAI blocked the response with content_filter",
-                user_message="OpenAI 因內容安全策略拒絕了這次翻譯。請縮小截圖範圍，或改用其他模型 / Provider 再試一次。",
+                user_message="OpenAI 因內容安全策略拒絕了這次請求。請縮小範圍、調整內容，或改用其他模型 / Provider 再試一次。",
                 retryable=False,
             )
         if finish_reason:
             raise ApiClientError(
                 f"OpenAI finished without text (finish_reason={finish_reason})",
-                user_message=f"OpenAI 沒有回傳可顯示的翻譯內容（finish_reason={finish_reason}）。",
+                user_message=f"OpenAI 沒有回傳可顯示的內容（finish_reason={finish_reason}）。",
             )
-        raise ApiClientError("OpenAI returned an empty message", user_message="OpenAI 沒有回傳可顯示的翻譯內容。")
+        raise ApiClientError("OpenAI returned an empty message", user_message="OpenAI 沒有回傳可顯示的內容。")
 
     def _extract_gemini_translation_text(self, data: dict) -> str:
         if not isinstance(data, dict):
@@ -123,7 +123,7 @@ class ApiClient:
                     f"Gemini blocked the request: {block_reason}",
                     user_message=(
                         f"Gemini 因內容安全策略拒絕了這次請求（{block_reason}）。"
-                        "請縮小截圖範圍、避開敏感內容，或改用其他模型 / Provider 再試一次。"
+                        "請縮小範圍、避開敏感內容，或改用其他模型 / Provider 再試一次。"
                     ),
                     retryable=False,
                 )
@@ -139,15 +139,15 @@ class ApiClient:
         if finish_reason == "PROHIBITED_CONTENT":
             raise ApiClientError(
                 "Gemini finished without text (finishReason=PROHIBITED_CONTENT)",
-                user_message="Gemini 因內容安全策略拒絕了這次翻譯。請縮小截圖範圍、避開敏感內容，或改用其他模型 / Provider 再試一次。",
+                user_message="Gemini 因內容安全策略拒絕了這次請求。請縮小範圍、避開敏感內容，或改用其他模型 / Provider 再試一次。",
                 retryable=False,
             )
         if finish_reason and finish_reason != "STOP":
             raise ApiClientError(
                 f"Gemini finished without text (finishReason={finish_reason})",
-                user_message=f"Gemini 沒有回傳可顯示的翻譯內容（finishReason={finish_reason}）。",
+                user_message=f"Gemini 沒有回傳可顯示的內容（finishReason={finish_reason}）。",
             )
-        raise ApiClientError("Gemini returned an empty response", user_message="Gemini 沒有回傳可顯示的翻譯內容。")
+        raise ApiClientError("Gemini returned an empty response", user_message="Gemini 沒有回傳可顯示的內容。")
 
     @staticmethod
     def _is_retryable_exception(exc: Exception) -> bool:
@@ -164,6 +164,10 @@ class ApiClient:
     def _advance_rotation_index(self, profile_key: str, key_index: int, total_keys: int) -> None:
         self.profile_key_index[profile_key] = (key_index + 1) % total_keys
 
+    @staticmethod
+    def _active_keys(profile: ApiProfile) -> list[str]:
+        return [key.strip() for key in profile.api_keys if key.strip()]
+
     def _request_openai_models(self, profile: ApiProfile, api_key: str) -> list[str]:
         response = requests.get(self._openai_url(profile.base_url, "/models"), headers={"Authorization": f"Bearer {api_key}"}, timeout=30)
         self._ensure_success(response)
@@ -177,7 +181,7 @@ class ApiClient:
         return [item.get("name", "") for item in data.get("models", []) if isinstance(item, dict) and item.get("name")]
 
     def list_models(self, profile: ApiProfile) -> list[str]:
-        keys = [key.strip() for key in profile.api_keys if key.strip()]
+        keys = self._active_keys(profile)
         if not keys:
             raise RuntimeError("No API key configured")
         last_error = None
@@ -199,15 +203,13 @@ class ApiClient:
         preview = ", ".join(models[:5]) if models else "(no models)"
         return f"OK | provider={profile.provider} | models={len(models)} | {preview}"
 
-    def translate_image(self, image: Image.Image, profile: ApiProfile, target_language: str, temperature: float) -> str:
-        keys = [key.strip() for key in profile.api_keys if key.strip()]
+    def _request_with_rotation(self, profile: ApiProfile, *, request_label: str, request_callable) -> str:
+        keys = self._active_keys(profile)
         if not keys:
             raise ApiClientError("No API key configured", user_message="目前設定檔沒有可用的 API Key。")
         if not profile.model.strip():
             raise ApiClientError("No model configured", user_message="目前設定檔沒有設定模型名稱。")
 
-        prompt = f"{DEFAULT_PROMPT}\n\nTarget language: {target_language}"
-        image_base64 = self._image_to_base64(image)
         retry_count = max(0, int(profile.retry_count))
         attempts_total = 1 + retry_count
         profile_key, start_index = self._rotation_start_index(profile, keys)
@@ -218,42 +220,83 @@ class ApiClient:
             api_key = keys[key_index]
             self._advance_rotation_index(profile_key, key_index, len(keys))
             try:
-                self.log(f"Translate attempt {attempt + 1}/{attempts_total} | provider={profile.provider} | model={profile.model} | key#{key_index + 1}")
-                if profile.provider == "openai":
-                    result = self._translate_openai(profile, api_key, prompt, image_base64, temperature)
-                else:
-                    result = self._translate_gemini(profile, api_key, prompt, image_base64, temperature)
+                self.log(
+                    f"{request_label} attempt {attempt + 1}/{attempts_total} | "
+                    f"provider={profile.provider} | model={profile.model} | key#{key_index + 1}"
+                )
+                result = request_callable(api_key)
                 if result:
                     return result.strip()
-                raise ApiClientError("Empty response", user_message="模型沒有回傳可顯示的翻譯內容。")
+                raise ApiClientError("Empty response", user_message="模型沒有回傳可顯示的內容。")
             except Exception as exc:  # noqa: BLE001
                 last_error = exc
-                self.log(f"Translate failed on attempt {attempt + 1}: {exc}")
+                self.log(f"{request_label} failed on attempt {attempt + 1}: {exc}")
                 if not self._is_retryable_exception(exc):
-                    self.log("Translate retries stopped because the error is non-retryable")
+                    self.log(f"{request_label} retries stopped because the error is non-retryable")
                     break
                 if attempt < attempts_total - 1 and profile.retry_interval > 0:
                     time.sleep(profile.retry_interval)
         if last_error:
             raise last_error
-        raise ApiClientError("Translation failed", user_message="翻譯失敗。")
+        raise ApiClientError("Request failed", user_message="請求失敗。")
 
-    def _translate_openai(self, profile: ApiProfile, api_key: str, prompt: str, image_base64: str, temperature: float) -> str:
+    def request_image(self, image: Image.Image, profile: ApiProfile, prompt: str, temperature: float) -> str:
+        prompt_text = str(prompt or "").strip()
+        if not prompt_text:
+            raise ApiClientError("No prompt configured", user_message="目前提示詞不可為空。")
+        image_base64 = self._image_to_base64(image)
+        return self._request_with_rotation(
+            profile,
+            request_label="Image request",
+            request_callable=lambda api_key: (
+                self._translate_openai(profile, api_key, prompt_text, image_base64, temperature)
+                if profile.provider == "openai"
+                else self._translate_gemini(profile, api_key, prompt_text, image_base64, temperature)
+            ),
+        )
+
+    def request_text(self, prompt: str, profile: ApiProfile, temperature: float) -> str:
+        prompt_text = str(prompt or "").strip()
+        if not prompt_text:
+            raise ApiClientError("No prompt configured", user_message="目前提示詞不可為空。")
+        return self._request_with_rotation(
+            profile,
+            request_label="Text request",
+            request_callable=lambda api_key: (
+                self._request_openai_prompt(profile, api_key, prompt_text, temperature)
+                if profile.provider == "openai"
+                else self._request_gemini_prompt(profile, api_key, prompt_text, temperature)
+            ),
+        )
+
+    def translate_image(self, image: Image.Image, profile: ApiProfile, target_language: str, temperature: float) -> str:
+        prompt = f"{DEFAULT_PROMPT}\n\nTarget language: {target_language}"
+        return self.request_image(image, profile, prompt, temperature)
+
+    def _request_openai_prompt(
+        self,
+        profile: ApiProfile,
+        api_key: str,
+        prompt: str,
+        temperature: float,
+        *,
+        image_base64: str | None = None,
+    ) -> str:
+        content = (
+            [
+                {"type": "text", "text": prompt},
+                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}},
+            ]
+            if image_base64
+            else prompt
+        )
         response = requests.post(
             self._openai_url(profile.base_url, "/chat/completions"),
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
             json={
                 "model": profile.model,
                 "temperature": temperature,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": prompt},
-                            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}},
-                        ],
-                    }
-                ],
+                "messages": [{"role": "user", "content": content}],
             },
             timeout=120,
         )
@@ -261,12 +304,32 @@ class ApiClient:
         data = response.json()
         return self._extract_openai_translation_text(data)
 
-    def _translate_gemini(self, profile: ApiProfile, api_key: str, prompt: str, image_base64: str, temperature: float) -> str:
+    def _translate_openai(self, profile: ApiProfile, api_key: str, prompt: str, image_base64: str, temperature: float) -> str:
+        return self._request_openai_prompt(
+            profile,
+            api_key,
+            prompt,
+            temperature,
+            image_base64=image_base64,
+        )
+
+    def _request_gemini_prompt(
+        self,
+        profile: ApiProfile,
+        api_key: str,
+        prompt: str,
+        temperature: float,
+        *,
+        image_base64: str | None = None,
+    ) -> str:
+        parts = [{"text": prompt}]
+        if image_base64:
+            parts.append({"inline_data": {"mime_type": "image/png", "data": image_base64}})
         response = requests.post(
             self._gemini_content_url(profile, api_key),
             headers={"Content-Type": "application/json"},
             json={
-                "contents": [{"parts": [{"text": prompt}, {"inline_data": {"mime_type": "image/png", "data": image_base64}}]}],
+                "contents": [{"parts": parts}],
                 "generationConfig": {"temperature": temperature},
             },
             timeout=120,
@@ -274,3 +337,12 @@ class ApiClient:
         self._ensure_success(response)
         data = response.json()
         return self._extract_gemini_translation_text(data)
+
+    def _translate_gemini(self, profile: ApiProfile, api_key: str, prompt: str, image_base64: str, temperature: float) -> str:
+        return self._request_gemini_prompt(
+            profile,
+            api_key,
+            prompt,
+            temperature,
+            image_base64=image_base64,
+        )

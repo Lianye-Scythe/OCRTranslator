@@ -6,8 +6,15 @@ from pathlib import Path
 
 from PySide6.QtWidgets import QApplication, QMessageBox
 
-from .constants import CONFIG_PATH, DEFAULT_BASE_URL, DEFAULT_MODEL
-from .models import ApiProfile, AppConfig
+from .constants import (
+    CONFIG_PATH,
+    DEFAULT_BASE_URL,
+    DEFAULT_CAPTURE_HOTKEY,
+    DEFAULT_INPUT_HOTKEY,
+    DEFAULT_MODEL,
+    DEFAULT_SELECTION_HOTKEY,
+)
+from .models import ApiProfile, AppConfig, PromptPreset, default_prompt_presets
 from .profile_utils import (
     default_base_url_for_provider,
     default_model_for_provider,
@@ -29,9 +36,14 @@ def _default_profile() -> ApiProfile:
     return ApiProfile()
 
 
+def _default_prompt_preset() -> PromptPreset:
+    return default_prompt_presets()[0]
+
+
 def _config_to_dict(config: AppConfig) -> dict:
     data = asdict(config)
     data["api_profiles"] = [asdict(profile) for profile in config.api_profiles]
+    data["prompt_presets"] = [asdict(preset) for preset in config.prompt_presets]
     return data
 
 
@@ -83,6 +95,13 @@ def _normalize_active_profile_name(profiles: list[ApiProfile], active_name: str 
     return profiles[0].name
 
 
+def _normalize_active_prompt_preset_name(presets: list[PromptPreset], active_name: str | None) -> str:
+    names = {preset.name for preset in presets}
+    if active_name in names:
+        return active_name
+    return presets[0].name
+
+
 def _dict_to_profile(data: dict) -> ApiProfile:
     source = data if isinstance(data, dict) else {}
     defaults = asdict(_default_profile())
@@ -113,6 +132,21 @@ def _dict_to_profile(data: dict) -> ApiProfile:
     )
 
 
+def _dict_to_prompt_preset(data: dict) -> PromptPreset:
+    source = data if isinstance(data, dict) else {}
+    default_map = {preset.builtin_id: preset for preset in default_prompt_presets()}
+    builtin_id = str(source.get("builtin_id", "")).strip()
+    default_preset = default_map.get(builtin_id, _default_prompt_preset())
+    defaults = asdict(default_preset)
+    merged = {**defaults, **source}
+    return PromptPreset(
+        name=_coerce_text(merged.get("name"), defaults["name"]),
+        builtin_id=str(merged.get("builtin_id", builtin_id or defaults.get("builtin_id", ""))).strip(),
+        image_prompt=_coerce_text(merged.get("image_prompt"), defaults["image_prompt"]),
+        text_prompt=_coerce_text(merged.get("text_prompt"), defaults["text_prompt"]),
+    )
+
+
 def _migrate_legacy_config(data: dict) -> AppConfig:
     source = data if isinstance(data, dict) else {}
 
@@ -135,6 +169,14 @@ def _migrate_legacy_config(data: dict) -> AppConfig:
             )
         ]
 
+    if "prompt_presets" in source:
+        presets_data = source.get("prompt_presets", [])
+        if not isinstance(presets_data, list):
+            presets_data = [presets_data]
+        prompt_presets = [_dict_to_prompt_preset(item) for item in presets_data] or default_prompt_presets()
+    else:
+        prompt_presets = default_prompt_presets()
+
     ui_language = str(source.get("ui_language", "zh-TW")).strip()
     mode = str(source.get("mode", "book_lr")).strip()
 
@@ -146,13 +188,20 @@ def _migrate_legacy_config(data: dict) -> AppConfig:
         overlay_height=_coerce_int(source.get("overlay_height"), 520, min_value=220, max_value=1600),
         margin=_coerce_int(source.get("margin"), 18, min_value=8, max_value=120),
         ui_language=ui_language if ui_language in {"zh-TW", "en"} else "zh-TW",
-        hotkey=_coerce_text(source.get("hotkey"), "Shift+Win+A"),
+        hotkey=_coerce_text(source.get("hotkey"), DEFAULT_CAPTURE_HOTKEY),
+        selection_hotkey=_coerce_text(source.get("selection_hotkey"), DEFAULT_SELECTION_HOTKEY),
+        input_hotkey=_coerce_text(source.get("input_hotkey"), DEFAULT_INPUT_HOTKEY),
         overlay_font_family=_coerce_text(source.get("overlay_font_family"), "Microsoft JhengHei UI"),
         overlay_font_size=_coerce_int(source.get("overlay_font_size"), 12, min_value=10, max_value=32),
         overlay_opacity=_coerce_int(source.get("overlay_opacity"), 96, min_value=55, max_value=100),
         overlay_pinned=bool(source.get("overlay_pinned", False)),
         active_profile_name=_normalize_active_profile_name(profiles, str(source.get("active_profile_name", "")).strip() or None),
+        active_prompt_preset_name=_normalize_active_prompt_preset_name(
+            prompt_presets,
+            str(source.get("active_prompt_preset_name", "")).strip() or None,
+        ),
         api_profiles=profiles,
+        prompt_presets=prompt_presets,
     )
 
 

@@ -3,7 +3,7 @@ from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QMessageBox
 
 from ..config_store import load_config, save_config
-from ..constants import I18N, MODEL_PREFIX, PROVIDER_LABELS
+from ..constants import DEFAULT_CAPTURE_HOTKEY, I18N, MODEL_PREFIX, PROVIDER_LABELS
 from ..models import ApiProfile
 from ..profile_utils import (
     default_base_url_for_provider,
@@ -37,6 +37,7 @@ class MainWindowProfilesMixin:
     def reload_saved_config(self):
         self.config = load_config()
         self.load_profile_to_form(self.config.active_profile_name)
+        self.load_prompt_preset_to_form(self.config.active_prompt_preset_name)
 
     def prompt_unsaved_changes(self) -> QMessageBox.StandardButton:
         dialog = QMessageBox(self)
@@ -197,6 +198,40 @@ class MainWindowProfilesMixin:
             self.api_keys_actual_text = self.api_keys_edit.toPlainText()
         return getattr(self, "api_keys_actual_text", "")
 
+    def hotkey_fields(self) -> dict[str, tuple]:
+        fields = {}
+        if hasattr(self, "hotkey_edit") and hasattr(self, "hotkey_record_button"):
+            fields["capture"] = (self.hotkey_edit, self.hotkey_record_button)
+        if hasattr(self, "selection_hotkey_edit") and hasattr(self, "selection_hotkey_record_button"):
+            fields["selection"] = (self.selection_hotkey_edit, self.selection_hotkey_record_button)
+        if hasattr(self, "input_hotkey_edit") and hasattr(self, "input_hotkey_record_button"):
+            fields["input"] = (self.input_hotkey_edit, self.input_hotkey_record_button)
+        return fields
+
+    def hotkey_field_key_for_widget(self, widget) -> str | None:
+        for key, (edit, _) in self.hotkey_fields().items():
+            if widget is edit:
+                return key
+        return None
+
+    def hotkey_inputs(self) -> dict[str, object]:
+        fields = self.hotkey_fields()
+        return {key: edit for key, (edit, _) in fields.items()}
+
+    def hotkey_value_map(self) -> dict[str, str]:
+        values = {}
+        for key, edit in self.hotkey_inputs().items():
+            values[key] = edit.text().strip()
+        return values
+
+    def hotkey_field_label(self, field_key: str) -> str:
+        label_map = {
+            "capture": self.tr("capture_hotkey"),
+            "selection": self.tr("selection_hotkey"),
+            "input": self.tr("input_hotkey"),
+        }
+        return label_map.get(field_key, self.tr("hotkey"))
+
     def hotkey_has_modifier(self, hotkey_text: str) -> bool:
         parts = {part.strip().lower() for part in hotkey_text.replace("-", "+").split("+") if part.strip()}
         return any(part in {"ctrl", "control", "alt", "shift", "cmd", "win", "windows", "meta"} for part in parts)
@@ -226,6 +261,7 @@ class MainWindowProfilesMixin:
 
     def validate_form_inputs(self, *, focus_first_invalid: bool = False) -> tuple[bool, str]:
         api_errors: list[str] = []
+        prompt_errors: list[str] = []
         reading_errors: list[str] = []
         invalid_widgets = []
 
@@ -234,8 +270,13 @@ class MainWindowProfilesMixin:
             self.base_url_edit,
             self.model_combo,
             self.api_keys_edit,
+            self.prompt_preset_name_edit,
+            self.image_prompt_edit,
+            self.text_prompt_edit,
             self.target_language_edit,
             self.hotkey_edit,
+            self.selection_hotkey_edit,
+            self.input_hotkey_edit,
         ]:
             self.set_widget_invalid(widget, False)
 
@@ -264,116 +305,220 @@ class MainWindowProfilesMixin:
         if not api_keys:
             mark_invalid(self.api_keys_edit, self.tr("validation_api_keys_required"), api_errors)
 
+        try:
+            self.validate_prompt_preset_name(self.prompt_preset_name_edit.text(), self.get_active_prompt_preset().name)
+        except Exception as exc:  # noqa: BLE001
+            mark_invalid(self.prompt_preset_name_edit, str(exc), prompt_errors)
+
+        if not self.image_prompt_edit.toPlainText().strip():
+            mark_invalid(self.image_prompt_edit, self.tr("validation_prompt_image_required"), prompt_errors)
+        if not self.text_prompt_edit.toPlainText().strip():
+            mark_invalid(self.text_prompt_edit, self.tr("validation_prompt_text_required"), prompt_errors)
+
         if not self.target_language_edit.text().strip():
             mark_invalid(self.target_language_edit, self.tr("validation_target_language_required"), reading_errors)
 
-        hotkey_value = self.hotkey_edit.text().strip()
-        if getattr(self, "hotkey_recording", False):
-            mark_invalid(self.hotkey_edit, self.tr("validation_hotkey_recording"), reading_errors)
-        elif not hotkey_value:
-            mark_invalid(self.hotkey_edit, self.tr("validation_hotkey_required"), reading_errors)
-        else:
+        normalized_hotkeys: dict[str, tuple] = {}
+        hotkey_values = self.hotkey_value_map()
+        active_record_target = getattr(self, "hotkey_record_target", None)
+        for field_key, hotkey_value in hotkey_values.items():
+            widget, _ = self.hotkey_fields().get(field_key, (None, None))
+            if widget is None:
+                continue
+            if active_record_target == field_key:
+                mark_invalid(widget, self.tr("validation_hotkey_recording"), reading_errors)
+                continue
+            if not hotkey_value:
+                mark_invalid(widget, self.tr("validation_hotkey_required"), reading_errors)
+                continue
             try:
-                self.normalize_hotkey(hotkey_value)
+                normalized = self.normalize_hotkey(hotkey_value)
                 if not self.hotkey_has_modifier(hotkey_value):
-                    mark_invalid(self.hotkey_edit, self.tr("validation_hotkey_requires_modifier"), reading_errors)
+                    mark_invalid(widget, self.tr("validation_hotkey_requires_modifier"), reading_errors)
+                    continue
+                if normalized in normalized_hotkeys:
+                    other_widget, _ = normalized_hotkeys[normalized]
+                    message = self.tr("validation_hotkey_duplicate", hotkey=hotkey_value)
+                    mark_invalid(widget, message, reading_errors)
+                    self.set_widget_invalid(other_widget, True)
+                    continue
+                normalized_hotkeys[normalized] = (widget, field_key)
             except Exception as exc:  # noqa: BLE001
-                mark_invalid(self.hotkey_edit, self.tr("validation_hotkey_invalid", error=exc), reading_errors)
+                mark_invalid(widget, self.tr("validation_hotkey_invalid", error=exc), reading_errors)
 
         self.set_validation_message(self.api_validation_label, api_errors)
+        self.set_validation_message(self.prompt_validation_label, prompt_errors)
         self.set_validation_message(self.reading_validation_label, reading_errors)
 
-        first_error = api_errors[0] if api_errors else reading_errors[0] if reading_errors else ""
+        first_error = api_errors[0] if api_errors else prompt_errors[0] if prompt_errors else reading_errors[0] if reading_errors else ""
         if focus_first_invalid and invalid_widgets:
             invalid_widgets[0].setFocus()
-        return not (api_errors or reading_errors), first_error
+        return not (api_errors or prompt_errors or reading_errors), first_error
 
-    def start_hotkey_recording(self):
-        if getattr(self, "hotkey_recording", False):
+    def start_hotkey_recording(self, field_key: str = "capture"):
+        if getattr(self, "hotkey_record_target", None) == field_key:
             self.stop_hotkey_recording(cancelled=True)
             return
-        self.hotkey_recording = True
-        self.hotkey_edit.setFocus()
-        self.hotkey_edit.selectAll()
-        self.hotkey_record_button.setText(self.tr("recording_hotkey"))
+        self.stop_hotkey_recording(cancelled=False)
+        field = self.hotkey_fields().get(field_key)
+        if not field:
+            return
+        self.hotkey_record_target = field_key
+        edit, button = field
+        edit.setFocus()
+        edit.selectAll()
+        edit.setReadOnly(True)
+        button.setText(self.tr("recording_hotkey"))
+        if getattr(self, "hotkey_listener", None):
+            self.hotkey_listener.stop()
+            self.hotkey_listener = None
+            self.hotkey_listener_paused_for_recording = True
+        self._start_global_hotkey_recorder(field_key)
         self.set_status("hotkey_recording")
         self.validate_form_inputs()
 
     def stop_hotkey_recording(self, *, cancelled: bool = False):
-        if not getattr(self, "hotkey_recording", False):
+        field_key = getattr(self, "hotkey_record_target", None)
+        listener = getattr(self, "hotkey_record_listener", None)
+        if listener:
+            try:
+                listener.stop()
+            except Exception:  # noqa: BLE001
+                pass
+            self.hotkey_record_listener = None
+        if not field_key:
+            if getattr(self, "hotkey_listener_paused_for_recording", False):
+                self.hotkey_listener_paused_for_recording = False
+                self.setup_hotkey_listener(initial=True)
             return
-        self.hotkey_recording = False
-        self.hotkey_record_button.setText(self.tr("record_hotkey"))
+        self.hotkey_record_target = None
+        field = self.hotkey_fields().get(field_key)
+        if field:
+            _, button = field
+            field[0].setReadOnly(False)
+            button.setText(self.tr("record_hotkey"))
+        if getattr(self, "hotkey_listener_paused_for_recording", False):
+            self.hotkey_listener_paused_for_recording = False
+            self.setup_hotkey_listener(initial=True)
         self.validate_form_inputs()
         if cancelled:
             self.set_status("hotkey_record_cancelled")
 
-    def _format_hotkey_from_event(self, event) -> str:
-        key = event.key()
-        if key in {Qt.Key_Control, Qt.Key_Shift, Qt.Key_Alt, Qt.Key_Meta}:
-            return ""
+    @staticmethod
+    def _normalize_recorded_key_token(key) -> str:
+        from pynput import keyboard
 
-        parts: list[str] = []
-        modifiers = event.modifiers()
-        if modifiers & Qt.ControlModifier:
-            parts.append("Ctrl")
-        if modifiers & Qt.AltModifier:
-            parts.append("Alt")
-        if modifiers & Qt.ShiftModifier:
-            parts.append("Shift")
-        if modifiers & Qt.MetaModifier:
-            parts.append("Win")
+        if key in {keyboard.Key.ctrl, keyboard.Key.ctrl_l, keyboard.Key.ctrl_r}:
+            return "Ctrl"
+        if key in {keyboard.Key.alt, keyboard.Key.alt_l, keyboard.Key.alt_r, keyboard.Key.alt_gr}:
+            return "Alt"
+        if key in {keyboard.Key.shift, keyboard.Key.shift_l, keyboard.Key.shift_r}:
+            return "Shift"
+        if key in {keyboard.Key.cmd, keyboard.Key.cmd_l, keyboard.Key.cmd_r}:
+            return "Win"
 
         special_keys = {
-            Qt.Key_Return: "Enter",
-            Qt.Key_Enter: "Enter",
-            Qt.Key_Tab: "Tab",
-            Qt.Key_Space: "Space",
-            Qt.Key_Backspace: "Backspace",
-            Qt.Key_Delete: "Delete",
-            Qt.Key_Insert: "Insert",
-            Qt.Key_Home: "Home",
-            Qt.Key_End: "End",
-            Qt.Key_PageUp: "PageUp",
-            Qt.Key_PageDown: "PageDown",
-            Qt.Key_Left: "Left",
-            Qt.Key_Right: "Right",
-            Qt.Key_Up: "Up",
-            Qt.Key_Down: "Down",
+            keyboard.Key.enter: "Enter",
+            keyboard.Key.tab: "Tab",
+            keyboard.Key.space: "Space",
+            keyboard.Key.backspace: "Backspace",
+            keyboard.Key.delete: "Delete",
+            keyboard.Key.insert: "Insert",
+            keyboard.Key.home: "Home",
+            keyboard.Key.end: "End",
+            keyboard.Key.page_up: "PageUp",
+            keyboard.Key.page_down: "PageDown",
+            keyboard.Key.left: "Left",
+            keyboard.Key.right: "Right",
+            keyboard.Key.up: "Up",
+            keyboard.Key.down: "Down",
+            keyboard.Key.esc: "Esc",
         }
+        if key in special_keys:
+            return special_keys[key]
 
-        if Qt.Key_F1 <= key <= Qt.Key_F24:
-            key_text = f"F{key - Qt.Key_F1 + 1}"
-        elif key in special_keys:
-            key_text = special_keys[key]
-        else:
-            key_text = (event.text() or "").strip().upper()
+        if isinstance(key, keyboard.KeyCode):
+            char = (key.char or "").strip()
+            if char:
+                return char.upper()
+        name = getattr(key, "name", "") or ""
+        if name.startswith("f") and name[1:].isdigit():
+            return name.upper()
+        if len(name) == 1 and name.isalnum():
+            return name.upper()
+        return ""
 
-        if not key_text:
-            return ""
-        if key_text not in parts:
-            parts.append(key_text)
+    @staticmethod
+    def _format_recorded_hotkey(modifiers: set[str], key_token: str) -> str:
+        ordered_modifiers = [token for token in ("Ctrl", "Alt", "Shift", "Win") if token in modifiers]
+        parts = ordered_modifiers.copy()
+        if key_token and key_token not in parts:
+            parts.append(key_token)
         return "+".join(parts)
 
+    def _start_global_hotkey_recorder(self, field_key: str):
+        from pynput import keyboard
+
+        modifier_tokens = {"Ctrl", "Alt", "Shift", "Win"}
+        pressed_modifiers: set[str] = set()
+        pressed_modifier_order: list[str] = []
+        recorded = False
+
+        def on_press(key):
+            nonlocal recorded
+            token = self._normalize_recorded_key_token(key)
+            if not token:
+                return
+            if token == "Esc":
+                recorded = True
+                self.bridge.hotkey_recorded.emit(field_key, "")
+                return False
+            if token in modifier_tokens:
+                pressed_modifiers.add(token)
+                if token not in pressed_modifier_order:
+                    pressed_modifier_order.append(token)
+                return
+            ordered_modifiers = [token for token in pressed_modifier_order if token in pressed_modifiers]
+            hotkey_text = self._format_recorded_hotkey(set(ordered_modifiers), token)
+            if hotkey_text:
+                recorded = True
+                self.bridge.hotkey_recorded.emit(field_key, hotkey_text)
+                return False
+
+        def on_release(key):
+            nonlocal recorded
+            token = self._normalize_recorded_key_token(key)
+            if token in modifier_tokens:
+                pressed_modifiers.discard(token)
+            if recorded:
+                return False
+
+        self.hotkey_record_listener = keyboard.Listener(on_press=on_press, on_release=on_release, suppress=True)
+        self.hotkey_record_listener.start()
+
+    def handle_recorded_hotkey(self, field_key: str, hotkey_text: str):
+        if getattr(self, "hotkey_record_target", None) != field_key:
+            return
+        if not hotkey_text:
+            self.stop_hotkey_recording(cancelled=True)
+            return
+        field = self.hotkey_fields().get(field_key)
+        if not field:
+            self.stop_hotkey_recording(cancelled=True)
+            return
+        widget, _ = field
+        widget.setText(hotkey_text)
+        self.stop_hotkey_recording(cancelled=False)
+        self.validate_form_inputs()
+        self.set_status("hotkey_recorded", hotkey=hotkey_text)
+
     def eventFilter(self, watched, event):
-        if watched is getattr(self, "hotkey_edit", None) and getattr(self, "hotkey_recording", False):
+        field_key = self.hotkey_field_key_for_widget(watched)
+        if field_key and getattr(self, "hotkey_record_target", None) == field_key:
             if event.type() == QEvent.Type.KeyPress:
                 if event.key() == Qt.Key_Escape:
                     self.stop_hotkey_recording(cancelled=True)
                     return True
-                hotkey_text = self._format_hotkey_from_event(event)
-                if hotkey_text:
-                    if not self.hotkey_has_modifier(hotkey_text):
-                        self.set_status("validation_hotkey_requires_modifier")
-                        self.validate_form_inputs()
-                        return True
-                    self.hotkey_edit.setText(hotkey_text)
-                    self.hotkey_recording = False
-                    self.hotkey_record_button.setText(self.tr("record_hotkey"))
-                    self.validate_form_inputs()
-                    self.set_status("hotkey_recorded", hotkey=hotkey_text)
-                elif event.key() not in {Qt.Key_Control, Qt.Key_Shift, Qt.Key_Alt, Qt.Key_Meta}:
-                    self.set_status("validation_hotkey_requires_modifier")
                 return True
             if event.type() in {QEvent.Type.ShortcutOverride, QEvent.Type.KeyRelease}:
                 return True
@@ -401,6 +546,8 @@ class MainWindowProfilesMixin:
             self.target_language_edit.setText(self.config.target_language)
             self.ui_language_combo.setCurrentText(self.config.ui_language)
             self.hotkey_edit.setText(self.config.hotkey)
+            self.selection_hotkey_edit.setText(self.config.selection_hotkey)
+            self.input_hotkey_edit.setText(self.config.input_hotkey)
             self.overlay_font_combo.setCurrentFont(QFont(self.config.overlay_font_family))
             self.temperature_spin.setValue(self.config.temperature)
             self.overlay_font_size_spin.setValue(self.config.overlay_font_size)
@@ -508,10 +655,14 @@ class MainWindowProfilesMixin:
             raise ValueError(first_error)
         previous_language = self.config.ui_language
         profile = self.build_profile_from_form()
+        prompt_preset = self.build_prompt_preset_from_form()
         self.upsert_profile(profile)
+        self.upsert_prompt_preset(prompt_preset)
         self.config.target_language = self.target_language_edit.text().strip() or "繁體中文"
         self.config.ui_language = self.ui_language_combo.currentText().strip() or "zh-TW"
-        self.config.hotkey = self.hotkey_edit.text().strip() or "Shift+Win+A"
+        self.config.hotkey = self.hotkey_edit.text().strip() or DEFAULT_CAPTURE_HOTKEY
+        self.config.selection_hotkey = self.selection_hotkey_edit.text().strip() or self.config.selection_hotkey
+        self.config.input_hotkey = self.input_hotkey_edit.text().strip() or self.config.input_hotkey
         self.config.overlay_font_family = self.overlay_font_combo.currentFont().family()
         self.config.temperature = self.temperature_spin.value()
         self.config.overlay_font_size = self.overlay_font_size_spin.value()
@@ -519,6 +670,7 @@ class MainWindowProfilesMixin:
         self.config.overlay_height = self.overlay_height_spin.value()
         self.config.margin = self.overlay_margin_spin.value()
         self.config.mode = self.mode_combo.currentData() or "book_lr"
+        self.config.active_prompt_preset_name = prompt_preset.name
         self.translation_overlay.apply_typography()
         if hasattr(self, "refresh_shell_state"):
             self.refresh_shell_state()
@@ -536,8 +688,8 @@ class MainWindowProfilesMixin:
             save_config(self.config)
             self.apply_language()
             self.load_profile_to_form(self.config.active_profile_name)
-            if self.config.hotkey != self.registered_hotkey:
-                self.setup_hotkey_listener()
+            self.load_prompt_preset_to_form(self.config.active_prompt_preset_name)
+            self.setup_hotkey_listener()
             self.set_status("language_saved" if self.config.ui_language != previous_language else "settings_saved")
             self.log(f"Saved profile: {profile.name} | provider={profile.provider} | base_url={profile.base_url}")
             return True
