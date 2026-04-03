@@ -192,22 +192,18 @@ class ApiClient:
 
         prompt = f"{DEFAULT_PROMPT}\n\nTarget language: {target_language}"
         image_base64 = self._image_to_base64(image)
-        retry_rounds = max(1, int(profile.retry_count))
-        attempts_total = retry_rounds * len(keys)
+        retry_count = max(0, int(profile.retry_count))
+        attempts_total = 1 + retry_count
         profile_key = f"{profile.provider}|{profile.base_url}|{profile.name}"
         start_index = self.profile_key_index.get(profile_key, 0) % len(keys)
         last_error = None
 
         for attempt in range(attempts_total):
             key_index = (start_index + attempt) % len(keys)
-            round_index = (attempt // len(keys)) + 1
             api_key = keys[key_index]
             self.profile_key_index[profile_key] = (key_index + 1) % len(keys)
             try:
-                self.log(
-                    f"Translate attempt {attempt + 1}/{attempts_total} | round {round_index}/{retry_rounds} | "
-                    f"provider={profile.provider} | model={profile.model} | key#{key_index + 1}"
-                )
+                self.log(f"Translate attempt {attempt + 1}/{attempts_total} | provider={profile.provider} | model={profile.model} | key#{key_index + 1}")
                 if profile.provider == "openai":
                     result = self._translate_openai(profile, api_key, prompt, image_base64, temperature)
                 else:

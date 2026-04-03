@@ -85,7 +85,7 @@ class ApiClientTests(unittest.TestCase):
             self.client._translate_openai(self.profile, "demo-key", "prompt", "base64", 0.2)
 
     @patch("app.api_client.time.sleep")
-    def test_translate_image_retry_count_one_only_runs_one_round_of_keys(self, mock_sleep):
+    def test_translate_image_retry_count_one_only_retries_once_with_next_key(self, mock_sleep):
         profile = ApiProfile(
             name="Retry Test",
             provider="openai",
@@ -100,7 +100,7 @@ class ApiClientTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "boom"):
                 self.client.translate_image(Mock(), profile, "繁體中文", 0.2)
 
-        self.assertEqual(mock_translate.call_count, 3)
+        self.assertEqual(mock_translate.call_count, 2)
         mock_sleep.assert_not_called()
 
     def test_translate_image_stops_retrying_when_error_is_non_retryable(self):
