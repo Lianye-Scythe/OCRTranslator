@@ -153,6 +153,17 @@ class ApiClient:
     def _is_retryable_exception(exc: Exception) -> bool:
         return bool(getattr(exc, "retryable", True))
 
+    @staticmethod
+    def _profile_rotation_key(profile: ApiProfile) -> str:
+        return f"{profile.provider}|{profile.base_url}|{profile.name}"
+
+    def _rotation_start_index(self, profile: ApiProfile, keys: list[str]) -> tuple[str, int]:
+        profile_key = self._profile_rotation_key(profile)
+        return profile_key, self.profile_key_index.get(profile_key, 0) % len(keys)
+
+    def _advance_rotation_index(self, profile_key: str, key_index: int, total_keys: int) -> None:
+        self.profile_key_index[profile_key] = (key_index + 1) % total_keys
+
     def _request_openai_models(self, profile: ApiProfile, api_key: str) -> list[str]:
         response = requests.get(self._openai_url(profile.base_url, "/models"), headers={"Authorization": f"Bearer {api_key}"}, timeout=30)
         self._ensure_success(response)
@@ -170,12 +181,17 @@ class ApiClient:
         if not keys:
             raise RuntimeError("No API key configured")
         last_error = None
-        for key in keys:
+        profile_key, start_index = self._rotation_start_index(profile, keys)
+        for attempt in range(len(keys)):
+            key_index = (start_index + attempt) % len(keys)
+            key = keys[key_index]
+            self._advance_rotation_index(profile_key, key_index, len(keys))
             try:
+                self.log(f"List models attempt {attempt + 1}/{len(keys)} | provider={profile.provider} | key#{key_index + 1}")
                 return self._request_openai_models(profile, key) if profile.provider == "openai" else self._request_gemini_models(profile, key)
             except Exception as exc:  # noqa: BLE001
                 last_error = exc
-                self.log(f"List models failed with one key: {exc}")
+                self.log(f"List models failed on attempt {attempt + 1}: {exc}")
         raise RuntimeError(str(last_error) if last_error else "Failed to load models")
 
     def test_profile(self, profile: ApiProfile) -> str:
@@ -194,14 +210,13 @@ class ApiClient:
         image_base64 = self._image_to_base64(image)
         retry_count = max(0, int(profile.retry_count))
         attempts_total = 1 + retry_count
-        profile_key = f"{profile.provider}|{profile.base_url}|{profile.name}"
-        start_index = self.profile_key_index.get(profile_key, 0) % len(keys)
+        profile_key, start_index = self._rotation_start_index(profile, keys)
         last_error = None
 
         for attempt in range(attempts_total):
             key_index = (start_index + attempt) % len(keys)
             api_key = keys[key_index]
-            self.profile_key_index[profile_key] = (key_index + 1) % len(keys)
+            self._advance_rotation_index(profile_key, key_index, len(keys))
             try:
                 self.log(f"Translate attempt {attempt + 1}/{attempts_total} | provider={profile.provider} | model={profile.model} | key#{key_index + 1}")
                 if profile.provider == "openai":

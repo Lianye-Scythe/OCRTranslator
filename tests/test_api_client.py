@@ -50,6 +50,44 @@ class ApiClientTests(unittest.TestCase):
 
         self.assertEqual(result, "第一行\n第二行")
 
+    def test_translate_image_rotates_keys_between_successful_requests(self):
+        profile = ApiProfile(
+            name="Rotation",
+            provider="openai",
+            base_url="https://api.openai.com",
+            api_keys=["key-1", "key-2", "key-3"],
+            model="gpt-4o-mini",
+            retry_count=0,
+            retry_interval=0,
+        )
+        used_keys = []
+
+        def fake_translate(profile_obj, api_key, prompt, image_base64, temperature):
+            used_keys.append(api_key)
+            return "ok"
+
+        with patch.object(self.client, "_image_to_base64", return_value="base64"), patch.object(self.client, "_translate_openai", side_effect=fake_translate):
+            for _ in range(4):
+                self.client.translate_image(Mock(), profile, "繁體中文", 0.2)
+
+        self.assertEqual(used_keys, ["key-1", "key-2", "key-3", "key-1"])
+
+    def test_list_models_rotates_keys_between_requests(self):
+        profile = ApiProfile(
+            name="Models Rotation",
+            provider="openai",
+            base_url="https://api.openai.com",
+            api_keys=["key-1", "key-2", "key-3"],
+            model="gpt-4o-mini",
+        )
+        used_keys = []
+
+        with patch.object(self.client, "_request_openai_models", side_effect=lambda profile_obj, api_key: used_keys.append(api_key) or ["gpt-4o-mini"]):
+            for _ in range(4):
+                self.client.list_models(profile)
+
+        self.assertEqual(used_keys, ["key-1", "key-2", "key-3", "key-1"])
+
     @patch("app.api_client.requests.post")
     def test_translate_gemini_raises_block_reason_when_prompt_is_blocked(self, mock_post):
         profile = ApiProfile(
