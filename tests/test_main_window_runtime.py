@@ -2,6 +2,7 @@ from types import SimpleNamespace
 import unittest
 import sys
 import types
+from unittest.mock import Mock, patch
 
 if "pynput" not in sys.modules:
     pynput_stub = types.ModuleType("pynput")
@@ -112,6 +113,39 @@ class MainWindowRuntimeTests(unittest.TestCase):
         self.assertFalse(window.tray_capture_action.enabled)
         self.assertEqual(window.hero_capture_button.text, "start_capture_busy")
         self.assertEqual(window.preview_capture_button.text, "start_capture_busy")
+
+    def test_save_settings_aborts_when_hotkey_registration_fails(self):
+        window = MainWindow.__new__(MainWindow)
+        window.tr = lambda key, **kwargs: f"{key}: {kwargs.get('error')}" if kwargs else key
+        window.validate_form_inputs = lambda focus_first_invalid=True: (True, "")
+        window.set_status = Mock()
+        window.log = Mock()
+        window.config = SimpleNamespace(ui_language="en", hotkey="Ctrl+X", selection_hotkey="Ctrl+C", input_hotkey="Ctrl+Z")
+        candidate_config = SimpleNamespace(ui_language="zh-TW", hotkey="Ctrl+Shift+X", selection_hotkey="Ctrl+Shift+C", input_hotkey="Ctrl+Shift+Z")
+        profile = SimpleNamespace(name="Demo", provider="openai", base_url="https://api.openai.com")
+        window.sync_form_to_config = lambda: ("en", candidate_config, profile)
+        window.setup_hotkey_listener = Mock(side_effect=[RuntimeError("hook failed"), True])
+        window.config_save_timer = SimpleNamespace(isActive=lambda: False)
+
+        with patch("app.ui.main_window_profiles.QMessageBox.critical") as mock_critical, patch(
+            "app.ui.main_window_profiles.save_config"
+        ) as mock_save_config:
+            result = window.save_settings()
+
+        self.assertFalse(result)
+        self.assertEqual(window.config.ui_language, "en")
+        self.assertEqual(window.setup_hotkey_listener.call_count, 2)
+        mock_save_config.assert_not_called()
+        mock_critical.assert_called_once()
+
+    def test_validate_hotkey_actions_rejects_subset_conflicts(self):
+        window = MainWindow.__new__(MainWindow)
+        window.tr = lambda key, **kwargs: f"{key}: {kwargs}"
+        window.hotkey_has_modifier = lambda hotkey_text: True
+        window.normalize_hotkey = lambda hotkey_text: hotkey_text.lower()
+
+        with self.assertRaises(ValueError):
+            window.validate_hotkey_actions({"capture": "Ctrl+X", "selection_text": "Ctrl+Shift+X", "manual_input": "Ctrl+Z"})
 
 
 if __name__ == "__main__":

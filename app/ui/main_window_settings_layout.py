@@ -133,7 +133,7 @@ class MainWindowSettingsLayoutMixin:
         api_keys_header.addWidget(self.api_keys_toggle_button)
 
         self.api_keys_edit = QPlainTextEdit()
-        self.api_keys_edit.setFixedHeight(118)
+        self.api_keys_edit.setMinimumHeight(104)
         self.api_keys_edit.textChanged.connect(self.on_api_keys_text_changed)
         self.api_keys_hint = QLabel()
         self.api_keys_hint.setObjectName("HintLabel")
@@ -242,12 +242,12 @@ class MainWindowSettingsLayoutMixin:
 
         self.image_prompt_label = QLabel()
         self.image_prompt_edit = QPlainTextEdit()
-        self.image_prompt_edit.setFixedHeight(128)
+        self.image_prompt_edit.setMinimumHeight(120)
         prompts_layout.addWidget(self.create_field_block(self.image_prompt_label, self.image_prompt_edit))
 
         self.text_prompt_label = QLabel()
         self.text_prompt_edit = QPlainTextEdit()
-        self.text_prompt_edit.setFixedHeight(128)
+        self.text_prompt_edit.setMinimumHeight(120)
         prompts_layout.addWidget(self.create_field_block(self.text_prompt_label, self.text_prompt_edit))
 
         self.prompt_hint_label = QLabel()

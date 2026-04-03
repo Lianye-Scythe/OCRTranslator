@@ -1,10 +1,13 @@
+import copy
+
 from PySide6.QtCore import QEvent, Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QMessageBox
 
 from ..config_store import load_config, save_config
-from ..constants import DEFAULT_CAPTURE_HOTKEY, I18N, MODEL_PREFIX, PROVIDER_LABELS
-from ..models import ApiProfile
+from ..app_defaults import PROVIDER_LABELS
+from ..i18n import I18N
+from ..models import ApiProfile, AppConfig
 from ..profile_utils import (
     default_base_url_for_provider,
     default_model_for_provider,
@@ -13,9 +16,25 @@ from ..profile_utils import (
     normalize_provider_name,
     unique_non_empty,
 )
+from ..settings_models import SettingsFormSnapshot
+from ..settings_service import build_candidate_config, build_profile_from_snapshot, validate_profile_name as validate_profile_name_rule, validate_settings_snapshot
 
 
 class MainWindowProfilesMixin:
+    FIELD_WIDGET_MAP = {
+        "profile_name": "profile_name_edit",
+        "base_url": "base_url_edit",
+        "model": "model_combo",
+        "api_keys": "api_keys_edit",
+        "prompt_preset_name": "prompt_preset_name_edit",
+        "image_prompt": "image_prompt_edit",
+        "text_prompt": "text_prompt_edit",
+        "target_language": "target_language_edit",
+        "capture": "hotkey_edit",
+        "selection": "selection_hotkey_edit",
+        "input": "input_hotkey_edit",
+    }
+
     def provider_display(self, provider: str) -> str:
         return PROVIDER_LABELS.get(provider, {}).get(self.current_ui_language(), provider)
 
@@ -224,6 +243,41 @@ class MainWindowProfilesMixin:
             values[key] = edit.text().strip()
         return values
 
+    def capture_settings_snapshot(self) -> SettingsFormSnapshot:
+        current_profile = self.get_active_profile()
+        current_prompt_preset = self.get_active_prompt_preset()
+        return SettingsFormSnapshot(
+            profile_name=self.profile_name_edit.text().strip(),
+            provider=normalize_provider_name(self.provider_combo.currentData() or current_profile.provider),
+            base_url=self.base_url_edit.text().strip(),
+            model_text=self.model_combo.currentText().strip(),
+            model_items=[self.model_combo.itemText(index) for index in range(self.model_combo.count())],
+            api_keys_text=self.get_api_keys_text(),
+            retry_count=self.retry_count_spin.value(),
+            retry_interval=self.retry_interval_spin.value(),
+            target_language=self.target_language_edit.text().strip(),
+            ui_language=self.ui_language_combo.currentText().strip(),
+            hotkey=self.hotkey_edit.text().strip(),
+            selection_hotkey=self.selection_hotkey_edit.text().strip(),
+            input_hotkey=self.input_hotkey_edit.text().strip(),
+            overlay_font_family=self.overlay_font_combo.currentFont().family(),
+            overlay_font_size=self.overlay_font_size_spin.value(),
+            temperature=self.temperature_spin.value(),
+            overlay_width=self.overlay_width_spin.value(),
+            overlay_height=self.overlay_height_spin.value(),
+            overlay_margin=self.overlay_margin_spin.value(),
+            close_to_tray_on_close=self.close_to_tray_on_close_checkbox.isChecked(),
+            mode=self.mode_combo.currentData() or self.config.mode,
+            prompt_preset_name=self.prompt_preset_name_edit.text().strip() or current_prompt_preset.name,
+            image_prompt=self.image_prompt_edit.toPlainText(),
+            text_prompt=self.text_prompt_edit.toPlainText(),
+            active_record_target=getattr(self, "hotkey_record_target", None),
+        )
+
+    def widget_for_field_key(self, field_key: str):
+        widget_name = self.FIELD_WIDGET_MAP.get(field_key)
+        return getattr(self, widget_name, None) if widget_name else None
+
     def hotkey_field_label(self, field_key: str) -> str:
         label_map = {
             "capture": self.tr("capture_hotkey"),
@@ -260,12 +314,7 @@ class MainWindowProfilesMixin:
             label.hide()
 
     def validate_form_inputs(self, *, focus_first_invalid: bool = False) -> tuple[bool, str]:
-        api_errors: list[str] = []
-        prompt_errors: list[str] = []
-        reading_errors: list[str] = []
-        invalid_widgets = []
-
-        for widget in [
+        tracked_widgets = [
             self.profile_name_edit,
             self.base_url_edit,
             self.model_combo,
@@ -277,83 +326,36 @@ class MainWindowProfilesMixin:
             self.hotkey_edit,
             self.selection_hotkey_edit,
             self.input_hotkey_edit,
-        ]:
+        ]
+        for widget in tracked_widgets:
             self.set_widget_invalid(widget, False)
-
-        def mark_invalid(widget, message: str, bucket: list[str]):
+        snapshot = self.capture_settings_snapshot()
+        validation = validate_settings_snapshot(
+            snapshot,
+            existing_profile_names={profile.name for profile in self.config.api_profiles},
+            current_profile_name=self.get_active_profile().name,
+            existing_prompt_preset_names={preset.name for preset in self.config.prompt_presets},
+            current_prompt_preset_name=self.get_active_prompt_preset().name,
+            normalize_hotkey=self.normalize_hotkey,
+            hotkey_has_modifier=self.hotkey_has_modifier,
+            tr=self.tr,
+        )
+        invalid_widgets = []
+        for field_key in validation.field_keys():
+            widget = self.widget_for_field_key(field_key)
+            if widget is None:
+                continue
             self.set_widget_invalid(widget, True)
-            if message not in bucket:
-                bucket.append(message)
             if widget not in invalid_widgets:
                 invalid_widgets.append(widget)
 
-        try:
-            self.validate_profile_name(self.profile_name_edit.text(), self.get_active_profile().name)
-        except Exception as exc:  # noqa: BLE001
-            mark_invalid(self.profile_name_edit, str(exc), api_errors)
+        self.set_validation_message(self.api_validation_label, validation.messages_for_category("api"))
+        self.set_validation_message(self.prompt_validation_label, validation.messages_for_category("prompt"))
+        self.set_validation_message(self.reading_validation_label, validation.messages_for_category("reading"))
 
-        base_url = self.base_url_edit.text().strip()
-        if not base_url:
-            mark_invalid(self.base_url_edit, self.tr("validation_base_url_required"), api_errors)
-        elif not base_url.lower().startswith(("http://", "https://")):
-            mark_invalid(self.base_url_edit, self.tr("validation_base_url_scheme"), api_errors)
-
-        if not self.model_combo.currentText().strip():
-            mark_invalid(self.model_combo, self.tr("validation_model_required"), api_errors)
-
-        api_keys = unique_non_empty(self.get_api_keys_text().splitlines())
-        if not api_keys:
-            mark_invalid(self.api_keys_edit, self.tr("validation_api_keys_required"), api_errors)
-
-        try:
-            self.validate_prompt_preset_name(self.prompt_preset_name_edit.text(), self.get_active_prompt_preset().name)
-        except Exception as exc:  # noqa: BLE001
-            mark_invalid(self.prompt_preset_name_edit, str(exc), prompt_errors)
-
-        if not self.image_prompt_edit.toPlainText().strip():
-            mark_invalid(self.image_prompt_edit, self.tr("validation_prompt_image_required"), prompt_errors)
-        if not self.text_prompt_edit.toPlainText().strip():
-            mark_invalid(self.text_prompt_edit, self.tr("validation_prompt_text_required"), prompt_errors)
-
-        if not self.target_language_edit.text().strip():
-            mark_invalid(self.target_language_edit, self.tr("validation_target_language_required"), reading_errors)
-
-        normalized_hotkeys: dict[str, tuple] = {}
-        hotkey_values = self.hotkey_value_map()
-        active_record_target = getattr(self, "hotkey_record_target", None)
-        for field_key, hotkey_value in hotkey_values.items():
-            widget, _ = self.hotkey_fields().get(field_key, (None, None))
-            if widget is None:
-                continue
-            if active_record_target == field_key:
-                mark_invalid(widget, self.tr("validation_hotkey_recording"), reading_errors)
-                continue
-            if not hotkey_value:
-                mark_invalid(widget, self.tr("validation_hotkey_required"), reading_errors)
-                continue
-            try:
-                normalized = self.normalize_hotkey(hotkey_value)
-                if not self.hotkey_has_modifier(hotkey_value):
-                    mark_invalid(widget, self.tr("validation_hotkey_requires_modifier"), reading_errors)
-                    continue
-                if normalized in normalized_hotkeys:
-                    other_widget, _ = normalized_hotkeys[normalized]
-                    message = self.tr("validation_hotkey_duplicate", hotkey=hotkey_value)
-                    mark_invalid(widget, message, reading_errors)
-                    self.set_widget_invalid(other_widget, True)
-                    continue
-                normalized_hotkeys[normalized] = (widget, field_key)
-            except Exception as exc:  # noqa: BLE001
-                mark_invalid(widget, self.tr("validation_hotkey_invalid", error=exc), reading_errors)
-
-        self.set_validation_message(self.api_validation_label, api_errors)
-        self.set_validation_message(self.prompt_validation_label, prompt_errors)
-        self.set_validation_message(self.reading_validation_label, reading_errors)
-
-        first_error = api_errors[0] if api_errors else prompt_errors[0] if prompt_errors else reading_errors[0] if reading_errors else ""
         if focus_first_invalid and invalid_widgets:
             invalid_widgets[0].setFocus()
-        return not (api_errors or prompt_errors or reading_errors), first_error
+        return validation.is_valid, validation.first_error
 
     def start_hotkey_recording(self, field_key: str = "capture"):
         if getattr(self, "hotkey_record_target", None) == field_key:
@@ -574,41 +576,22 @@ class MainWindowProfilesMixin:
             index += 1
 
     def validate_profile_name(self, name: str, current_name: str | None = None) -> str:
-        normalized = name.strip() or self.tr("untitled_profile")
-        if normalized in {profile.name for profile in self.config.api_profiles if profile.name != current_name}:
-            raise ValueError(self.tr("profile_name_exists", name=normalized))
-        return normalized
+        try:
+            return validate_profile_name_rule(
+                name,
+                {profile.name for profile in self.config.api_profiles},
+                current_name,
+                fallback_name=self.tr("untitled_profile"),
+            )
+        except ValueError as exc:
+            raise ValueError(self.tr("profile_name_exists", name=str(exc))) from exc
 
     def build_profile_from_form(self) -> ApiProfile:
+        snapshot = self.capture_settings_snapshot()
         current_profile = self.get_active_profile()
-        provider = normalize_provider_name(self.provider_combo.currentData() or "gemini")
-        profile_name = self.validate_profile_name(self.profile_name_edit.text(), current_profile.name)
-        api_keys = unique_non_empty(self.get_api_keys_text().splitlines())
-        available_models = unique_non_empty(self.normalize_model_name(self.model_combo.itemText(i), provider) for i in range(self.model_combo.count()))
-        fallback_model = current_profile.model if current_profile.provider == provider else default_model_for_provider(provider)
-        model = self.normalize_model_name(self.model_combo.currentText() or fallback_model, provider)
-        if provider == "openai" and model.startswith(MODEL_PREFIX):
-            model = model[len(MODEL_PREFIX):]
-        if not model and available_models:
-            model = available_models[0]
-        if model and model not in available_models:
-            available_models.append(model)
-        base_url = self.base_url_edit.text().strip()
-        if not base_url:
-            if current_profile.provider == provider and current_profile.base_url.strip():
-                base_url = current_profile.base_url.strip()
-            else:
-                base_url = default_base_url_for_provider(provider)
-        return ApiProfile(
-            name=profile_name,
-            provider=provider,
-            base_url=base_url,
-            api_keys=api_keys,
-            model=model,
-            available_models=available_models,
-            retry_count=self.retry_count_spin.value(),
-            retry_interval=self.retry_interval_spin.value(),
-        )
+        profile = build_profile_from_snapshot(snapshot, current_profile=current_profile)
+        profile.name = self.validate_profile_name(profile.name, current_profile.name)
+        return profile
 
     def upsert_profile(self, profile: ApiProfile):
         current_name = self.config.active_profile_name
@@ -650,33 +633,19 @@ class MainWindowProfilesMixin:
         self.set_status("profile_deleted", name=name)
         self.log(f"Deleted profile (pending save): {name}")
 
-    def sync_form_to_config(self) -> tuple[str, ApiProfile]:
+    def sync_form_to_config(self) -> tuple[str, AppConfig, ApiProfile]:
         valid, first_error = self.validate_form_inputs(focus_first_invalid=True)
         if not valid:
             raise ValueError(first_error)
-        previous_language = self.config.ui_language
-        profile = self.build_profile_from_form()
-        prompt_preset = self.build_prompt_preset_from_form()
-        self.upsert_profile(profile)
-        self.upsert_prompt_preset(prompt_preset)
-        self.config.target_language = self.target_language_edit.text().strip() or "繁體中文"
-        self.config.ui_language = self.ui_language_combo.currentText().strip() or "zh-TW"
-        self.config.hotkey = self.hotkey_edit.text().strip() or DEFAULT_CAPTURE_HOTKEY
-        self.config.selection_hotkey = self.selection_hotkey_edit.text().strip() or self.config.selection_hotkey
-        self.config.input_hotkey = self.input_hotkey_edit.text().strip() or self.config.input_hotkey
-        self.config.overlay_font_family = self.overlay_font_combo.currentFont().family()
-        self.config.temperature = self.temperature_spin.value()
-        self.config.overlay_font_size = self.overlay_font_size_spin.value()
-        self.config.overlay_width = self.overlay_width_spin.value()
-        self.config.overlay_height = self.overlay_height_spin.value()
-        self.config.margin = self.overlay_margin_spin.value()
-        self.config.close_to_tray_on_close = self.close_to_tray_on_close_checkbox.isChecked()
-        self.config.mode = self.mode_combo.currentData() or "book_lr"
-        self.config.active_prompt_preset_name = prompt_preset.name
-        self.translation_overlay.apply_typography()
-        if hasattr(self, "refresh_shell_state"):
-            self.refresh_shell_state()
-        return previous_language, profile
+        snapshot = self.capture_settings_snapshot()
+        previous_language, candidate_config, profile, _ = build_candidate_config(
+            self.config,
+            snapshot,
+            current_profile=self.get_active_profile(),
+            current_prompt_preset=self.get_active_prompt_preset(),
+        )
+        profile.name = self.validate_profile_name(profile.name, self.get_active_profile().name)
+        return previous_language, candidate_config, profile
 
     def save_settings(self):
         try:
@@ -684,18 +653,38 @@ class MainWindowProfilesMixin:
             if not valid:
                 self.set_status("validation_failed")
                 return False
-            previous_language, profile = self.sync_form_to_config()
+            previous_runtime_config = copy.deepcopy(self.config)
+            previous_language, candidate_config, profile = self.sync_form_to_config()
+            try:
+                self.setup_hotkey_listener(initial=True, config=candidate_config, raise_on_error=True)
+            except Exception as exc:  # noqa: BLE001
+                self.config = previous_runtime_config
+                try:
+                    self.setup_hotkey_listener(initial=True, config=previous_runtime_config, raise_on_error=True)
+                except Exception as restore_exc:  # noqa: BLE001
+                    self.log(f"Failed to restore previous hotkeys after save abort: {restore_exc}")
+                self.set_status("hotkey_register_failed", error=exc)
+                self.log(f"Settings not saved because hotkey registration failed: {exc}")
+                QMessageBox.critical(self, self.tr("error_title"), self.tr("save_settings_aborted_hotkeys", error=exc))
+                return False
+
             if hasattr(self, "config_save_timer") and self.config_save_timer.isActive():
                 self.config_save_timer.stop()
+            self.config = candidate_config
             save_config(self.config)
             self.apply_language()
             self.load_profile_to_form(self.config.active_profile_name)
             self.load_prompt_preset_to_form(self.config.active_prompt_preset_name)
-            self.setup_hotkey_listener()
             self.set_status("language_saved" if self.config.ui_language != previous_language else "settings_saved")
             self.log(f"Saved profile: {profile.name} | provider={profile.provider} | base_url={profile.base_url}")
             return True
         except Exception as exc:  # noqa: BLE001
+            try:
+                restored_config = copy.deepcopy(locals().get("previous_runtime_config", self.config))
+                self.config = restored_config
+                self.setup_hotkey_listener(initial=True, config=restored_config, raise_on_error=True)
+            except Exception as restore_exc:  # noqa: BLE001
+                self.log(f"Failed to restore runtime state after save error: {restore_exc}")
             self.handle_error(exc)
             return False
 

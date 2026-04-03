@@ -30,6 +30,7 @@ class ApiClientTests(unittest.TestCase):
 
         self.assertEqual(str(context.exception), "HTTP 401: invalid api key")
         self.assertTrue(context.exception.retryable)
+        self.assertFalse(context.exception.retry_same_key)
 
     def test_ensure_success_marks_bad_request_as_non_retryable(self):
         response = Mock()
@@ -238,6 +239,38 @@ class ApiClientTests(unittest.TestCase):
                 self.client.list_models(profile)
 
         self.assertEqual(mock_request_models.call_count, 1)
+
+    @patch("app.api_client.time.sleep")
+    def test_request_text_auth_failure_with_single_key_does_not_retry_same_key(self, mock_sleep):
+        profile = ApiProfile(
+            name="Single Key",
+            provider="openai",
+            base_url="https://api.openai.com",
+            api_keys=["only-key"],
+            model="gpt-4o-mini",
+            retry_count=3,
+            retry_interval=0,
+        )
+
+        with patch.object(
+            self.client,
+            "_request_openai_prompt",
+            side_effect=ApiClientError("HTTP 401: invalid api key", user_message="bad key", retryable=True, retry_same_key=False),
+        ) as mock_request:
+            with self.assertRaisesRegex(ApiClientError, "HTTP 401: invalid api key"):
+                self.client.request_text("prompt", profile, 0.2)
+
+        self.assertEqual(mock_request.call_count, 1)
+        mock_sleep.assert_not_called()
+
+    def test_list_models_respects_retry_count_for_same_key_retryable_errors(self):
+        profile = ApiProfile(name="Retry Models", provider="openai", base_url="https://api.openai.com", api_keys=["key-1"], model="gpt-4o-mini", retry_count=2, retry_interval=0)
+
+        with patch.object(self.client, "_request_openai_models", side_effect=RuntimeError("temporary boom")) as mock_request_models:
+            with self.assertRaisesRegex(ApiClientError, "temporary boom"):
+                self.client.list_models(profile)
+
+        self.assertEqual(mock_request_models.call_count, 3)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 import os
 import platform
+import re
 import sys
 import threading
 import time
@@ -23,6 +24,23 @@ def build_crash_log_path(base_dir: Path | None = None) -> Path:
     return target_dir / f"{CRASH_LOG_PREFIX}-{timestamp}-{unique_suffix}.log"
 
 
+def _redact_path_text(value: object) -> str:
+    text = str(value)
+    home = str(Path.home())
+    if home and text.startswith(home):
+        return text.replace(home, "~", 1)
+    return text
+
+
+def _sanitize_argument(arg: object) -> str:
+    text = _redact_path_text(arg)
+    return re.sub(r"(?i)(api[_-]?key|token|password)=([^\s]+)", r"\1=<redacted>", text)
+
+
+def _sanitize_arguments(args: list[object]) -> list[str]:
+    return [_sanitize_argument(arg) for arg in args]
+
+
 def format_exception_report(
     exc_type: type[BaseException],
     exc_value: BaseException,
@@ -42,10 +60,10 @@ def format_exception_report(
         f"Python: {sys.version.replace(os.linesep, ' ')}",
         f"Platform: {platform.platform()}",
         f"Frozen: {getattr(sys, 'frozen', False)}",
-        f"Executable: {getattr(sys, 'executable', '')}",
-        f"Current Working Directory: {Path.cwd()}",
-        f"Base Directory: {get_runtime_base_dir()}",
-        f"Arguments: {sys.argv}",
+        f"Executable: {_redact_path_text(getattr(sys, 'executable', ''))}",
+        f"Current Working Directory: {_redact_path_text(Path.cwd())}",
+        f"Base Directory: {_redact_path_text(get_runtime_base_dir())}",
+        f"Arguments: {_sanitize_arguments(sys.argv)}",
         "",
         "Traceback:",
         formatted_traceback,

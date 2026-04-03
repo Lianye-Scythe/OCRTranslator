@@ -1,36 +1,27 @@
-import io
 import time
-from collections import deque
 from pathlib import Path
-from types import SimpleNamespace
 
-from PIL import Image, ImageGrab
-from PySide6.QtCore import QBuffer, QByteArray, QPoint, QRect, Qt, QTimer
-from PySide6.QtGui import QAction, QCursor, QGuiApplication, QPixmap
+from PIL import Image
+from PySide6.QtCore import QPoint, Qt, QTimer
+from PySide6.QtGui import QAction, QPixmap
 from PySide6.QtNetwork import QLocalServer
 from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QMenu, QMessageBox, QSystemTrayIcon
 
 from ..api_client import ApiClient
 from ..config_store import load_config, save_config
-from ..hotkey_listener import HotkeyListener
-from ..constants import APP_SERVER_NAME, I18N
-from ..prompt_utils import build_image_request_prompt, build_text_request_prompt
-from ..profile_utils import normalize_model_value, normalize_provider_name, unique_non_empty
-from ..selected_text_capture import capture_selected_text
+from ..hotkey_listener import HotkeyListener, find_hotkey_conflicts
+from ..i18n import I18N
+from ..profile_utils import normalize_provider_name
+from ..runtime_paths import APP_SERVER_NAME
+from ..services.image_capture import ScreenCaptureService
+from ..services.overlay_presenter import OverlayPresenter
+from ..services.request_workflow import RequestWorkflowController
+from ..services.runtime_log import RuntimeLogStore
 from ..workers import AppBridge, WorkerThread
 from .main_window_layout import MainWindowLayoutMixin
 from .main_window_settings_layout import MainWindowSettingsLayoutMixin
 from .main_window_prompts import MainWindowPromptPresetsMixin
 from .main_window_profiles import MainWindowProfilesMixin
-from .overlay_positioning import (
-    clamp_overlay_size_to_screen,
-    compute_overlay_position,
-    compute_overlay_position_for_point,
-    fit_overlay_size,
-    get_screen_rect_for_point,
-    get_target_screen_rect,
-)
-from .prompt_input_dialog import PromptInputDialog
 from .selection_overlay import SelectionOverlay
 from .translation_overlay import TranslationOverlay
 
@@ -52,8 +43,9 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self.bridge.hotkey_recorded.connect(self.handle_recorded_hotkey)
 
         self.config = load_config()
-        self.logs = deque(maxlen=100)
+        self.log_store = RuntimeLogStore(max_entries=100)
         self.api_client = ApiClient(self.log)
+        self.screen_capture_service = ScreenCaptureService(self.log)
         self.hotkey_listener = None
         self.hotkey_record_listener = None
         self.hotkey_listener_paused_for_recording = False
@@ -88,6 +80,8 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self.translation_overlay = TranslationOverlay(self)
         self.translation_overlay.request_font_zoom.connect(self.adjust_overlay_font_size)
         self.translation_overlay.overlay_resized.connect(self.handle_overlay_resized)
+        self.overlay_presenter = OverlayPresenter(self, self.translation_overlay)
+        self.request_workflow = RequestWorkflowController(self)
 
         self.build_ui()
         self.setup_tray()
@@ -168,9 +162,9 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
 
     def handle_action_request(self, action: str):
         action_map = {
-            "capture": self.start_selection,
-            "selection_text": self.translate_selected_text,
-            "manual_input": self.open_prompt_input_dialog,
+            "capture": self.request_workflow.start_selection,
+            "selection_text": self.request_workflow.translate_selected_text,
+            "manual_input": self.request_workflow.open_prompt_input_dialog,
         }
         handler = action_map.get(action)
         if handler:
@@ -194,22 +188,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         return self.fetch_models_in_progress or self.test_profile_in_progress or self.translation_in_progress
 
     def prepare_request_context(self, *, focus_first_invalid: bool = True):
-        if self.capture_workflow_active:
-            self.log("Request ignored because another capture workflow is still active")
-            return None
-        if self.background_busy():
-            self.log("Request ignored because another background operation is still running")
-            return None
-        valid, first_error = self.validate_form_inputs(focus_first_invalid=focus_first_invalid)
-        if not valid:
-            self.set_status("validation_failed")
-            self.log(f"Request blocked by validation: {first_error}")
-            return None
-        return {
-            "profile": self.build_profile_from_form(),
-            "target_language": self.current_target_language(),
-            "prompt_preset": self.build_prompt_preset_from_form(),
-        }
+        return self.request_workflow.prepare_request_context(focus_first_invalid=focus_first_invalid)
 
     def set_operation_state(self, operation: str, active: bool):
         setattr(self, f"{operation}_in_progress", active)
@@ -342,20 +321,20 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
     def refresh_log_view(self):
         if not hasattr(self, "log_text"):
             return
-        if self.logs:
-            self.log_text.setPlainText("\n".join(reversed(self.logs)))
+        if self.log_store.has_entries():
+            self.log_text.setPlainText(self.log_store.as_text())
         else:
             self.log_text.setPlainText("")
             self.log_text.setPlaceholderText(self.tr("logs_empty"))
 
     def log(self, message: str):
-        self.logs.append(f"[{time.strftime('%H:%M:%S')}] {message}")
+        self.log_store.add(message)
         if hasattr(self, "log_text"):
             self.log_text.setPlaceholderText("")
             self.refresh_log_view()
 
     def clear_logs(self):
-        self.logs.clear()
+        self.log_store.clear()
         self.refresh_log_view()
         self.set_status("logs_cleared")
 
@@ -367,7 +346,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
 
     def export_logs(self):
         try:
-            if not self.logs:
+            if not self.log_store.has_entries():
                 self.set_status("logs_export_empty")
                 return
             default_name = f"ocrtranslator-log-{time.strftime('%Y%m%d-%H%M%S')}.txt"
@@ -379,7 +358,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             )
             if not target_path:
                 return
-            Path(target_path).write_text("\n".join(reversed(self.logs)) + "\n", encoding="utf-8")
+            self.log_store.export(target_path)
             self.log(f"Runtime log exported: {target_path}")
             self.set_status("logs_exported", path=Path(target_path).name)
         except Exception as exc:  # noqa: BLE001
@@ -428,46 +407,81 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         mapped = [f"<{part}>" if part.startswith("f") and part[1:].isdigit() else part for part in mapped]
         return "+".join(mapped)
 
-    def setup_hotkey_listener(self, initial: bool = False):
-        if self.hotkey_listener:
-            self.hotkey_listener.stop()
-            self.hotkey_listener = None
+    def build_hotkey_actions(self, config=None) -> dict[str, str]:
+        target_config = config or self.config
+        return {
+            "capture": target_config.hotkey,
+            "selection_text": target_config.selection_hotkey,
+            "manual_input": target_config.input_hotkey,
+        }
+
+    def validate_hotkey_actions(self, hotkey_actions: dict[str, str]) -> dict[str, str]:
+        normalized_actions = {}
+        for action, hotkey in hotkey_actions.items():
+            if not self.hotkey_has_modifier(hotkey):
+                raise ValueError(self.tr("validation_hotkey_requires_modifier"))
+            normalized = self.normalize_hotkey(hotkey)
+            if normalized in normalized_actions:
+                raise ValueError(self.tr("validation_hotkey_duplicate", hotkey=hotkey))
+            normalized_actions[normalized] = action
+        conflicts = find_hotkey_conflicts(hotkey_actions)
+        if conflicts:
+            kind, left_action, right_action = conflicts[0]
+            left_hotkey = hotkey_actions.get(left_action, "")
+            right_hotkey = hotkey_actions.get(right_action, "")
+            if kind == "duplicate":
+                raise ValueError(self.tr("validation_hotkey_duplicate", hotkey=left_hotkey or right_hotkey))
+            raise ValueError(self.tr("validation_hotkey_conflict", hotkey_a=left_hotkey, hotkey_b=right_hotkey))
+        return hotkey_actions
+
+    def setup_hotkey_listener(self, initial: bool = False, *, config=None, raise_on_error: bool = False):
+        previous_hotkeys = dict(getattr(self, "registered_hotkeys", {}))
+        previous_listener = self.hotkey_listener
+        if previous_listener:
+            previous_listener.stop()
+        self.hotkey_listener = None
         self.registered_hotkeys = {}
         try:
-            hotkey_actions = {
-                "capture": self.config.hotkey,
-                "selection_text": self.config.selection_hotkey,
-                "manual_input": self.config.input_hotkey,
-            }
-            normalized_actions = {}
-            for action, hotkey in hotkey_actions.items():
-                if not self.hotkey_has_modifier(hotkey):
-                    raise ValueError(self.tr("validation_hotkey_requires_modifier"))
-                normalized = self.normalize_hotkey(hotkey)
-                if normalized in normalized_actions:
-                    raise ValueError(self.tr("validation_hotkey_duplicate", hotkey=hotkey))
-                normalized_actions[normalized] = action
-            self.hotkey_listener = HotkeyListener(
+            hotkey_actions = self.validate_hotkey_actions(self.build_hotkey_actions(config))
+            listener = HotkeyListener(
                 hotkey_actions,
                 lambda action: self.bridge.action_requested.emit(action),
                 log_func=self.log,
             )
-            self.hotkey_listener.start()
+            listener.start()
+            self.hotkey_listener = listener
             self.registered_hotkeys = hotkey_actions
             self.log(
                 "Hotkeys registered: "
-                f"capture={self.config.hotkey} | "
-                f"selection_text={self.config.selection_hotkey} | "
-                f"manual_input={self.config.input_hotkey}"
+                f"capture={hotkey_actions['capture']} | "
+                f"selection_text={hotkey_actions['selection_text']} | "
+                f"manual_input={hotkey_actions['manual_input']}"
             )
             if not initial:
                 self.set_status("hotkeys_registered")
+            return True
         except Exception as exc:  # noqa: BLE001
             self.log(f"Hotkey registration failed: {exc}")
+            if previous_hotkeys:
+                try:
+                    restored_listener = HotkeyListener(
+                        previous_hotkeys,
+                        lambda action: self.bridge.action_requested.emit(action),
+                        log_func=self.log,
+                    )
+                    restored_listener.start()
+                    self.hotkey_listener = restored_listener
+                    self.registered_hotkeys = previous_hotkeys
+                    self.log("Previous hotkeys restored after registration failure")
+                except Exception as restore_exc:  # noqa: BLE001
+                    self.log(f"Failed to restore previous hotkeys: {restore_exc}")
             if hasattr(self, "status_label"):
                 self.set_status("hotkey_register_failed", error=exc)
             if not initial:
                 QMessageBox.critical(self, self.tr("error_title"), self.tr("hotkey_register_failed", error=exc))
+            if raise_on_error:
+                raise
+            return False
 
     def run_worker(self, fn, on_success, *, operation_key: str | None = None):
         worker_target = fn
@@ -501,95 +515,28 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
 
     @staticmethod
     def profile_request_signature(profile) -> tuple:
-        return (
-            profile.name,
-            profile.provider,
-            profile.base_url.strip(),
-            tuple(profile.api_keys),
-        )
+        return RequestWorkflowController.profile_request_signature(profile)
 
     def form_matches_profile_request(self, signature: tuple) -> bool:
-        try:
-            current_profile = self.build_profile_from_form()
-        except Exception:  # noqa: BLE001
-            return False
-        return self.profile_request_signature(current_profile) == signature
+        return self.request_workflow.form_matches_profile_request(signature)
 
     def fetch_models(self):
         try:
-            if self.fetch_models_in_progress or self.test_profile_in_progress or self.translation_in_progress:
-                return
-            valid, first_error = self.validate_form_inputs(focus_first_invalid=True)
-            if not valid:
-                self.set_status("validation_failed")
-                self.log(f"Fetch models blocked by validation: {first_error}")
-                return
-            profile = self.build_profile_from_form()
-            request_id = self._fetch_models_request_id = self._fetch_models_request_id + 1
-            request_signature = self.profile_request_signature(profile)
-            self.log(f"Fetching models for profile: {profile.name}")
-            self.run_worker(
-                lambda: (request_id, request_signature, profile.provider, self.api_client.list_models(profile)),
-                self.on_models_loaded,
-                operation_key="fetch_models",
-            )
+            self.request_workflow.fetch_models()
         except Exception as exc:  # noqa: BLE001
             self.handle_error(exc)
 
     def on_models_loaded(self, result):
-        request_id, request_signature, provider, models = result
-        if request_id != self._fetch_models_request_id:
-            self.log("Discarded stale model list result from an older request")
-            return
-        if not self.form_matches_profile_request(request_signature):
-            self.log("Discarded model list result because the form changed while the request was running")
-            return
-        normalized_models = unique_non_empty(normalize_model_value(item, provider) for item in models)
-        if not normalized_models:
-            return
-        current_model = self.normalize_model_name(self.model_combo.currentText(), provider)
-        self._suppress_form_tracking = True
-        try:
-            self.model_combo.blockSignals(True)
-            self.model_combo.clear()
-            self.model_combo.addItems([self.display_model_name(item, provider) for item in normalized_models])
-            selected_model = current_model if current_model in normalized_models else normalized_models[0]
-            self.model_combo.setCurrentText(self.display_model_name(selected_model, provider))
-        finally:
-            self.model_combo.blockSignals(False)
-            self._suppress_form_tracking = False
-        self.on_form_input_changed()
-        self.set_status("models_loaded", count=len(normalized_models))
-        self.log(f"Loaded {len(normalized_models)} models")
+        self.request_workflow.on_models_loaded(result)
 
     def test_profile(self):
         try:
-            if self.fetch_models_in_progress or self.test_profile_in_progress or self.translation_in_progress:
-                return
-            valid, first_error = self.validate_form_inputs(focus_first_invalid=True)
-            if not valid:
-                self.set_status("validation_failed")
-                self.log(f"Test API blocked by validation: {first_error}")
-                return
-            profile = self.build_profile_from_form()
-            request_id = self._test_profile_request_id = self._test_profile_request_id + 1
-            request_signature = self.profile_request_signature(profile)
-            self.log(f"Testing profile: {profile.name}")
-            self.run_worker(
-                lambda: (request_id, request_signature, self.api_client.test_profile(profile)),
-                self.on_test_success,
-                operation_key="test_profile",
-            )
+            self.request_workflow.test_profile()
         except Exception as exc:  # noqa: BLE001
             self.handle_error(exc)
 
     def on_test_success(self, result):
-        request_id, request_signature, message = result
-        if request_id != self._test_profile_request_id or not self.form_matches_profile_request(request_signature):
-            self.log("Discarded stale API test result because the form changed while the request was running")
-            return
-        self.log(message)
-        self.set_status("test_success")
+        self.request_workflow.on_test_success(result)
 
     def set_status(self, key: str, **kwargs):
         self.current_status_key = key
@@ -607,184 +554,55 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         reflow_only: bool = False,
         complete_capture_flow: bool = False,
     ):
-        text = text or self.tr("empty_result")
-        overlay_config = SimpleNamespace(
-            mode=self.current_mode(),
-            margin=self.current_margin(),
-            overlay_width=self.current_overlay_width(),
-            overlay_height=self.current_overlay_height(),
+        self.overlay_presenter.show_response(
+            text,
+            bbox=bbox,
+            anchor_point=anchor_point,
+            preset_name=preset_name,
+            preserve_manual_position=preserve_manual_position,
+            reflow_only=reflow_only,
+            complete_capture_flow=complete_capture_flow,
         )
-        self.translation_overlay.apply_typography()
-        width, height = self.translation_overlay.calculate_size(text)
-
-        if bbox is not None:
-            width, height = fit_overlay_size(overlay_config, self.translation_overlay, bbox, text, width, height)
-            target_screen_rect = get_target_screen_rect(bbox)
-            if preserve_manual_position and self.translation_overlay.last_geometry is not None:
-                margin = overlay_config.margin
-                soft_margin = max(42, margin * 2)
-                x = max(target_screen_rect.left() + margin, min(self.translation_overlay.last_geometry.x(), target_screen_rect.right() - width - margin + 1))
-                y = max(target_screen_rect.top() + soft_margin, min(self.translation_overlay.last_geometry.y(), target_screen_rect.bottom() - height - soft_margin + 1))
-            else:
-                x, y = compute_overlay_position(overlay_config, bbox, width, height)
-        else:
-            anchor_point = anchor_point or self.translation_overlay.last_anchor_point or QCursor.pos()
-            target_screen_rect = get_screen_rect_for_point(anchor_point)
-            width, height = clamp_overlay_size_to_screen(overlay_config, self.translation_overlay, target_screen_rect, text, width, height)
-            if preserve_manual_position and self.translation_overlay.last_geometry is not None:
-                margin = overlay_config.margin
-                soft_margin = max(42, margin * 2)
-                x = max(target_screen_rect.left() + margin, min(self.translation_overlay.last_geometry.x(), target_screen_rect.right() - width - margin + 1))
-                y = max(target_screen_rect.top() + soft_margin, min(self.translation_overlay.last_geometry.y(), target_screen_rect.bottom() - height - soft_margin + 1))
-            else:
-                x, y = compute_overlay_position_for_point(overlay_config, anchor_point, width, height)
-
-        self.translation_overlay.remember_context(bbox, text, anchor_point=anchor_point, preset_name=preset_name)
-        self.translation_overlay.show_text(text, x, y, width, height, keep_manual_position=preserve_manual_position)
-        if complete_capture_flow and not reflow_only:
-            self.finish_capture_workflow()
-            self.restore_pinned_overlay_after_capture = False
-        if not reflow_only:
-            self.set_status("translated")
-            self.log(f"Request finished | preset={preset_name or 'default'}")
 
     def submit_text_request(self, text: str, *, profile, target_language: str, prompt_preset, anchor_point: QPoint, source_key: str):
-        prompt = build_text_request_prompt(prompt_preset.text_prompt, text, target_language=target_language)
-        self.set_status(source_key)
-        self.log(f"Submitting text request | preset={prompt_preset.name} | chars={len(text)}")
-        self.show_tray_toast(self.tr(source_key))
-        preserve_manual_position = bool(self.translation_overlay.isVisible() and self.translation_overlay.manual_positioned)
-        self.run_worker(
-            lambda: self.api_client.request_text(prompt, profile, self.current_temperature()),
-            lambda result, anchor_point=anchor_point, preset_name=prompt_preset.name, preserve_manual_position=preserve_manual_position: self.show_response_overlay(
-                result,
-                anchor_point=anchor_point,
-                preset_name=preset_name,
-                preserve_manual_position=preserve_manual_position,
-            ),
-            operation_key="translation",
+        self.request_workflow.submit_text_request(
+            text,
+            profile=profile,
+            target_language=target_language,
+            prompt_preset=prompt_preset,
+            anchor_point=anchor_point,
+            source_key=source_key,
         )
 
     def translate_selected_text(self):
         try:
-            request_context = self.prepare_request_context(focus_first_invalid=True)
-            if not request_context:
-                return
-            self.log("Attempting to capture selected text via clipboard preservation")
-            selected_text = capture_selected_text(hotkey_text=self.current_selection_hotkey())
-            if not selected_text:
-                self.set_status("selected_text_empty")
-                self.log("Selected text capture returned no usable text")
-                self.show_tray_toast(self.tr("selected_text_empty"))
-                return
-            self.submit_text_request(
-                selected_text,
-                profile=request_context["profile"],
-                target_language=request_context["target_language"],
-                prompt_preset=request_context["prompt_preset"],
-                anchor_point=QCursor.pos(),
-                source_key="selected_text_processing",
-            )
+            self.request_workflow.translate_selected_text()
         except Exception as exc:  # noqa: BLE001
             self.handle_error(exc)
 
     def open_prompt_input_dialog(self):
         try:
-            request_context = self.prepare_request_context(focus_first_invalid=True)
-            if not request_context:
-                return
-            dialog = PromptInputDialog(self, request_context["prompt_preset"].name, request_context["target_language"])
-            if not dialog.exec():
-                return
-            self.submit_text_request(dialog.input_text(), profile=request_context["profile"], target_language=request_context["target_language"], prompt_preset=request_context["prompt_preset"], anchor_point=dialog.last_anchor_point or QCursor.pos(), source_key="manual_input_processing")
+            self.request_workflow.open_prompt_input_dialog()
         except Exception as exc:  # noqa: BLE001
             self.handle_error(exc)
 
     def start_selection(self):
         try:
-            request_context = self.prepare_request_context(focus_first_invalid=True)
-            if not request_context:
-                return
-            restore_window_after_capture = self.isVisible() and not self.isMinimized()
-            self.pending_capture_profile = request_context["profile"]
-            self.pending_capture_target_language = request_context["target_language"]
-            self.pending_capture_prompt_preset = request_context["prompt_preset"]
-            self.restore_pinned_overlay_after_capture = bool(
-                self.translation_overlay.isVisible() and self.translation_overlay.is_pinned and self.translation_overlay.last_text.strip()
-            )
-            self.log(
-                f"Starting capture workflow | preset={self.pending_capture_prompt_preset.name} | target={self.pending_capture_target_language}"
-            )
-            self.capture_workflow_active = True
-            self.restore_window_after_capture = restore_window_after_capture
-            self.update_action_states()
-            self.hide()
-            self.translation_overlay.hide()
-            self.selection_overlay.show_overlay()
+            self.request_workflow.start_selection()
         except Exception as exc:  # noqa: BLE001
             self.handle_error(exc)
 
     def finish_capture_workflow(self, restore_window: bool = False):
-        should_restore = restore_window and self.restore_window_after_capture
-        self.capture_workflow_active = False
-        self.restore_window_after_capture = False
-        self.pending_capture_profile = None
-        self.pending_capture_target_language = self.current_target_language()
-        self.pending_capture_prompt_preset = None
-        self.update_action_states()
-        if should_restore:
-            self.show_main_window()
+        self.request_workflow.finish_capture_workflow(restore_window=restore_window)
 
     def handle_capture_cancelled(self):
-        self.log("Capture cancelled")
-        self.finish_capture_workflow(restore_window=True)
-        if self.restore_pinned_overlay_after_capture:
-            self.translation_overlay.restore_last_overlay()
-            self.restore_pinned_overlay_after_capture = False
-        self.set_status("capture_cancelled")
-        self.show_tray_toast(self.tr("capture_cancelled"))
-
-    @staticmethod
-    def pixmap_to_image(pixmap: QPixmap) -> Image.Image:
-        byte_array = QByteArray()
-        buffer = QBuffer(byte_array)
-        buffer.open(QBuffer.WriteOnly)
-        pixmap.save(buffer, "PNG")
-        buffer.close()
-        return Image.open(io.BytesIO(byte_array.data())).convert("RGB")
-
-    def capture_bbox_image(self, bbox) -> Image.Image:
-        left, top, right, bottom = bbox
-        width = max(1, right - left)
-        height = max(1, bottom - top)
-        capture_rect = QRect(left, top, width, height)
-        screen = QGuiApplication.screenAt(capture_rect.center()) or QGuiApplication.primaryScreen()
-        if screen and screen.geometry().contains(capture_rect.topLeft()) and screen.geometry().contains(capture_rect.bottomRight()):
-            local_rect = capture_rect.translated(-screen.geometry().topLeft())
-            pixmap = screen.grabWindow(0, local_rect.x(), local_rect.y(), local_rect.width(), local_rect.height())
-            if not pixmap.isNull():
-                return self.pixmap_to_image(pixmap)
-        self.log("Qt capture crossed screen bounds or returned empty data, falling back to Pillow all-screen capture")
-        return ImageGrab.grab(bbox=(left, top, right, bottom), all_screens=True).convert("RGB")
+        self.request_workflow.handle_capture_cancelled()
 
     def handle_selection(self, bbox):
         try:
-            image = self.capture_bbox_image(bbox)
+            self.request_workflow.handle_selection(bbox)
         except Exception as exc:  # noqa: BLE001
             self.handle_error(exc)
-            return
-        self.update_preview(image)
-        self.set_status("capturing")
-        self.show_tray_toast(self.tr("tray_capturing"))
-        profile = self.pending_capture_profile or self.build_profile_from_form()
-        target_language = self.pending_capture_target_language or self.current_target_language()
-        prompt_preset = self.pending_capture_prompt_preset or self.build_prompt_preset_from_form()
-        prompt = build_image_request_prompt(prompt_preset.image_prompt, target_language=target_language)
-        self.run_worker(
-            lambda: self.api_client.request_image(image, profile, prompt, self.current_temperature()),
-            lambda text, bbox=bbox, preset_name=prompt_preset.name: self.show_translation(bbox, text, preset_name=preset_name),
-            operation_key="translation",
-        )
 
     def show_translation(
         self,
@@ -795,57 +613,19 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         preserve_manual_position: bool = False,
         reflow_only: bool = False,
     ):
-        self.show_response_overlay(
+        self.overlay_presenter.show_translation(
+            bbox,
             text,
-            bbox=bbox,
             preset_name=preset_name,
             preserve_manual_position=preserve_manual_position,
             reflow_only=reflow_only,
-            complete_capture_flow=not reflow_only,
         )
 
     def adjust_overlay_font_size(self, direction: int):
-        if self.translation_in_progress:
-            return
-        current_size = self.current_overlay_font_size()
-        new_size = max(10, min(32, current_size + direction))
-        if new_size == current_size:
-            return
-        self.config.overlay_font_size = new_size
-        self._suppress_form_tracking = True
-        try:
-            self.overlay_font_size_spin.setValue(new_size)
-        finally:
-            self._suppress_form_tracking = False
-        self.schedule_config_persist()
-        self.translation_overlay.apply_typography()
-        self.set_status("font_zoomed", size=new_size)
-        if self.translation_overlay.isVisible() and self.translation_overlay.last_text:
-            if self.translation_overlay.last_bbox is not None:
-                self.show_translation(
-                    self.translation_overlay.last_bbox,
-                    self.translation_overlay.last_text,
-                    preset_name=self.translation_overlay.last_preset_name,
-                    preserve_manual_position=self.translation_overlay.manual_positioned,
-                    reflow_only=True,
-                )
-            else:
-                self.show_response_overlay(
-                    self.translation_overlay.last_text,
-                    anchor_point=self.translation_overlay.last_anchor_point,
-                    preset_name=self.translation_overlay.last_preset_name,
-                    preserve_manual_position=self.translation_overlay.manual_positioned,
-                    reflow_only=True,
-                )
+        self.overlay_presenter.adjust_font_size(direction)
 
     def update_preview(self, image: Image.Image):
-        preview = image.copy()
-        preview.thumbnail((1280, 720))
-        data = io.BytesIO()
-        preview.save(data, format="PNG")
-        pixmap = QPixmap()
-        pixmap.loadFromData(data.getvalue(), "PNG")
-        self.preview_pixmap = pixmap
+        self.preview_pixmap = self.screen_capture_service.build_preview_pixmap(image)
         self.refresh_preview_pixmap()
 
     def refresh_preview_pixmap(self):
@@ -860,7 +640,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             self.preview_label.setText("")
             self.preview_label.setPixmap(self.preview_pixmap)
             return
-        scaled = self.preview_pixmap.scaled(viewport_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        scaled = self.screen_capture_service.scale_preview_pixmap(self.preview_pixmap, viewport_size)
         self.preview_label.setText("")
         self.preview_label.setPixmap(scaled)
 

@@ -6,13 +6,15 @@ from pathlib import Path
 
 from PySide6.QtWidgets import QApplication, QMessageBox
 
-from .constants import (
-    CONFIG_PATH,
+from .app_defaults import (
     DEFAULT_BASE_URL,
     DEFAULT_CAPTURE_HOTKEY,
     DEFAULT_INPUT_HOTKEY,
     DEFAULT_MODEL,
+    DEFAULT_OVERLAY_FONT_FAMILY,
     DEFAULT_SELECTION_HOTKEY,
+    DEFAULT_TARGET_LANGUAGE,
+    DEFAULT_UI_LANGUAGE,
 )
 from .models import ApiProfile, AppConfig, PromptPreset, default_prompt_presets
 from .profile_utils import (
@@ -22,6 +24,7 @@ from .profile_utils import (
     normalize_provider_name,
     unique_non_empty,
 )
+from .runtime_paths import CONFIG_PATH
 
 
 def show_startup_warning(message: str):
@@ -196,17 +199,17 @@ def _migrate_legacy_config(data: dict) -> AppConfig:
     mode = str(source.get("mode", "book_lr")).strip()
 
     return AppConfig(
-        target_language=_coerce_text(source.get("target_language"), "繁體中文"),
+        target_language=_coerce_text(source.get("target_language"), DEFAULT_TARGET_LANGUAGE),
         mode=mode if mode in {"book_lr", "web_ud"} else "book_lr",
         temperature=_coerce_float(source.get("temperature"), 0.2, min_value=0, max_value=2),
         overlay_width=_coerce_int(source.get("overlay_width"), 440, min_value=240, max_value=1600),
         overlay_height=_coerce_int(source.get("overlay_height"), 520, min_value=220, max_value=1600),
         margin=_coerce_int(source.get("margin"), 18, min_value=8, max_value=120),
-        ui_language=ui_language if ui_language in {"zh-TW", "en"} else "zh-TW",
+        ui_language=ui_language if ui_language in {"zh-TW", "en"} else DEFAULT_UI_LANGUAGE,
         hotkey=_coerce_text(source.get("hotkey"), DEFAULT_CAPTURE_HOTKEY),
         selection_hotkey=_coerce_text(source.get("selection_hotkey"), DEFAULT_SELECTION_HOTKEY),
         input_hotkey=_coerce_text(source.get("input_hotkey"), DEFAULT_INPUT_HOTKEY),
-        overlay_font_family=_coerce_text(source.get("overlay_font_family"), "Microsoft JhengHei UI"),
+        overlay_font_family=_coerce_text(source.get("overlay_font_family"), DEFAULT_OVERLAY_FONT_FAMILY),
         overlay_font_size=_coerce_int(source.get("overlay_font_size"), 12, min_value=10, max_value=32),
         overlay_opacity=_coerce_int(source.get("overlay_opacity"), 96, min_value=55, max_value=100),
         overlay_pinned=_coerce_bool(source.get("overlay_pinned", False), False),

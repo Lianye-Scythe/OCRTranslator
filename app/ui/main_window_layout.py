@@ -17,13 +17,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ..constants import (
-    AUTHOR_NAME_EN,
-    AUTHOR_NAME_ZH,
-    REPOSITORY_NAME,
-    REPOSITORY_URL,
-)
+from ..app_metadata import AUTHOR_NAME_EN, AUTHOR_NAME_ZH, REPOSITORY_NAME, REPOSITORY_URL
 from ..profile_utils import normalize_provider_name
+from .style_utils import load_style_sheet
 
 
 class ScrollSafeComboBox(QComboBox):
@@ -78,8 +74,9 @@ class MainWindowLayoutMixin:
     def build_ui(self):
         self.setWindowTitle(self.tr("window_title"))
         self.setWindowIcon(self.icon)
-        self.resize(1060, 720)
-        self.setMinimumSize(920, 660)
+        self.resize(1080, 740)
+        self.setMinimumSize(860, 620)
+        self.setFocusPolicy(Qt.StrongFocus)
 
         root = QWidget()
         root.setObjectName("AppRoot")
@@ -91,8 +88,10 @@ class MainWindowLayoutMixin:
 
         self.sidebar = QFrame()
         self.sidebar.setObjectName("Sidebar")
-        self.sidebar.setFixedWidth(228)
+        self.sidebar.setMinimumWidth(208)
+        self.sidebar.setMaximumWidth(248)
         self.add_shadow(self.sidebar, blur=42, y_offset=16, alpha=90)
+        self.sidebar.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
         sidebar_layout = QVBoxLayout(self.sidebar)
         sidebar_layout.setContentsMargins(18, 20, 18, 18)
         sidebar_layout.setSpacing(14)
@@ -249,7 +248,7 @@ class MainWindowLayoutMixin:
         self.preview_label = QLabel()
         self.preview_label.setAlignment(Qt.AlignCenter)
         self.preview_label.setWordWrap(True)
-        self.preview_label.setMinimumHeight(360)
+        self.preview_label.setMinimumHeight(280)
         self.preview_label.setObjectName("PreviewViewport")
         self.preview_label.setTextFormat(Qt.PlainText)
         preview_layout.addWidget(self.preview_label)
@@ -268,378 +267,12 @@ class MainWindowLayoutMixin:
         self.log_text = QPlainTextEdit()
         self.log_text.setReadOnly(True)
         self.log_text.setObjectName("LogText")
-        self.log_text.setMinimumHeight(360)
+        self.log_text.setMinimumHeight(280)
         self.log_text.setPlaceholderText("")
         log_layout.addWidget(self.log_text)
 
     def apply_styles(self):
-        self.setStyleSheet(
-            """
-            QMainWindow, QWidget#AppRoot {
-                background:#0b1017;
-                color:#e7edf7;
-                font-family:'Segoe UI Variable Text','Segoe UI','Microsoft JhengHei UI';
-                font-size:13px;
-            }
-            QWidget {
-                background:transparent;
-            }
-            #Sidebar {
-                background:qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #121923, stop:1 #0e141d);
-                border:1px solid #202b38;
-                border-radius:26px;
-            }
-            #BrandTitle {
-                color:#f4efe6;
-                font-size:24px;
-                font-weight:800;
-                letter-spacing:0.01em;
-            }
-            #BrandSubtitle {
-                color:#8e98a7;
-                line-height:1.45;
-            }
-            #SidebarCaption, #FieldLabel {
-                color:#8a95a6;
-                font-size:11px;
-                font-weight:700;
-                letter-spacing:0.08em;
-                text-transform:uppercase;
-            }
-            #NavButton {
-                background:transparent;
-                border:1px solid transparent;
-                border-radius:18px;
-                padding:14px 16px;
-                text-align:left;
-                color:#9ca9bc;
-                font-size:14px;
-                font-weight:700;
-            }
-            #NavButton:hover {
-                background:#141d29;
-                border-color:#243244;
-                color:#eef3fb;
-            }
-            #NavButton:checked {
-                background:qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 #1a2435, stop:1 #162030);
-                border:1px solid #7085ff;
-                color:#f7f9fe;
-            }
-            #NavButton:focus {
-                border:1px solid #90a4ff;
-                color:#f7f9fe;
-            }
-            #HintCard {
-                background:#101722;
-                border:1px solid #202c3b;
-                border-radius:20px;
-            }
-            #HintTitleLabel {
-                color:#d7bf88;
-                font-size:13px;
-                font-weight:700;
-            }
-            #HintLabel {
-                color:#8592a5;
-                line-height:1.45;
-            }
-            #AboutCard {
-                background:#0f1722;
-                border:1px solid #233244;
-                border-radius:20px;
-            }
-            QCheckBox {
-                color:#d9e3f8;
-                spacing:10px;
-                font-size:13px;
-                font-weight:600;
-            }
-            QCheckBox::indicator {
-                width:18px;
-                height:18px;
-                border-radius:6px;
-                border:1px solid #31425a;
-                background:#0c131c;
-            }
-            QCheckBox::indicator:checked {
-                background:#7489ff;
-                border:1px solid #93a3ff;
-            }
-            #AboutTitleLabel {
-                color:#d9e3f8;
-                font-size:13px;
-                font-weight:700;
-            }
-            #AboutMetaLabel {
-                color:#90a0b6;
-                line-height:1.5;
-            }
-            #HeaderCard {
-                background:qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #161f2d, stop:0.55 #131b28, stop:1 #0f1621);
-                border:1px solid #263243;
-                border-radius:26px;
-            }
-            #PageTitleLabel {
-                color:#f4efe6;
-                font-size:27px;
-                font-weight:800;
-            }
-            #PageSubtitleLabel {
-                color:#94a1b4;
-                line-height:1.45;
-            }
-            #InfoChip {
-                background:#121a26;
-                border:1px solid #243143;
-                border-radius:14px;
-                padding:7px 10px;
-                color:#d9e3f8;
-                font-size:12px;
-                font-weight:600;
-            }
-            #ActiveProfileBadge {
-                background:#151d2a;
-                border:1px solid #2d3b50;
-                border-radius:16px;
-                padding:10px 14px;
-                color:#d9e3f8;
-                font-weight:700;
-            }
-            #PageStack, #SettingsScrollArea, #SettingsScrollContent, #SettingsTab, #MonitorTab {
-                background:transparent;
-                border:none;
-            }
-            #SectionCard {
-                background:qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #121a26, stop:1 #0f1620);
-                border:1px solid #223042;
-                border-radius:24px;
-            }
-            #SectionTitleLabel {
-                color:#f4efe6;
-                font-size:16px;
-                font-weight:700;
-            }
-            #InlinePanel {
-                background:#0e1520;
-                border:1px solid #1f2b3b;
-                border-radius:18px;
-            }
-            QLabel {
-                color:#e7edf7;
-            }
-            QLineEdit,
-            QPlainTextEdit,
-            QComboBox,
-            QFontComboBox,
-            QSpinBox,
-            QDoubleSpinBox {
-                background:#0c131c;
-                border:1px solid #273345;
-                border-radius:16px;
-                padding:12px 14px;
-                color:#f3f7fd;
-                selection-background-color:#7387ff;
-                min-height:20px;
-            }
-            QLineEdit:focus,
-            QPlainTextEdit:focus,
-            QComboBox:focus,
-            QFontComboBox:focus,
-            QSpinBox:focus,
-            QDoubleSpinBox:focus {
-                border:1px solid #7c90ff;
-                background:#0f1823;
-            }
-            QComboBox,
-            QFontComboBox,
-            QSpinBox,
-            QDoubleSpinBox {
-                padding-right:34px;
-            }
-            QLineEdit[invalid="true"],
-            QPlainTextEdit[invalid="true"],
-            QComboBox[invalid="true"],
-            QFontComboBox[invalid="true"] {
-                border:1px solid #b76576;
-                background:#18111a;
-            }
-            QComboBox::drop-down,
-            QFontComboBox::drop-down {
-                width:34px;
-                border:none;
-                border-left:1px solid #2b384b;
-                background:#121a25;
-                subcontrol-origin: padding;
-                subcontrol-position: top right;
-                border-top-right-radius:15px;
-                border-bottom-right-radius:15px;
-            }
-            QComboBox::down-arrow,
-            QFontComboBox::down-arrow {
-                image:none;
-                width:0px;
-                height:0px;
-                border-left:5px solid transparent;
-                border-right:5px solid transparent;
-                border-top:6px solid #9baecc;
-                margin-top:2px;
-            }
-            QSpinBox::up-button,
-            QSpinBox::down-button,
-            QDoubleSpinBox::up-button,
-            QDoubleSpinBox::down-button {
-                width:28px;
-                border:none;
-                background:#121a25;
-                subcontrol-origin: border;
-                right:2px;
-            }
-            QSpinBox::up-button,
-            QDoubleSpinBox::up-button {
-                subcontrol-position: top right;
-                border-left:1px solid #2b384b;
-                border-top-right-radius:14px;
-                margin:1px 1px 0 0;
-            }
-            QSpinBox::down-button,
-            QDoubleSpinBox::down-button {
-                subcontrol-position: bottom right;
-                border-left:1px solid #2b384b;
-                border-top:1px solid #243244;
-                border-bottom-right-radius:14px;
-                margin:0 1px 1px 0;
-            }
-            QSpinBox::up-arrow,
-            QDoubleSpinBox::up-arrow,
-            QSpinBox::down-arrow,
-            QDoubleSpinBox::down-arrow {
-                width:9px;
-                height:9px;
-            }
-            QAbstractItemView {
-                background:#121a25;
-                color:#eef3fb;
-                border:1px solid #293548;
-                selection-background-color:#243452;
-                selection-color:#ffffff;
-                outline:none;
-            }
-            QPushButton {
-                border:1px solid transparent;
-                border-radius:16px;
-                padding:12px 18px;
-                font-size:13px;
-                font-weight:700;
-                min-height:18px;
-            }
-            QPushButton:hover {
-                border-color:#4b607f;
-            }
-            QPushButton:focus {
-                border-color:#90a4ff;
-            }
-            QPushButton:pressed {
-                padding-top:13px;
-                padding-bottom:11px;
-            }
-            QPushButton[compact="true"] {
-                min-height:12px;
-                border-radius:14px;
-                padding:10px 14px;
-                font-size:12px;
-            }
-            QPushButton[variant="primary"] {
-                background:#7489ff;
-                color:#0e1320;
-            }
-            QPushButton[variant="primary"]:hover {
-                background:#899cff;
-            }
-            QPushButton[variant="secondary"] {
-                background:#202d41;
-                color:#dce6fa;
-                border:1px solid #32455f;
-            }
-            QPushButton[variant="secondary"]:hover {
-                background:#26344a;
-            }
-            QPushButton[variant="neutral"] {
-                background:#161f2b;
-                color:#edf2fa;
-                border:1px solid #283447;
-            }
-            QPushButton[variant="neutral"]:hover {
-                background:#1b2533;
-            }
-            QPushButton[variant="success"] {
-                background:#1f6a49;
-                color:#ecfff5;
-                border:1px solid #2a8b60;
-            }
-            QPushButton[variant="success"]:hover {
-                background:#267a54;
-            }
-            QPushButton[variant="danger"] {
-                background:#402029;
-                color:#ffe2e5;
-                border:1px solid #70434d;
-            }
-            QPushButton[variant="danger"]:hover {
-                background:#4a2530;
-            }
-            #PreviewViewport {
-                background:qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #0b121b, stop:1 #0f1722);
-                border:1px dashed #344256;
-                border-radius:20px;
-                color:#6d798e;
-                padding:16px;
-            }
-            #LogText {
-                background:#0c131c;
-                border:1px solid #273345;
-                border-radius:18px;
-                padding:14px;
-                color:#d8e2f2;
-                font-family:'Cascadia Code','Consolas';
-                font-size:12px;
-                line-height:1.4;
-            }
-            #StatusLabel {
-                background:#111924;
-                border:1px solid #223143;
-                border-radius:18px;
-                padding:14px 16px;
-                color:#d9e6fb;
-                font-weight:600;
-            }
-            #ValidationLabel {
-                color:#ffb4c1;
-                background:#24131a;
-                border:1px solid #5c2b39;
-                border-radius:14px;
-                padding:10px 12px;
-            }
-            QScrollBar:vertical {
-                width:12px;
-                margin:2px;
-                background:transparent;
-            }
-            QScrollBar::handle:vertical {
-                background:#2d3a4c;
-                border-radius:6px;
-                min-height:32px;
-            }
-            QScrollBar::add-line:vertical,
-            QScrollBar::sub-line:vertical,
-            QScrollBar::add-page:vertical,
-            QScrollBar::sub-page:vertical {
-                background:none;
-                border:none;
-                height:0;
-            }
-            """
-        )
+        self.setStyleSheet(load_style_sheet("main_window.qss"))
 
     def apply_language(self):
         self.setWindowTitle(f"{self.tr('window_title')}[*]")
