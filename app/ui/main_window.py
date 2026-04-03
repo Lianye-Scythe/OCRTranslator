@@ -19,6 +19,7 @@ from ..profile_utils import normalize_model_value, normalize_provider_name, uniq
 from ..selected_text_capture import capture_selected_text
 from ..workers import AppBridge, WorkerThread
 from .main_window_layout import MainWindowLayoutMixin
+from .main_window_settings_layout import MainWindowSettingsLayoutMixin
 from .main_window_prompts import MainWindowPromptPresetsMixin
 from .main_window_profiles import MainWindowProfilesMixin
 from .overlay_positioning import (
@@ -41,7 +42,7 @@ class OperationError(RuntimeError):
         self.original = original
 
 
-class MainWindow(MainWindowLayoutMixin, MainWindowPromptPresetsMixin, MainWindowProfilesMixin, QMainWindow):
+class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindowPromptPresetsMixin, MainWindowProfilesMixin, QMainWindow):
     def __init__(self):
         super().__init__()
         self.bridge = AppBridge()

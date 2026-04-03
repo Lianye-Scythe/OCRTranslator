@@ -536,6 +536,7 @@ OCRTranslator/
 │     ├─ __init__.py
 │     ├─ main_window.py            # 主流程、截圖、請求、托盤、錯誤處理
 │     ├─ main_window_layout.py     # 主介面版面、樣式、元件建構
+│     ├─ main_window_settings_layout.py  # Settings 頁版面拆分與各 section 建構
 │     ├─ main_window_profiles.py   # 設定表單邏輯、驗證、儲存、快捷鍵錄製
 │     ├─ main_window_prompts.py    # 提示詞方案表單邏輯
 │     ├─ overlay_positioning.py    # 浮窗尺寸與位置計算
