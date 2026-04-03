@@ -274,6 +274,8 @@ class MainWindowLayoutMixin:
         selector_layout.addWidget(self.delete_profile_button)
         profile_layout.addWidget(selector_shell)
 
+        self._build_quick_actions_section(content_layout)
+
         self.api_group, api_layout, self.api_group_title_label = self.create_section_card()
         content_layout.addWidget(self.api_group)
         api_grid = QGridLayout()
@@ -489,6 +491,19 @@ class MainWindowLayoutMixin:
         self.advanced_section_expanded = True
         self.set_advanced_section_expanded(False)
 
+        self.api_validation_label = QLabel()
+        self.api_validation_label.setObjectName("ValidationLabel")
+        self.api_validation_label.setWordWrap(True)
+        self.api_validation_label.hide()
+        api_layout.addWidget(self.api_validation_label)
+
+        self._connect_settings_form_signals()
+        self.image_prompt_edit.setTabChangesFocus(True)
+        self.text_prompt_edit.setTabChangesFocus(True)
+
+        content_layout.addStretch(1)
+
+    def _build_quick_actions_section(self, content_layout):
         self.quick_group, quick_layout, self.quick_group_title_label = self.create_section_card()
         content_layout.addWidget(self.quick_group)
         action_row = QHBoxLayout()
@@ -500,12 +515,7 @@ class MainWindowLayoutMixin:
             action_row.addWidget(button)
         quick_layout.addLayout(action_row)
 
-        self.api_validation_label = QLabel()
-        self.api_validation_label.setObjectName("ValidationLabel")
-        self.api_validation_label.setWordWrap(True)
-        self.api_validation_label.hide()
-        api_layout.addWidget(self.api_validation_label)
-
+    def _connect_settings_form_signals(self):
         self.profile_name_edit.textChanged.connect(self.on_form_input_changed)
         self.base_url_edit.textChanged.connect(self.on_form_input_changed)
         self.model_combo.currentTextChanged.connect(self.on_form_input_changed)
@@ -526,11 +536,6 @@ class MainWindowLayoutMixin:
         self.overlay_margin_spin.valueChanged.connect(self.on_form_input_changed)
         self.close_to_tray_on_close_checkbox.stateChanged.connect(self.on_form_input_changed)
         self.retry_interval_spin.valueChanged.connect(self.on_form_input_changed)
-
-        self.image_prompt_edit.setTabChangesFocus(True)
-        self.text_prompt_edit.setTabChangesFocus(True)
-
-        content_layout.addStretch(1)
 
     def _build_monitor_tab(self):
         layout = QHBoxLayout(self.monitor_tab)
