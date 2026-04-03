@@ -60,9 +60,9 @@ class SettingsServiceTests(unittest.TestCase):
             target_language="繁體中文",
             ui_language="zh-TW",
             active_profile_name="Default Gemini",
-            active_prompt_preset_name="翻譯",
+            active_prompt_preset_name="翻譯 (Translate)",
             api_profiles=[ApiProfile(name="Default Gemini", provider="gemini", base_url="https://generativelanguage.googleapis.com", api_keys=["legacy"], model="models/gemini-1.5-flash")],
-            prompt_presets=[PromptPreset(name="翻譯", builtin_id="translate", image_prompt="old-image", text_prompt="old-text")],
+            prompt_presets=[PromptPreset(name="翻譯 (Translate)", builtin_id="translate", image_prompt="old-image", text_prompt="old-text")],
         )
         snapshot = self._snapshot()
 

@@ -27,7 +27,7 @@ class ApiProfile:
 
 @dataclass
 class PromptPreset:
-    name: str = "翻譯"
+    name: str = "翻譯 (Translate)"
     builtin_id: str = "translate"
     image_prompt: str = ""
     text_prompt: str = ""

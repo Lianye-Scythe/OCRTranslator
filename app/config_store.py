@@ -13,9 +13,11 @@ from .app_defaults import (
     DEFAULT_MODEL,
     DEFAULT_OVERLAY_FONT_FAMILY,
     DEFAULT_SELECTION_HOTKEY,
-    DEFAULT_TARGET_LANGUAGE,
     DEFAULT_UI_LANGUAGE,
+    default_target_language_for_ui_language,
 )
+from .default_prompts import canonical_prompt_preset_name, canonical_prompt_preset_name_for_builtin
+from .i18n import detect_system_ui_language, normalize_ui_language
 from .models import ApiProfile, AppConfig, PromptPreset, default_prompt_presets
 from .profile_utils import (
     default_base_url_for_provider,
@@ -37,6 +39,11 @@ def show_startup_warning(message: str):
 
 def _default_profile() -> ApiProfile:
     return ApiProfile()
+
+
+def _default_app_config() -> AppConfig:
+    ui_language = detect_system_ui_language()
+    return AppConfig(ui_language=ui_language, target_language=default_target_language_for_ui_language(ui_language))
 
 
 def _default_prompt_preset() -> PromptPreset:
@@ -115,6 +122,7 @@ def _normalize_active_profile_name(profiles: list[ApiProfile], active_name: str 
 
 def _normalize_active_prompt_preset_name(presets: list[PromptPreset], active_name: str | None) -> str:
     names = {preset.name for preset in presets}
+    active_name = canonical_prompt_preset_name(active_name)
     if active_name in names:
         return active_name
     return presets[0].name
@@ -158,7 +166,7 @@ def _dict_to_prompt_preset(data: dict) -> PromptPreset:
     defaults = asdict(default_preset)
     merged = {**defaults, **source}
     return PromptPreset(
-        name=_coerce_text(merged.get("name"), defaults["name"]),
+        name=canonical_prompt_preset_name_for_builtin(builtin_id, _coerce_text(merged.get("name"), defaults["name"])),
         builtin_id=str(merged.get("builtin_id", builtin_id or defaults.get("builtin_id", ""))).strip(),
         image_prompt=_coerce_text(merged.get("image_prompt"), defaults["image_prompt"]),
         text_prompt=_coerce_text(merged.get("text_prompt"), defaults["text_prompt"]),
@@ -195,17 +203,20 @@ def _migrate_legacy_config(data: dict) -> AppConfig:
     else:
         prompt_presets = default_prompt_presets()
 
-    ui_language = str(source.get("ui_language", "zh-TW")).strip()
+    ui_language = normalize_ui_language(
+        source.get("ui_language"),
+        default=detect_system_ui_language() if "ui_language" not in source else DEFAULT_UI_LANGUAGE,
+    )
     mode = str(source.get("mode", "book_lr")).strip()
 
     return AppConfig(
-        target_language=_coerce_text(source.get("target_language"), DEFAULT_TARGET_LANGUAGE),
+        target_language=_coerce_text(source.get("target_language"), default_target_language_for_ui_language(ui_language)),
         mode=mode if mode in {"book_lr", "web_ud"} else "book_lr",
         temperature=_coerce_float(source.get("temperature"), 0.2, min_value=0, max_value=2),
         overlay_width=_coerce_int(source.get("overlay_width"), 440, min_value=240, max_value=1600),
         overlay_height=_coerce_int(source.get("overlay_height"), 520, min_value=220, max_value=1600),
         margin=_coerce_int(source.get("margin"), 18, min_value=8, max_value=120),
-        ui_language=ui_language if ui_language in {"zh-TW", "en"} else DEFAULT_UI_LANGUAGE,
+        ui_language=ui_language,
         hotkey=_coerce_text(source.get("hotkey"), DEFAULT_CAPTURE_HOTKEY),
         selection_hotkey=_coerce_text(source.get("selection_hotkey"), DEFAULT_SELECTION_HOTKEY),
         input_hotkey=_coerce_text(source.get("input_hotkey"), DEFAULT_INPUT_HOTKEY),
@@ -225,7 +236,7 @@ def _migrate_legacy_config(data: dict) -> AppConfig:
 
 
 def load_config() -> AppConfig:
-    config = AppConfig()
+    config = _default_app_config()
 
     if CONFIG_PATH.exists():
         try:

@@ -204,7 +204,7 @@ class TranslationOverlay(QWidget):
 
     def toggle_pin(self, checked: bool):
         self.app_window.config.overlay_pinned = bool(checked)
-        self.app_window.schedule_config_persist()
+        self.app_window.note_runtime_preference_changed()
         self.apply_surface_state()
         self.app_window.set_status("overlay_pinned" if checked else "overlay_unpinned")
 
@@ -214,7 +214,7 @@ class TranslationOverlay(QWidget):
         if next_value == current:
             return
         self.app_window.config.overlay_opacity = next_value
-        self.app_window.schedule_config_persist()
+        self.app_window.note_runtime_preference_changed()
         self.apply_surface_state()
         self.app_window.set_status("overlay_opacity_set", value=next_value)
 

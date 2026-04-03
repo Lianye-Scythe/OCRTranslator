@@ -2,21 +2,26 @@ import time
 from pathlib import Path
 
 from PIL import Image
-from PySide6.QtCore import QPoint, Qt, QTimer
-from PySide6.QtGui import QAction, QPixmap
-from PySide6.QtNetwork import QLocalServer
-from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QMenu, QMessageBox, QSystemTrayIcon
+from PySide6.QtCore import QPoint, Qt
+from PySide6.QtGui import QPixmap
+from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QMessageBox
 
 from ..api_client import ApiClient
+from ..app_defaults import DEFAULT_UI_LANGUAGE
 from ..config_store import load_config, save_config
 from ..hotkey_listener import HotkeyListener, find_hotkey_conflicts
-from ..i18n import I18N
+from ..i18n import I18N, normalize_ui_language
+from ..operation_control import RequestCancelledError
 from ..profile_utils import normalize_provider_name
 from ..runtime_paths import APP_SERVER_NAME
+from ..services.background_task_runner import BackgroundTaskRunner
 from ..services.image_capture import ScreenCaptureService
+from ..services.instance_server import InstanceServerService
+from ..services.operation_manager import OperationManager
 from ..services.overlay_presenter import OverlayPresenter
 from ..services.request_workflow import RequestWorkflowController
 from ..services.runtime_log import RuntimeLogStore
+from ..services.system_tray import SystemTrayService
 from ..workers import AppBridge, WorkerThread
 from .main_window_layout import MainWindowLayoutMixin
 from .main_window_settings_layout import MainWindowSettingsLayoutMixin
@@ -26,20 +31,13 @@ from .selection_overlay import SelectionOverlay
 from .translation_overlay import TranslationOverlay
 
 
-class OperationError(RuntimeError):
-    def __init__(self, operation: str, original: Exception):
-        super().__init__(str(original))
-        self.operation = operation
-        self.original = original
-
-
 class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindowPromptPresetsMixin, MainWindowProfilesMixin, QMainWindow):
     def __init__(self):
         super().__init__()
         self.bridge = AppBridge()
         self.bridge.action_requested.connect(self.handle_action_request)
-        self.bridge.worker_success.connect(self._handle_worker_success)
         self.bridge.worker_error.connect(self.handle_error)
+        self.bridge.log_message.connect(self._append_log_message)
         self.bridge.hotkey_recorded.connect(self.handle_recorded_hotkey)
 
         self.config = load_config()
@@ -47,6 +45,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self.api_client = ApiClient(self.log)
         self.screen_capture_service = ScreenCaptureService(self.log)
         self.hotkey_listener = None
+        self.operation_manager = OperationManager(self.set_operation_state, log_func=self.log)
         self.hotkey_record_listener = None
         self.hotkey_listener_paused_for_recording = False
         self.registered_hotkeys: dict[str, str] = {}
@@ -69,10 +68,6 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self.pending_capture_profile = None
         self.pending_capture_target_language = self.config.target_language
         self.pending_capture_prompt_preset = None
-        self.config_save_timer = QTimer(self)
-        self.config_save_timer.setSingleShot(True)
-        self.config_save_timer.timeout.connect(self.persist_config_now)
-
         self.selection_overlay = SelectionOverlay()
         self.selection_overlay.selected.connect(self.handle_selection)
         self.selection_overlay.cancelled.connect(self.handle_capture_cancelled)
@@ -81,15 +76,24 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self.translation_overlay.request_font_zoom.connect(self.adjust_overlay_font_size)
         self.translation_overlay.overlay_resized.connect(self.handle_overlay_resized)
         self.overlay_presenter = OverlayPresenter(self, self.translation_overlay)
+        self.background_task_runner = BackgroundTaskRunner(
+            self.operation_manager,
+            self.bridge,
+            error_handler=self.handle_error,
+            log_func=self.log,
+            worker_cls=WorkerThread,
+        )
         self.request_workflow = RequestWorkflowController(self)
+        self.instance_server_service = InstanceServerService(self, APP_SERVER_NAME, log_func=self.log)
+        self.tray_service = SystemTrayService(self, self.icon, log_func=self.log)
 
         self.build_ui()
-        self.setup_tray()
+        self.tray_service.setup()
         self.apply_styles()
         self.apply_language()
         self.load_profile_to_form(self.config.active_profile_name)
         self.load_prompt_preset_to_form(self.config.active_prompt_preset_name)
-        self.setup_instance_server()
+        self.instance_server_service.setup()
         self.setup_hotkey_listener(initial=True)
         self.log("Application started")
 
@@ -103,7 +107,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             value = self.ui_language_combo.currentText().strip()
             if value in I18N:
                 return value
-        return self.config.ui_language if self.config.ui_language in I18N else "zh-TW"
+        return normalize_ui_language(self.config.ui_language, default=DEFAULT_UI_LANGUAGE)
 
     def current_target_language(self) -> str:
         if hasattr(self, "target_language_edit"):
@@ -181,14 +185,11 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
                 self.overlay_height_spin.setValue(int(height))
         finally:
             self._suppress_form_tracking = False
-        self.schedule_config_persist()
+        self.note_runtime_preference_changed()
         self.set_status("overlay_resized", width=int(width), height=int(height))
 
     def background_busy(self) -> bool:
         return self.fetch_models_in_progress or self.test_profile_in_progress or self.translation_in_progress
-
-    def prepare_request_context(self, *, focus_first_invalid: bool = True):
-        return self.request_workflow.prepare_request_context(focus_first_invalid=focus_first_invalid)
 
     def set_operation_state(self, operation: str, active: bool):
         setattr(self, f"{operation}_in_progress", active)
@@ -199,6 +200,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             return
         any_background_busy = self.fetch_models_in_progress or self.test_profile_in_progress or self.translation_in_progress
         capture_busy = self.capture_workflow_active or self.translation_in_progress or self.fetch_models_in_progress or self.test_profile_in_progress
+        cancel_available = bool(self.operation_manager.current_active(("translation", "test_profile", "fetch_models")) or (self.capture_workflow_active and self.selection_overlay.isVisible()))
         for widget_name in (
             "profile_name_edit",
             "provider_combo",
@@ -241,7 +243,8 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self.fetch_models_button.setEnabled(not any_background_busy)
         self.test_button.setEnabled(not any_background_busy)
         self.save_button.setEnabled(not any_background_busy)
-        self.hero_tray_button.setEnabled(not any_background_busy)
+        self.cancel_button.setEnabled(cancel_available)
+        self.hero_tray_button.setEnabled(bool(self.tray))
         self.hero_capture_button.setEnabled(not capture_busy)
         self.preview_capture_button.setEnabled(not capture_busy)
         self.profile_combo.setEnabled(not any_background_busy)
@@ -252,71 +255,10 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             self.close_to_tray_on_close_checkbox.setToolTip("" if self.tray else self.tr("tray_unavailable"))
         if getattr(self, "tray", None):
             self.tray_capture_action.setEnabled(not capture_busy)
-
-    def setup_instance_server(self):
-        try:
-            QLocalServer.removeServer(APP_SERVER_NAME)
-        except Exception:  # noqa: BLE001
-            pass
-        self.instance_server = QLocalServer(self)
-        self.instance_server.newConnection.connect(self._handle_instance_activation)
-        if not self.instance_server.listen(APP_SERVER_NAME):
-            self.log(f"Instance server listen failed: {self.instance_server.errorString()}")
-
-    def _handle_instance_activation(self):
-        while self.instance_server.hasPendingConnections():
-            socket = self.instance_server.nextPendingConnection()
-            socket.readyRead.connect(lambda socket=socket: self._read_instance_message(socket))
-            socket.disconnected.connect(socket.deleteLater)
-
-    def _read_instance_message(self, socket):
-        message = bytes(socket.readAll()).decode("utf-8", errors="ignore").strip()
-        if message == "show":
-            self.log("Received activation request from another launch")
-            self.show_main_window()
-        elif message == "capture":
-            self.log("Received capture request from another launch")
-            self.show_main_window()
-            self.start_selection()
-        socket.disconnectFromServer()
-
-    def setup_tray(self):
-        if not QSystemTrayIcon.isSystemTrayAvailable():
-            self.tray = None
-            self.log("System tray is not available on this environment")
-            return
-        self.tray = QSystemTrayIcon(self.icon, self)
-        self.tray.setToolTip(self.tr("tray_title"))
-        menu = QMenu(self)
-        self.tray_show_action = QAction(self)
-        self.tray_capture_action = QAction(self)
-        self.tray_quit_action = QAction(self)
-        self.tray_show_action.triggered.connect(self.show_main_window)
-        self.tray_capture_action.triggered.connect(self.start_selection)
-        self.tray_quit_action.triggered.connect(self.quit_app)
-        menu.addAction(self.tray_show_action)
-        menu.addAction(self.tray_capture_action)
-        if menu.actions():
-            menu.addSeparator()
-        menu.addAction(self.tray_quit_action)
-        self.tray.setContextMenu(menu)
-        self.tray.activated.connect(self.on_tray_activated)
-        self.tray.show()
-        self.update_action_states()
-
-    def on_tray_activated(self, reason):
-        if not self.tray:
-            return
-        if reason in (QSystemTrayIcon.Trigger, QSystemTrayIcon.DoubleClick):
-            self.show_main_window()
+            self.tray_cancel_action.setEnabled(cancel_available)
 
     def update_tray_texts(self):
-        if not self.tray:
-            return
-        self.tray.setToolTip(self.tr("tray_title"))
-        self.tray_show_action.setText(self.tr("tray_show"))
-        self.tray_capture_action.setText(self.tr("tray_capture"))
-        self.tray_quit_action.setText(self.tr("tray_quit"))
+        self.tray_service.update_texts()
 
     def refresh_log_view(self):
         if not hasattr(self, "log_text"):
@@ -327,11 +269,14 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             self.log_text.setPlainText("")
             self.log_text.setPlaceholderText(self.tr("logs_empty"))
 
-    def log(self, message: str):
+    def _append_log_message(self, message: str):
         self.log_store.add(message)
         if hasattr(self, "log_text"):
             self.log_text.setPlaceholderText("")
             self.refresh_log_view()
+
+    def log(self, message: str):
+        self.bridge.log_message.emit(str(message))
 
     def clear_logs(self):
         self.log_store.clear()
@@ -364,14 +309,32 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         except Exception as exc:  # noqa: BLE001
             self.handle_error(exc)
 
-    def schedule_config_persist(self, delay_ms: int = 350):
-        self.config_save_timer.start(delay_ms)
+    def cancel_background_operation(self):
+        active_operation = self.operation_manager.current_active(("translation", "test_profile", "fetch_models"))
+        if active_operation is None:
+            if self.capture_workflow_active and self.selection_overlay.isVisible():
+                self.selection_overlay.hide()
+                self.handle_capture_cancelled()
+                return True
+            self.set_status("cancel_request_unavailable")
+            return False
+        self.log(f"Cancelling background operation: {active_operation}")
+        self.operation_manager.cancel(active_operation)
+        if active_operation == "translation":
+            should_restore = self.capture_workflow_active
+            self.finish_capture_workflow(restore_window=should_restore)
+            if should_restore and self.restore_pinned_overlay_after_capture:
+                self.translation_overlay.restore_last_overlay()
+                self.restore_pinned_overlay_after_capture = False
+            self.show_tray_toast(self.tr("request_cancelled"))
+        self.set_status("request_cancelled")
+        return True
 
-    def flush_pending_config_save(self):
-        if not self.config_save_timer.isActive():
-            return
-        self.config_save_timer.stop()
-        self.persist_config_now()
+
+    def note_runtime_preference_changed(self):
+        self.set_unsaved_changes(True)
+        if hasattr(self, "refresh_shell_state"):
+            self.refresh_shell_state()
 
     def normalize_hotkey(self, hotkey_text: str) -> str:
         parts = [part.strip().lower() for part in hotkey_text.replace("-", "+").split("+") if part.strip()]
@@ -483,42 +446,16 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
                 raise
             return False
 
-    def run_worker(self, fn, on_success, *, operation_key: str | None = None):
-        worker_target = fn
-        worker_callback = on_success
+    def run_worker(self, fn, on_success, *, operation_key: str | None = None, cancellable: bool = False):
+        self.background_task_runner.run_worker(
+            fn,
+            on_success,
+            operation_key=operation_key,
+            cancellable=cancellable,
+        )
 
-        if operation_key:
-            self.set_operation_state(operation_key, True)
-
-            def guarded_target():
-                try:
-                    return fn()
-                except Exception as exc:  # noqa: BLE001
-                    raise OperationError(operation_key, exc) from exc
-
-            def guarded_success(result):
-                self.set_operation_state(operation_key, False)
-                if callable(on_success):
-                    on_success(result)
-
-            worker_target = guarded_target
-            worker_callback = guarded_success
-
-        WorkerThread(worker_target, self.bridge, worker_callback).start()
-
-    def _handle_worker_success(self, callback, result):
-        if callable(callback):
-            try:
-                callback(result)
-            except Exception as exc:  # noqa: BLE001
-                self.handle_error(exc)
-
-    @staticmethod
-    def profile_request_signature(profile) -> tuple:
-        return RequestWorkflowController.profile_request_signature(profile)
-
-    def form_matches_profile_request(self, signature: tuple) -> bool:
-        return self.request_workflow.form_matches_profile_request(signature)
+    def _handle_stale_operation_error(self, operation: str | None, task_id: int | None, actual_exc: Exception) -> bool:
+        return self.background_task_runner.handle_stale_error(operation, task_id, actual_exc)
 
     def fetch_models(self):
         try:
@@ -542,27 +479,6 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self.current_status_key = key
         self.current_status_kwargs = kwargs
         self.status_label.setText(self.tr(key, **kwargs))
-
-    def show_response_overlay(
-        self,
-        text: str,
-        *,
-        bbox=None,
-        anchor_point: QPoint | None = None,
-        preset_name: str = "",
-        preserve_manual_position: bool = False,
-        reflow_only: bool = False,
-        complete_capture_flow: bool = False,
-    ):
-        self.overlay_presenter.show_response(
-            text,
-            bbox=bbox,
-            anchor_point=anchor_point,
-            preset_name=preset_name,
-            preserve_manual_position=preserve_manual_position,
-            reflow_only=reflow_only,
-            complete_capture_flow=complete_capture_flow,
-        )
 
     def submit_text_request(self, text: str, *, profile, target_language: str, prompt_preset, anchor_point: QPoint, source_key: str):
         self.request_workflow.submit_text_request(
@@ -645,8 +561,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self.preview_label.setPixmap(scaled)
 
     def show_tray_toast(self, message: str):
-        if self.tray:
-            self.tray.showMessage(self.tr("tray_title"), message, self.icon, 2500)
+        self.tray_service.show_message(message)
 
     def minimize_to_tray(self):
         if not self.tray:
@@ -667,9 +582,19 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
 
     def handle_error(self, exc: Exception):
         operation = getattr(exc, "operation", None)
-        if operation in {"fetch_models", "test_profile", "translation"}:
-            self.set_operation_state(operation, False)
+        task_id = getattr(exc, "task_id", None)
         actual_exc = getattr(exc, "original", exc)
+        if self._handle_stale_operation_error(operation, task_id, actual_exc):
+            return
+        if operation in {"fetch_models", "test_profile", "translation"}:
+            if task_id is not None:
+                self.operation_manager.finish(operation, task_id)
+            else:
+                self.set_operation_state(operation, False)
+        if isinstance(actual_exc, RequestCancelledError):
+            self.set_status("request_cancelled")
+            self.log(f"Operation cancelled: {operation or 'unknown'}")
+            return
         is_capture_error = self.capture_workflow_active or operation == "translation"
         self.finish_capture_workflow(restore_window=is_capture_error)
         if is_capture_error and self.restore_pinned_overlay_after_capture:
@@ -682,8 +607,15 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
+        if hasattr(self, "refresh_sidebar_layout"):
+            self.refresh_sidebar_layout()
         if self.preview_pixmap:
             self.refresh_preview_pixmap()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        if hasattr(self, "refresh_sidebar_layout"):
+            self.refresh_sidebar_layout()
 
     def closeEvent(self, event):
         if not self.is_quitting and getattr(self.config, "close_to_tray_on_close", False) and self.tray:
@@ -703,6 +635,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             return False
         self.is_quitting = True
         self.log("Application exiting")
+        self.operation_manager.cancel_all()
         try:
             self.selection_overlay.hide()
         except Exception:  # noqa: BLE001
@@ -715,12 +648,8 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             self.hotkey_listener.stop()
             self.hotkey_listener = None
         self.registered_hotkeys = {}
-        if hasattr(self, "instance_server") and self.instance_server and self.instance_server.isListening():
-            self.instance_server.close()
-            QLocalServer.removeServer(APP_SERVER_NAME)
-        self.flush_pending_config_save()
+        self.instance_server_service.close()
         self.translation_overlay.close()
-        if self.tray:
-            self.tray.hide()
+        self.tray_service.close()
         QApplication.instance().quit()
         return True

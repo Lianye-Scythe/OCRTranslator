@@ -10,6 +10,22 @@ from types import TracebackType
 
 CRASH_LOG_PREFIX = "ocrtranslator-crash"
 
+_SENSITIVE_VALUE_PATTERNS = [
+    (re.compile(r"(?i)([?&](?:api[_-]?key|key|token|access[_-]?token|refresh[_-]?token|password|secret|signature)=)([^&#\s]+)"), r"\1<redacted>"),
+    (re.compile(r"(?i)([\"'](?:api[_-]?key|key|token|access[_-]?token|refresh[_-]?token|password|secret|signature)[\"']\s*[:=]\s*[\"'])([^\"']+)([\"'])"), r"\1<redacted>\3"),
+    (re.compile(r"(?i)(\b(?:api[_-]?key|token|password|secret)\b\s*[:=]\s*)([^\s,;]+)"), r"\1<redacted>"),
+    (re.compile(r"(?i)(\bAuthorization\b\s*[:=]\s*Bearer\s+)([^\s,;]+)"), r"\1<redacted>"),
+    (re.compile(r"(?i)(\bx-goog-api-key\b\s*[:=]\s*)([^\s,;]+)"), r"\1<redacted>"),
+    (re.compile(r"(?i)(\bBearer\s+)([A-Za-z0-9._\-+/=]+)"), r"\1<redacted>"),
+]
+
+
+def _sanitize_sensitive_text(value: object) -> str:
+    text = _redact_path_text(value)
+    for pattern, replacement in _SENSITIVE_VALUE_PATTERNS:
+        text = pattern.sub(replacement, text)
+    return text
+
 
 def get_runtime_base_dir() -> Path:
     if getattr(sys, "frozen", False):
@@ -25,16 +41,15 @@ def build_crash_log_path(base_dir: Path | None = None) -> Path:
 
 
 def _redact_path_text(value: object) -> str:
-    text = str(value)
+    text = str(value or "")
     home = str(Path.home())
-    if home and text.startswith(home):
-        return text.replace(home, "~", 1)
+    if home:
+        text = text.replace(home, "~")
     return text
 
 
 def _sanitize_argument(arg: object) -> str:
-    text = _redact_path_text(arg)
-    return re.sub(r"(?i)(api[_-]?key|token|password)=([^\s]+)", r"\1=<redacted>", text)
+    return _sanitize_sensitive_text(arg)
 
 
 def _sanitize_arguments(args: list[object]) -> list[str]:
@@ -49,7 +64,7 @@ def format_exception_report(
     context: str = "Unhandled exception",
     thread_name: str | None = None,
 ) -> str:
-    formatted_traceback = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback)).rstrip()
+    formatted_traceback = _sanitize_sensitive_text("".join(traceback.format_exception(exc_type, exc_value, exc_traceback)).rstrip())
     lines = [
         "OCRTranslator Crash Report",
         "=" * 80,
@@ -121,12 +136,12 @@ def safe_record_exception(
 
 
 def format_crash_dialog_message(exc_value: BaseException, crash_log_path: Path | None) -> str:
-    summary = str(exc_value).strip() or exc_value.__class__.__name__
+    summary = _sanitize_sensitive_text(str(exc_value).strip() or exc_value.__class__.__name__)
     if crash_log_path:
         return (
             "程式發生未處理錯誤，已自動保存 crash log。\n\n"
             f"檔案：{crash_log_path.name}\n"
-            f"位置：{crash_log_path}\n\n"
+            f"位置：{_redact_path_text(crash_log_path)}\n\n"
             f"錯誤摘要：{summary}"
         )
     return f"程式發生未處理錯誤，但 crash log 寫入失敗。\n\n錯誤摘要：{summary}"

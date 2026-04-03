@@ -1,6 +1,7 @@
 import requests
 
 from ..models import ApiProfile
+from ..operation_control import RequestContext
 
 
 def openai_url(base_url: str, path: str) -> str:
@@ -23,8 +24,9 @@ class OpenAICompatibleAdapter:
         self._ensure_success = ensure_success
         self._error_factory = error_factory
 
-    def list_models(self, profile: ApiProfile, api_key: str) -> list[str]:
-        response = requests.get(openai_url(profile.base_url, "/models"), headers={"Authorization": f"Bearer {api_key}"}, timeout=30)
+    def list_models(self, profile: ApiProfile, api_key: str, *, request_context: RequestContext | None = None) -> list[str]:
+        http_client = request_context.session if request_context else requests
+        response = http_client.get(openai_url(profile.base_url, "/models"), headers={"Authorization": f"Bearer {api_key}"}, timeout=30)
         self._ensure_success(response)
         data = response.json()
         return [item.get("id", "") for item in data.get("data", []) if isinstance(item, dict) and item.get("id")]
@@ -37,6 +39,7 @@ class OpenAICompatibleAdapter:
         temperature: float,
         *,
         image_base64: str | None = None,
+        request_context: RequestContext | None = None,
     ) -> str:
         content = (
             [
@@ -46,7 +49,8 @@ class OpenAICompatibleAdapter:
             if image_base64
             else prompt
         )
-        response = requests.post(
+        http_client = request_context.session if request_context else requests
+        response = http_client.post(
             openai_url(profile.base_url, "/chat/completions"),
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
             json={

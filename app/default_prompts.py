@@ -18,21 +18,41 @@ DEFAULT_POLISH_TEXT_PROMPT = """Rewrite the provided text into polished, natural
 
 DEFAULT_PROMPT = DEFAULT_TRANSLATION_IMAGE_PROMPT
 
+DEFAULT_PROMPT_PRESET_NAME_ALIASES = {
+    "翻譯": "翻譯 (Translate)",
+    "解答": "解答 (Answer)",
+    "潤色": "潤色 (Polish)",
+}
+
+
+def canonical_prompt_preset_name(name: str | None) -> str:
+    normalized = str(name or "").strip()
+    return DEFAULT_PROMPT_PRESET_NAME_ALIASES.get(normalized, normalized)
+
+
+def canonical_prompt_preset_name_for_builtin(builtin_id: str, name: str | None = None) -> str:
+    normalized = canonical_prompt_preset_name(name)
+    if normalized:
+        return normalized
+    definition = next((item for item in DEFAULT_PROMPT_PRESET_DEFINITIONS if item["builtin_id"] == builtin_id), None)
+    return definition["name"] if definition else normalized
+
+
 DEFAULT_PROMPT_PRESET_DEFINITIONS = [
     {
-        "name": "翻譯",
+        "name": "翻譯 (Translate)",
         "builtin_id": "translate",
         "image_prompt": DEFAULT_TRANSLATION_IMAGE_PROMPT,
         "text_prompt": DEFAULT_TRANSLATION_TEXT_PROMPT,
     },
     {
-        "name": "解答",
+        "name": "解答 (Answer)",
         "builtin_id": "answer",
         "image_prompt": DEFAULT_ANSWER_IMAGE_PROMPT,
         "text_prompt": DEFAULT_ANSWER_TEXT_PROMPT,
     },
     {
-        "name": "潤色",
+        "name": "潤色 (Polish)",
         "builtin_id": "polish",
         "image_prompt": DEFAULT_POLISH_IMAGE_PROMPT,
         "text_prompt": DEFAULT_POLISH_TEXT_PROMPT,

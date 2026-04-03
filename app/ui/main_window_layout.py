@@ -8,8 +8,10 @@ from PySide6.QtWidgets import (
     QGraphicsDropShadowEffect,
     QHBoxLayout,
     QLabel,
+    QLayout,
     QPlainTextEdit,
     QPushButton,
+    QScrollArea,
     QSizePolicy,
     QSpinBox,
     QStackedWidget,
@@ -86,15 +88,26 @@ class MainWindowLayoutMixin:
         shell.setContentsMargins(18, 18, 18, 16)
         shell.setSpacing(16)
 
+        self.sidebar_scroll = QScrollArea()
+        self.sidebar_scroll.setObjectName("SidebarScrollArea")
+        self.sidebar_scroll.setWidgetResizable(True)
+        self.sidebar_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.sidebar_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.sidebar_scroll.setFrameShape(QFrame.NoFrame)
+        self.sidebar_scroll.setMinimumWidth(228)
+        self.sidebar_scroll.setMaximumWidth(286)
+        self.add_shadow(self.sidebar_scroll, blur=42, y_offset=16, alpha=90)
+
         self.sidebar = QFrame()
         self.sidebar.setObjectName("Sidebar")
-        self.sidebar.setMinimumWidth(208)
-        self.sidebar.setMaximumWidth(248)
-        self.add_shadow(self.sidebar, blur=42, y_offset=16, alpha=90)
-        self.sidebar.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        self.sidebar.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
+        self.sidebar_scroll.setWidget(self.sidebar)
+
         sidebar_layout = QVBoxLayout(self.sidebar)
+        self.sidebar_layout = sidebar_layout
         sidebar_layout.setContentsMargins(18, 20, 18, 18)
         sidebar_layout.setSpacing(14)
+        sidebar_layout.setSizeConstraint(QLayout.SetMinimumSize)
 
         self.title_label = QLabel()
         self.title_label.setObjectName("BrandTitle")
@@ -107,6 +120,7 @@ class MainWindowLayoutMixin:
 
         self.navigation_label = QLabel()
         self.navigation_label.setObjectName("SidebarCaption")
+        self.navigation_label.setWordWrap(True)
         sidebar_layout.addSpacing(8)
         sidebar_layout.addWidget(self.navigation_label)
 
@@ -125,6 +139,7 @@ class MainWindowLayoutMixin:
 
         self.quick_actions_label = QLabel()
         self.quick_actions_label.setObjectName("SidebarCaption")
+        self.quick_actions_label.setWordWrap(True)
         sidebar_layout.addWidget(self.quick_actions_label)
 
         self.hero_capture_button = self.create_button(self.start_selection)
@@ -139,9 +154,11 @@ class MainWindowLayoutMixin:
         hint_layout.setSpacing(8)
         self.hint_title_label = QLabel()
         self.hint_title_label.setObjectName("HintTitleLabel")
+        self.hint_title_label.setWordWrap(True)
         self.hint_label = QLabel()
         self.hint_label.setObjectName("HintLabel")
         self.hint_label.setWordWrap(True)
+        self.hint_card.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         hint_layout.addWidget(self.hint_title_label)
         hint_layout.addWidget(self.hint_label)
         sidebar_layout.addWidget(self.hint_card)
@@ -153,9 +170,11 @@ class MainWindowLayoutMixin:
         about_layout.setSpacing(8)
         self.about_title_label = QLabel()
         self.about_title_label.setObjectName("AboutTitleLabel")
+        self.about_title_label.setWordWrap(True)
         self.about_meta_label = QLabel()
         self.about_meta_label.setObjectName("AboutMetaLabel")
         self.about_meta_label.setWordWrap(True)
+        self.about_card.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         self.about_meta_label.setOpenExternalLinks(True)
         self.about_meta_label.setTextFormat(Qt.RichText)
         self.about_meta_label.setTextInteractionFlags(Qt.TextBrowserInteraction)
@@ -163,7 +182,7 @@ class MainWindowLayoutMixin:
         about_layout.addWidget(self.about_meta_label)
         sidebar_layout.addWidget(self.about_card)
 
-        shell.addWidget(self.sidebar)
+        shell.addWidget(self.sidebar_scroll)
 
         content_layout = QVBoxLayout()
         content_layout.setSpacing(14)
@@ -360,15 +379,18 @@ class MainWindowLayoutMixin:
         self.fetch_models_button.setToolTip(self.tr("fetch_models"))
         self.export_logs_button.setToolTip(self.tr("export_logs"))
         self.test_button.setToolTip(self.tr("test_api"))
+        self.cancel_button.setToolTip(self.tr("cancel_request"))
         self.save_button.setToolTip(self.tr("save_settings"))
         self.mode_label.setText(self.tr("display_mode"))
         self.fetch_models_button.setText(self.tr("fetch_models"))
         self.test_button.setText(self.tr("test_api"))
+        self.cancel_button.setText(self.tr("cancel_request"))
         self.save_button.setText(self.tr("save_settings"))
         self.set_advanced_section_expanded(getattr(self, "advanced_section_expanded", False))
         self.close_to_tray_on_close_checkbox.setText(self.tr("close_to_tray_on_close"))
         self.api_keys_toggle_button.setText(self.tr("show_api_keys") if not self.api_keys_visible else self.tr("hide_api_keys"))
         self.export_logs_button.setText(self.tr("export_logs"))
+        self.advanced_hint_label.setText(self.tr("runtime_settings_hint"))
         self.update_provider_options()
         self.update_mode_options()
         self.refresh_page_header()
@@ -381,6 +403,8 @@ class MainWindowLayoutMixin:
         self.set_status(self.current_status_key, **self.current_status_kwargs)
         if hasattr(self, "update_action_states"):
             self.update_action_states()
+        if hasattr(self, "refresh_sidebar_layout"):
+            self.refresh_sidebar_layout()
         self.validate_form_inputs()
 
     def set_advanced_section_expanded(self, expanded: bool):
@@ -421,19 +445,30 @@ class MainWindowLayoutMixin:
         current_target_language = self.current_target_language() if hasattr(self, "current_target_language") else self.config.target_language
         current_prompt_preset = self.current_prompt_preset_name() if hasattr(self, "current_prompt_preset_name") else self.config.active_prompt_preset_name
         mode_label = self.tr("mode_book_lr") if current_mode == "book_lr" else self.tr("mode_web_ud")
-        self.hotkey_chip.setText(self.tr("meta_hotkey", value=current_hotkey))
-        self.target_chip.setText(self.tr("meta_target", value=current_target_language))
-        self.prompt_chip.setText(self.tr("meta_prompt", value=current_prompt_preset))
-        self.mode_chip.setText(self.tr("meta_mode", value=mode_label))
+        chip_values = {
+            self.hotkey_chip: self.tr("meta_hotkey", value=current_hotkey),
+            self.target_chip: self.tr("meta_target", value=current_target_language),
+            self.prompt_chip: self.tr("meta_prompt", value=current_prompt_preset),
+            self.mode_chip: self.tr("meta_mode", value=mode_label),
+        }
+        for chip, text in chip_values.items():
+            chip.setText(text)
+            chip.setToolTip(text)
         profile = self.get_active_profile() if getattr(self.config, "api_profiles", None) else None
         if profile and hasattr(self, "profile_name_edit") and hasattr(self, "provider_combo"):
             profile_name = self.profile_name_edit.text().strip() or self.tr("untitled_profile")
             provider = normalize_provider_name(self.provider_combo.currentData() or profile.provider)
-            self.active_profile_badge.setText(f"{profile_name} · {self.provider_display(provider)}")
+            badge_text = f"{profile_name} · {self.provider_display(provider)}"
+            self.active_profile_badge.setText(badge_text)
+            self.active_profile_badge.setToolTip(badge_text)
         elif profile:
-            self.active_profile_badge.setText(f"{profile.name} · {self.provider_display(profile.provider)}")
+            badge_text = f"{profile.name} · {self.provider_display(profile.provider)}"
+            self.active_profile_badge.setText(badge_text)
+            self.active_profile_badge.setToolTip(badge_text)
         else:
-            self.active_profile_badge.setText(self.tr("untitled_profile"))
+            badge_text = self.tr("untitled_profile")
+            self.active_profile_badge.setText(badge_text)
+            self.active_profile_badge.setToolTip(badge_text)
 
     def create_field_block(self, label_widget, field_widget):
         block = QFrame()
@@ -483,6 +518,15 @@ class MainWindowLayoutMixin:
         shadow.setOffset(0, y_offset)
         shadow.setColor(QColor(2, 6, 20, alpha))
         widget.setGraphicsEffect(shadow)
+
+    def refresh_sidebar_layout(self):
+        for widget in (self.title_label, self.subtitle_label, self.navigation_label, self.quick_actions_label, self.hint_title_label, self.hint_label, self.about_title_label, self.about_meta_label, self.hint_card, self.about_card, self.sidebar):
+            widget.updateGeometry()
+        if hasattr(self, "sidebar_layout"):
+            self.sidebar_layout.invalidate()
+            self.sidebar_layout.activate()
+        if hasattr(self, "sidebar_scroll"):
+            self.sidebar_scroll.ensureVisible(0, 0, 0, 0)
 
     def create_app_icon(self) -> QIcon:
         pix = QPixmap(64, 64)

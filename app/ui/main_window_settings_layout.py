@@ -68,9 +68,10 @@ class MainWindowSettingsLayoutMixin:
         action_row.setSpacing(10)
         self.fetch_models_button = self.create_button(self.fetch_models, accent=False)
         self.test_button = self.create_button(self.test_profile, secondary=True)
+        self.cancel_button = self.create_button(self.cancel_background_operation, accent=False, danger=True)
         self.save_button = self.create_button(self.save_settings)
 
-        for button in [self.fetch_models_button, self.test_button, self.save_button]:
+        for button in [self.fetch_models_button, self.test_button, self.cancel_button, self.save_button]:
             action_row.addWidget(button)
         quick_layout.addLayout(action_row)
 
@@ -159,7 +160,7 @@ class MainWindowSettingsLayoutMixin:
         self.target_language_edit = QLineEdit(self.config.target_language)
         self.ui_language_label = QLabel()
         self.ui_language_combo = ScrollSafeComboBox()
-        self.ui_language_combo.addItems(["zh-TW", "en"])
+        self.ui_language_combo.addItems(["zh-TW", "zh-CN", "en"])
         self.ui_language_combo.currentTextChanged.connect(self.on_ui_language_changed)
         self.hotkey_label = QLabel()
         self.hotkey_input_shell, self.hotkey_edit, self.hotkey_record_button = self._build_hotkey_input(
@@ -298,6 +299,10 @@ class MainWindowSettingsLayoutMixin:
         advanced_grid.addWidget(self.create_field_block(self.overlay_width_label, self.overlay_width_spin), 1, 0)
         advanced_grid.addWidget(self.create_field_block(self.overlay_height_label, self.overlay_height_spin), 1, 1)
         advanced_content_layout.addWidget(self.close_to_tray_on_close_checkbox)
+        self.advanced_hint_label = QLabel()
+        self.advanced_hint_label.setObjectName("HintLabel")
+        self.advanced_hint_label.setWordWrap(True)
+        advanced_content_layout.addWidget(self.advanced_hint_label)
         advanced_layout.addWidget(self.advanced_content)
         self.advanced_section_expanded = True
         self.set_advanced_section_expanded(False)

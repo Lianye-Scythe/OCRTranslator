@@ -4,6 +4,7 @@ import sys
 import types
 from unittest.mock import Mock, patch
 
+
 if "pynput" not in sys.modules:
     pynput_stub = types.ModuleType("pynput")
     pynput_stub.keyboard = types.SimpleNamespace(Listener=object)
@@ -57,8 +58,11 @@ class MainWindowRuntimeTests(unittest.TestCase):
         window.test_profile_in_progress = False
         window.translation_in_progress = True
         window.capture_workflow_active = False
+        window.operation_manager = SimpleNamespace(current_active=lambda order: "translation")
+        window.selection_overlay = SimpleNamespace(isVisible=lambda: False)
         window.tray = object()
         window.tray_capture_action = _FakeWidget()
+        window.tray_cancel_action = _FakeWidget()
 
         for name in (
             "profile_name_edit",
@@ -94,6 +98,7 @@ class MainWindowRuntimeTests(unittest.TestCase):
             "fetch_models_button",
             "test_button",
             "save_button",
+            "cancel_button",
             "hero_capture_button",
             "hero_tray_button",
             "preview_capture_button",
@@ -108,9 +113,10 @@ class MainWindowRuntimeTests(unittest.TestCase):
         self.assertFalse(window.target_language_edit.enabled)
         self.assertFalse(window.prompt_preset_combo.enabled)
         self.assertFalse(window.close_to_tray_on_close_checkbox.enabled)
-        self.assertFalse(window.hero_tray_button.enabled)
+        self.assertTrue(window.hero_tray_button.enabled)
         self.assertFalse(window.profile_combo.enabled)
         self.assertFalse(window.tray_capture_action.enabled)
+        self.assertTrue(window.cancel_button.enabled)
         self.assertEqual(window.hero_capture_button.text, "start_capture_busy")
         self.assertEqual(window.preview_capture_button.text, "start_capture_busy")
 
@@ -125,7 +131,6 @@ class MainWindowRuntimeTests(unittest.TestCase):
         profile = SimpleNamespace(name="Demo", provider="openai", base_url="https://api.openai.com")
         window.sync_form_to_config = lambda: ("en", candidate_config, profile)
         window.setup_hotkey_listener = Mock(side_effect=[RuntimeError("hook failed"), True])
-        window.config_save_timer = SimpleNamespace(isActive=lambda: False)
 
         with patch("app.ui.main_window_profiles.QMessageBox.critical") as mock_critical, patch(
             "app.ui.main_window_profiles.save_config"

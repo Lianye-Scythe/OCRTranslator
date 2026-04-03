@@ -593,20 +593,6 @@ class MainWindowProfilesMixin:
         profile.name = self.validate_profile_name(profile.name, current_profile.name)
         return profile
 
-    def upsert_profile(self, profile: ApiProfile):
-        current_name = self.config.active_profile_name
-        for index, item in enumerate(self.config.api_profiles):
-            if item.name == current_name:
-                self.config.api_profiles[index] = profile
-                self.config.active_profile_name = profile.name
-                return
-        for index, item in enumerate(self.config.api_profiles):
-            if item.name == profile.name:
-                self.config.api_profiles[index] = profile
-                self.config.active_profile_name = profile.name
-                return
-        self.config.api_profiles.append(profile)
-        self.config.active_profile_name = profile.name
 
     def create_new_profile(self):
         if not self.resolve_unsaved_changes():
@@ -668,8 +654,6 @@ class MainWindowProfilesMixin:
                 QMessageBox.critical(self, self.tr("error_title"), self.tr("save_settings_aborted_hotkeys", error=exc))
                 return False
 
-            if hasattr(self, "config_save_timer") and self.config_save_timer.isActive():
-                self.config_save_timer.stop()
             self.config = candidate_config
             save_config(self.config)
             self.apply_language()

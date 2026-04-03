@@ -23,3 +23,4 @@ class AppBridge(QObject):
     worker_success = Signal(object, object)
     worker_error = Signal(object)
     hotkey_recorded = Signal(str, str)
+    log_message = Signal(str)

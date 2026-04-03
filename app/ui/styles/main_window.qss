@@ -7,6 +7,12 @@ QMainWindow, QWidget#AppRoot {
 QWidget {
     background:transparent;
 }
+QScrollArea#SidebarScrollArea,
+QScrollArea#SidebarScrollArea > QWidget,
+QScrollArea#SidebarScrollArea > QWidget > QWidget {
+    background:transparent;
+    border:none;
+}
 #Sidebar {
     background:qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #121923, stop:1 #0e141d);
     border:1px solid #202b38;
@@ -16,6 +22,7 @@ QWidget {
     color:#f4efe6;
     font-size:24px;
     font-weight:800;
+    padding-bottom:2px;
 }
 #BrandSubtitle {
     color:#8e98a7;
@@ -24,6 +31,10 @@ QWidget {
     color:#8a95a6;
     font-size:11px;
     font-weight:700;
+    padding-bottom:2px;
+}
+#SidebarCaption {
+    min-height:16px;
 }
 #NavButton {
     background:transparent;
@@ -58,6 +69,8 @@ QWidget {
     color:#d7bf88;
     font-size:13px;
     font-weight:700;
+    padding-bottom:3px;
+    min-height:18px;
 }
 #HintLabel {
     color:#8592a5;
@@ -88,6 +101,8 @@ QCheckBox::indicator:checked {
     color:#d9e3f8;
     font-size:13px;
     font-weight:700;
+    padding-bottom:3px;
+    min-height:18px;
 }
 #AboutMetaLabel {
     color:#90a0b6;
@@ -101,6 +116,7 @@ QCheckBox::indicator:checked {
     color:#f4efe6;
     font-size:27px;
     font-weight:800;
+    padding-bottom:2px;
 }
 #PageSubtitleLabel {
     color:#94a1b4;

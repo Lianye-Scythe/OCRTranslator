@@ -3,20 +3,29 @@ from urllib.parse import quote
 import requests
 
 from ..models import ApiProfile
+from ..operation_control import RequestContext
 
 
-def gemini_content_url(profile: ApiProfile, api_key: str) -> str:
+def gemini_content_url(profile: ApiProfile) -> str:
     base = (profile.base_url or "").rstrip("/")
     if base.endswith("/v1beta"):
-        return f"{base}/{quote(profile.model, safe='/:.-_')}:generateContent?key={api_key}"
-    return f"{base}/v1beta/{quote(profile.model, safe='/:.-_')}:generateContent?key={api_key}"
+        return f"{base}/{quote(profile.model, safe='/:.-_')}:generateContent"
+    return f"{base}/v1beta/{quote(profile.model, safe='/:.-_')}:generateContent"
 
 
-def gemini_models_url(base_url: str, api_key: str) -> str:
+def gemini_models_url(base_url: str) -> str:
     base = (base_url or "").rstrip("/")
     if base.endswith("/v1beta"):
-        return f"{base}/models?key={api_key}"
-    return f"{base}/v1beta/models?key={api_key}"
+        return f"{base}/models"
+    return f"{base}/v1beta/models"
+
+
+def gemini_headers(api_key: str) -> dict[str, str]:
+    return {"Content-Type": "application/json", "x-goog-api-key": api_key}
+
+
+def gemini_query_params(api_key: str) -> dict[str, str]:
+    return {"key": api_key}
 
 
 def gemini_finish_reason_text(finish_reason: str | None) -> str:
@@ -32,9 +41,30 @@ class GeminiCompatibleAdapter:
         self._ensure_success = ensure_success
         self._error_factory = error_factory
 
-    def list_models(self, profile: ApiProfile, api_key: str) -> list[str]:
-        response = requests.get(gemini_models_url(profile.base_url, api_key), timeout=30)
+    def _request_with_auth_fallback(self, method: str, url: str, api_key: str, *, request_context: RequestContext | None = None, **kwargs):
+        http_client = request_context.session if request_context else requests
+        base_url = str(kwargs.pop("_base_url", "") or "")
+        response = http_client.request(method, url, headers=gemini_headers(api_key), **kwargs)
+        try:
+            self._ensure_success(response)
+            return response
+        except Exception:
+            status_code = int(getattr(response, "status_code", 0) or 0)
+            if status_code not in {401, 403} or "googleapis.com" in base_url:
+                raise
+        response = http_client.request(method, url, headers={"Content-Type": "application/json"}, params=gemini_query_params(api_key), **kwargs)
         self._ensure_success(response)
+        return response
+
+    def list_models(self, profile: ApiProfile, api_key: str, *, request_context: RequestContext | None = None) -> list[str]:
+        response = self._request_with_auth_fallback(
+            "GET",
+            gemini_models_url(profile.base_url),
+            api_key,
+            request_context=request_context,
+            timeout=30,
+            _base_url=profile.base_url,
+        )
         data = response.json()
         models = []
         for item in data.get("models", []):
@@ -54,20 +84,23 @@ class GeminiCompatibleAdapter:
         temperature: float,
         *,
         image_base64: str | None = None,
+        request_context: RequestContext | None = None,
     ) -> str:
         parts = [{"text": prompt}]
         if image_base64:
             parts.append({"inline_data": {"mime_type": "image/png", "data": image_base64}})
-        response = requests.post(
-            gemini_content_url(profile, api_key),
-            headers={"Content-Type": "application/json"},
+        response = self._request_with_auth_fallback(
+            "POST",
+            gemini_content_url(profile),
+            api_key,
+            request_context=request_context,
             json={
                 "contents": [{"parts": parts}],
                 "generationConfig": {"temperature": temperature},
             },
             timeout=120,
+            _base_url=profile.base_url,
         )
-        self._ensure_success(response)
         return self.extract_translation_text(response.json())
 
     def extract_translation_text(self, data: dict) -> str:

@@ -35,6 +35,7 @@ echo [OCRTranslator] Running PyInstaller...
     --distpath release ^
     --workpath build ^
     --add-data "app\ui\styles;app\ui\styles" ^
+    --add-data "app\locales;app\locales" ^
     launcher.pyw
 if errorlevel 1 goto :build_failed
 

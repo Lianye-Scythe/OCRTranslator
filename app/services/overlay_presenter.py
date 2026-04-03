@@ -107,7 +107,7 @@ class OverlayPresenter:
             self.window.overlay_font_size_spin.setValue(new_size)
         finally:
             self.window._suppress_form_tracking = False
-        self.window.schedule_config_persist()
+        self.window.note_runtime_preference_changed()
         self.overlay.apply_typography()
         self.window.set_status("font_zoomed", size=new_size)
         if self.overlay.isVisible() and self.overlay.last_text:

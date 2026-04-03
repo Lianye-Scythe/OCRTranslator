@@ -7,6 +7,7 @@ from PIL import Image
 
 from .default_prompts import DEFAULT_TRANSLATION_IMAGE_PROMPT
 from .models import ApiProfile
+from .operation_control import RequestCancelledError, RequestContext
 from .providers import GeminiCompatibleAdapter, OpenAICompatibleAdapter
 
 
@@ -118,6 +119,11 @@ class ApiClient:
         return bool(getattr(exc, "retry_same_key", True))
 
     @staticmethod
+    def _check_cancelled(request_context: RequestContext | None) -> None:
+        if request_context and request_context.is_cancelled():
+            raise RequestCancelledError()
+
+    @staticmethod
     def _profile_rotation_key(profile: ApiProfile) -> str:
         return f"{profile.provider}|{profile.base_url}|{profile.name}"
 
@@ -151,6 +157,7 @@ class ApiClient:
         empty_user_message: str,
         failure_message: str,
         failure_user_message: str,
+        request_context: RequestContext | None = None,
     ):
         keys = self._active_keys(profile)
         if not keys:
@@ -164,6 +171,7 @@ class ApiClient:
         attempts_total = max(1, int(attempts_total or 1))
 
         for attempt in range(attempts_total):
+            self._check_cancelled(request_context)
             key_index = (start_index + attempt) % len(keys)
             if last_error is not None and last_key_index == key_index and not self._should_retry_same_key(last_error):
                 self.log(f"{request_label} retries stopped because same-key retry is not allowed")
@@ -177,7 +185,9 @@ class ApiClient:
                     f"provider={profile.provider} | model={profile.model} | key#{key_index + 1}"
                 )
                 result = request_callable(api_key)
+                self._check_cancelled(request_context)
                 if require_non_empty and isinstance(result, str):
+                    self._check_cancelled(request_context)
                     cleaned = result.strip()
                     if not cleaned:
                         raise ApiClientError("Empty response", user_message=empty_user_message)
@@ -185,6 +195,8 @@ class ApiClient:
                 return result
             except Exception as exc:  # noqa: BLE001
                 last_error = exc
+                if isinstance(exc, RequestCancelledError):
+                    raise
                 last_key_index = key_index
                 self.log(f"{request_label} failed on attempt {attempt + 1}: {exc}")
                 if not self._is_retryable_exception(exc):
@@ -197,26 +209,27 @@ class ApiClient:
                     self.log(f"{request_label} retries stopped because same-key retry is not allowed")
                     break
                 if profile.retry_interval > 0:
+                    self._check_cancelled(request_context)
                     time.sleep(profile.retry_interval)
 
         self._raise_last_error(last_error, default_message=failure_message, user_message=failure_user_message)
 
-    def _request_openai_models(self, profile: ApiProfile, api_key: str) -> list[str]:
-        return self._provider_adapter("openai").list_models(profile, api_key)
+    def _request_openai_models(self, profile: ApiProfile, api_key: str, *, request_context: RequestContext | None = None) -> list[str]:
+        return self._provider_adapter("openai").list_models(profile, api_key, request_context=request_context)
 
-    def _request_gemini_models(self, profile: ApiProfile, api_key: str) -> list[str]:
-        return self._provider_adapter("gemini").list_models(profile, api_key)
+    def _request_gemini_models(self, profile: ApiProfile, api_key: str, *, request_context: RequestContext | None = None) -> list[str]:
+        return self._provider_adapter("gemini").list_models(profile, api_key, request_context=request_context)
 
-    def list_models(self, profile: ApiProfile) -> list[str]:
+    def list_models(self, profile: ApiProfile, *, request_context: RequestContext | None = None) -> list[str]:
         keys = self._active_keys(profile)
         attempts_total = max(len(keys), 1 + max(0, int(profile.retry_count))) if keys else 1
         return self._execute_keyed_operation(
             profile,
             request_label="List models",
             request_callable=lambda api_key: (
-                self._request_openai_models(profile, api_key)
+                self._request_openai_models(profile, api_key, request_context=request_context)
                 if profile.provider == "openai"
-                else self._request_gemini_models(profile, api_key)
+                else self._request_gemini_models(profile, api_key, request_context=request_context)
             ),
             attempts_total=attempts_total,
             require_non_empty=False,
@@ -224,18 +237,20 @@ class ApiClient:
             empty_user_message="模型列表是空的。",
             failure_message="Failed to load models",
             failure_user_message="無法載入模型列表。",
+            request_context=request_context,
         )
 
-    def test_profile(self, profile: ApiProfile) -> str:
+    def test_profile(self, profile: ApiProfile, *, request_context: RequestContext | None = None) -> str:
         response = self.request_text(
             "Reply with the single word OK.",
             profile,
             temperature=0.0,
+            request_context=request_context,
         )
         preview = self._response_preview(response)
         return f"OK | provider={profile.provider} | model={profile.model} | response={preview}"
 
-    def request_image(self, image: Image.Image, profile: ApiProfile, prompt: str, temperature: float) -> str:
+    def request_image(self, image: Image.Image, profile: ApiProfile, prompt: str, temperature: float, *, request_context: RequestContext | None = None) -> str:
         prompt_text = str(prompt or "").strip()
         if not prompt_text:
             raise ApiClientError("No prompt configured", user_message="目前提示詞不可為空。", retryable=False, retry_same_key=False)
@@ -244,9 +259,9 @@ class ApiClient:
             profile,
             request_label="Image request",
             request_callable=lambda api_key: (
-                self._translate_openai(profile, api_key, prompt_text, image_base64, temperature)
+                self._translate_openai(profile, api_key, prompt_text, image_base64, temperature, request_context=request_context)
                 if profile.provider == "openai"
-                else self._translate_gemini(profile, api_key, prompt_text, image_base64, temperature)
+                else self._translate_gemini(profile, api_key, prompt_text, image_base64, temperature, request_context=request_context)
             ),
             attempts_total=1 + max(0, int(profile.retry_count)),
             require_non_empty=True,
@@ -254,9 +269,10 @@ class ApiClient:
             empty_user_message="模型沒有回傳可顯示的內容。",
             failure_message="Request failed",
             failure_user_message="請求失敗。",
+            request_context=request_context,
         )
 
-    def request_text(self, prompt: str, profile: ApiProfile, temperature: float) -> str:
+    def request_text(self, prompt: str, profile: ApiProfile, temperature: float, *, request_context: RequestContext | None = None) -> str:
         prompt_text = str(prompt or "").strip()
         if not prompt_text:
             raise ApiClientError("No prompt configured", user_message="目前提示詞不可為空。", retryable=False, retry_same_key=False)
@@ -264,9 +280,9 @@ class ApiClient:
             profile,
             request_label="Text request",
             request_callable=lambda api_key: (
-                self._request_openai_prompt(profile, api_key, prompt_text, temperature)
+                self._request_openai_prompt(profile, api_key, prompt_text, temperature, request_context=request_context)
                 if profile.provider == "openai"
-                else self._request_gemini_prompt(profile, api_key, prompt_text, temperature)
+                else self._request_gemini_prompt(profile, api_key, prompt_text, temperature, request_context=request_context)
             ),
             attempts_total=1 + max(0, int(profile.retry_count)),
             require_non_empty=True,
@@ -274,11 +290,12 @@ class ApiClient:
             empty_user_message="模型沒有回傳可顯示的內容。",
             failure_message="Request failed",
             failure_user_message="請求失敗。",
+            request_context=request_context,
         )
 
-    def translate_image(self, image: Image.Image, profile: ApiProfile, target_language: str, temperature: float) -> str:
+    def translate_image(self, image: Image.Image, profile: ApiProfile, target_language: str, temperature: float, *, request_context: RequestContext | None = None) -> str:
         prompt = f"{DEFAULT_TRANSLATION_IMAGE_PROMPT}\n\nTarget language: {target_language}"
-        return self.request_image(image, profile, prompt, temperature)
+        return self.request_image(image, profile, prompt, temperature, request_context=request_context)
 
     def _request_openai_prompt(
         self,
@@ -288,6 +305,7 @@ class ApiClient:
         temperature: float,
         *,
         image_base64: str | None = None,
+        request_context: RequestContext | None = None,
     ) -> str:
         return self._provider_adapter("openai").request_prompt(
             profile,
@@ -295,14 +313,16 @@ class ApiClient:
             prompt,
             temperature,
             image_base64=image_base64,
+            request_context=request_context,
         )
 
-    def _translate_openai(self, profile: ApiProfile, api_key: str, prompt: str, image_base64: str, temperature: float) -> str:
+    def _translate_openai(self, profile: ApiProfile, api_key: str, prompt: str, image_base64: str, temperature: float, *, request_context: RequestContext | None = None) -> str:
         return self._request_openai_prompt(
             profile,
             api_key,
             prompt,
             temperature,
+            request_context=request_context,
             image_base64=image_base64,
         )
 
@@ -314,6 +334,7 @@ class ApiClient:
         temperature: float,
         *,
         image_base64: str | None = None,
+        request_context: RequestContext | None = None,
     ) -> str:
         return self._provider_adapter("gemini").request_prompt(
             profile,
@@ -321,13 +342,15 @@ class ApiClient:
             prompt,
             temperature,
             image_base64=image_base64,
+            request_context=request_context,
         )
 
-    def _translate_gemini(self, profile: ApiProfile, api_key: str, prompt: str, image_base64: str, temperature: float) -> str:
+    def _translate_gemini(self, profile: ApiProfile, api_key: str, prompt: str, image_base64: str, temperature: float, *, request_context: RequestContext | None = None) -> str:
         return self._request_gemini_prompt(
             profile,
             api_key,
             prompt,
             temperature,
+            request_context=request_context,
             image_base64=image_base64,
         )

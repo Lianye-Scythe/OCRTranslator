@@ -5,6 +5,7 @@ import requests
 
 from app.api_client import ApiClient, ApiClientError
 from app.models import ApiProfile
+from app.operation_control import RequestCancelledError, RequestContext
 
 
 class ApiClientTests(unittest.TestCase):
@@ -49,7 +50,7 @@ class ApiClientTests(unittest.TestCase):
         with patch.object(self.client, "request_text", return_value="OK") as mock_request_text:
             result = self.client.test_profile(self.profile)
 
-        mock_request_text.assert_called_once_with("Reply with the single word OK.", self.profile, temperature=0.0)
+        mock_request_text.assert_called_once_with("Reply with the single word OK.", self.profile, temperature=0.0, request_context=None)
         self.assertEqual(result, "OK | provider=openai | model=gpt-4o-mini | response=OK")
 
     @patch("app.api_client.requests.post")
@@ -103,7 +104,7 @@ class ApiClientTests(unittest.TestCase):
         )
         used_keys = []
 
-        def fake_translate(profile_obj, api_key, prompt, image_base64, temperature):
+        def fake_translate(profile_obj, api_key, prompt, image_base64, temperature, **kwargs):
             used_keys.append(api_key)
             return "ok"
 
@@ -123,14 +124,14 @@ class ApiClientTests(unittest.TestCase):
         )
         used_keys = []
 
-        with patch.object(self.client, "_request_openai_models", side_effect=lambda profile_obj, api_key: used_keys.append(api_key) or ["gpt-4o-mini"]):
+        with patch.object(self.client, "_request_openai_models", side_effect=lambda profile_obj, api_key, **kwargs: used_keys.append(api_key) or ["gpt-4o-mini"]):
             for _ in range(4):
                 self.client.list_models(profile)
 
         self.assertEqual(used_keys, ["key-1", "key-2", "key-3", "key-1"])
 
-    @patch("app.api_client.requests.get")
-    def test_request_gemini_models_filters_non_generate_content_models(self, mock_get):
+    @patch("app.providers.gemini_compatible.requests.request")
+    def test_request_gemini_models_filters_non_generate_content_models(self, mock_request):
         profile = ApiProfile(
             name="Gemini",
             provider="gemini",
@@ -147,12 +148,12 @@ class ApiClientTests(unittest.TestCase):
                 {"name": "models/gemini-2.0-flash"},
             ]
         }
-        mock_get.return_value = response
+        mock_request.return_value = response
 
         self.assertEqual(self.client.list_models(profile), ["models/gemini-1.5-flash", "models/gemini-2.0-flash"])
 
-    @patch("app.api_client.requests.post")
-    def test_translate_gemini_raises_block_reason_when_prompt_is_blocked(self, mock_post):
+    @patch("app.providers.gemini_compatible.requests.request")
+    def test_translate_gemini_raises_block_reason_when_prompt_is_blocked(self, mock_request):
         profile = ApiProfile(
             name="Gemini",
             provider="gemini",
@@ -163,7 +164,7 @@ class ApiClientTests(unittest.TestCase):
         response = Mock()
         response.raise_for_status.return_value = None
         response.json.return_value = {"promptFeedback": {"blockReason": "SAFETY"}, "candidates": []}
-        mock_post.return_value = response
+        mock_request.return_value = response
 
         with self.assertRaisesRegex(RuntimeError, "Gemini blocked the request: SAFETY"):
             self.client._translate_gemini(profile, "demo-key", "prompt", "base64", 0.2)
@@ -271,6 +272,26 @@ class ApiClientTests(unittest.TestCase):
                 self.client.list_models(profile)
 
         self.assertEqual(mock_request_models.call_count, 3)
+
+    def test_request_text_raises_cancelled_when_request_context_is_cancelled_before_start(self):
+        request_context = RequestContext()
+        request_context.cancel()
+
+        with self.assertRaises(RequestCancelledError):
+            self.client.request_text("prompt", self.profile, 0.2, request_context=request_context)
+
+    def test_list_models_stops_retrying_when_request_is_cancelled(self):
+        request_context = RequestContext()
+
+        def cancel_on_request(*args, **kwargs):
+            request_context.cancel()
+            raise RequestCancelledError()
+
+        with patch.object(self.client, "_request_openai_models", side_effect=cancel_on_request) as mock_request_models:
+            with self.assertRaises(RequestCancelledError):
+                self.client.list_models(self.profile, request_context=request_context)
+
+        self.assertEqual(mock_request_models.call_count, 1)
 
 
 if __name__ == "__main__":

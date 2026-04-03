@@ -1,4 +1,6 @@
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QCursor
+from PySide6.QtWidgets import QApplication
 
 from ..prompt_utils import build_image_request_prompt, build_text_request_prompt
 from ..profile_utils import normalize_model_value, unique_non_empty
@@ -57,9 +59,10 @@ class RequestWorkflowController:
         request_signature = self.profile_request_signature(profile)
         self.window.log(f"Fetching models for profile: {profile.name}")
         self.window.run_worker(
-            lambda: (request_id, request_signature, profile.provider, self.window.api_client.list_models(profile)),
+            lambda request_context: (request_id, request_signature, profile.provider, self.window.api_client.list_models(profile, request_context=request_context)),
             self.on_models_loaded,
             operation_key="fetch_models",
+            cancellable=True,
         )
 
     def on_models_loaded(self, result):
@@ -101,9 +104,10 @@ class RequestWorkflowController:
         request_signature = self.profile_request_signature(profile)
         self.window.log(f"Testing profile: {profile.name}")
         self.window.run_worker(
-            lambda: (request_id, request_signature, self.window.api_client.test_profile(profile)),
+            lambda request_context: (request_id, request_signature, self.window.api_client.test_profile(profile, request_context=request_context)),
             self.on_test_success,
             operation_key="test_profile",
+            cancellable=True,
         )
 
     def on_test_success(self, result):
@@ -121,7 +125,7 @@ class RequestWorkflowController:
         self.window.show_tray_toast(self.window.tr(source_key))
         preserve_manual_position = bool(self.window.translation_overlay.isVisible() and self.window.translation_overlay.manual_positioned)
         self.window.run_worker(
-            lambda: self.window.api_client.request_text(prompt, profile, self.window.current_temperature()),
+            lambda request_context: self.window.api_client.request_text(prompt, profile, self.window.current_temperature(), request_context=request_context),
             lambda result, anchor_point=anchor_point, preset_name=prompt_preset.name, preserve_manual_position=preserve_manual_position: self.window.overlay_presenter.show_response(
                 result,
                 anchor_point=anchor_point,
@@ -129,6 +133,7 @@ class RequestWorkflowController:
                 preserve_manual_position=preserve_manual_position,
             ),
             operation_key="translation",
+            cancellable=True,
         )
 
     def translate_selected_text(self):
@@ -136,7 +141,13 @@ class RequestWorkflowController:
         if not request_context:
             return
         self.window.log("Attempting to capture selected text via clipboard preservation")
-        selected_text = capture_selected_text(hotkey_text=self.window.current_selection_hotkey())
+        self.window.set_status("selected_text_capturing")
+        self.window.show_tray_toast(self.window.tr("selected_text_capturing"))
+        QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
+        try:
+            selected_text = capture_selected_text(hotkey_text=self.window.current_selection_hotkey())
+        finally:
+            QApplication.restoreOverrideCursor()
         if not selected_text:
             self.window.set_status("selected_text_empty")
             self.window.log("Selected text capture returned no usable text")
@@ -220,11 +231,12 @@ class RequestWorkflowController:
         prompt_preset = self.window.pending_capture_prompt_preset or self.window.build_prompt_preset_from_form()
         prompt = build_image_request_prompt(prompt_preset.image_prompt, target_language=target_language)
         self.window.run_worker(
-            lambda: self.window.api_client.request_image(image, profile, prompt, self.window.current_temperature()),
+            lambda request_context: self.window.api_client.request_image(image, profile, prompt, self.window.current_temperature(), request_context=request_context),
             lambda text, bbox=bbox, preset_name=prompt_preset.name: self.window.overlay_presenter.show_translation(
                 bbox,
                 text,
                 preset_name=preset_name,
             ),
             operation_key="translation",
+            cancellable=True,
         )

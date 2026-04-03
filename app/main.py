@@ -6,8 +6,9 @@ from PySide6.QtGui import QGuiApplication
 from PySide6.QtNetwork import QLocalSocket
 from PySide6.QtWidgets import QApplication, QMessageBox
 
+from .app_defaults import DEFAULT_UI_LANGUAGE
 from .config_store import load_config
-from .i18n import I18N
+from .i18n import I18N, normalize_ui_language
 from .runtime_paths import APP_LOCK_PATH, APP_SERVER_NAME, LOCK_STALE_MS
 from .ui.main_window import MainWindow
 
@@ -72,7 +73,7 @@ def run_app():
         lock = recover_stale_single_instance_lock()
         if lock is None:
             message_config = load_config()
-            lang = message_config.ui_language if message_config.ui_language in I18N else "zh-TW"
+            lang = normalize_ui_language(message_config.ui_language, default=DEFAULT_UI_LANGUAGE)
             QMessageBox.information(None, I18N[lang]["already_running_title"], I18N[lang]["already_running_message"])
             return
 

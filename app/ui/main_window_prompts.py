@@ -91,20 +91,6 @@ class MainWindowPromptPresetsMixin:
         prompt_preset.name = self.validate_prompt_preset_name(prompt_preset.name, current_preset.name)
         return prompt_preset
 
-    def upsert_prompt_preset(self, preset: PromptPreset):
-        current_name = self.config.active_prompt_preset_name
-        for index, item in enumerate(self.config.prompt_presets):
-            if item.name == current_name:
-                self.config.prompt_presets[index] = preset
-                self.config.active_prompt_preset_name = preset.name
-                return
-        for index, item in enumerate(self.config.prompt_presets):
-            if item.name == preset.name:
-                self.config.prompt_presets[index] = preset
-                self.config.active_prompt_preset_name = preset.name
-                return
-        self.config.prompt_presets.append(preset)
-        self.config.active_prompt_preset_name = preset.name
 
     def create_new_prompt_preset(self):
         if not self.resolve_unsaved_changes():

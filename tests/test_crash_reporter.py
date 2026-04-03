@@ -3,7 +3,7 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
-from app.crash_reporter import CRASH_LOG_PREFIX, build_crash_log_path, format_crash_dialog_message, record_exception
+from app.crash_reporter import CRASH_LOG_PREFIX, build_crash_log_path, format_crash_dialog_message, format_exception_report, record_exception
 
 
 class CrashReporterTests(unittest.TestCase):
@@ -39,6 +39,22 @@ class CrashReporterTests(unittest.TestCase):
                 second = build_crash_log_path(base_dir)
         self.assertNotEqual(first, second)
         self.assertRegex(first.name, rf"^{CRASH_LOG_PREFIX}-20260101-010101-\d{{9}}\.log$")
+
+    def test_format_exception_report_redacts_sensitive_values_in_traceback(self):
+        try:
+            raise RuntimeError("request failed: https://example.com/v1?key=secret-key Authorization: Bearer token-123")
+        except RuntimeError as exc:
+            report = format_exception_report(type(exc), exc, exc.__traceback__)
+
+        self.assertNotIn("secret-key", report)
+        self.assertNotIn("token-123", report)
+        self.assertIn("key=<redacted>", report)
+        self.assertIn("Bearer <redacted>", report)
+
+    def test_format_crash_dialog_message_redacts_sensitive_summary(self):
+        message = format_crash_dialog_message(RuntimeError("api_key=secret-value"), None)
+        self.assertNotIn("secret-value", message)
+        self.assertIn("api_key=<redacted>", message)
 
 
 if __name__ == "__main__":
