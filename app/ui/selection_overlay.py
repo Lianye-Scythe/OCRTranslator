@@ -11,6 +11,7 @@ class SelectionOverlay(QWidget):
         super().__init__()
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setFocusPolicy(Qt.StrongFocus)
         self.setCursor(Qt.CrossCursor)
         self.rubber_band = QRubberBand(QRubberBand.Rectangle, self)
         self.rubber_band.setStyleSheet(
@@ -42,6 +43,7 @@ class SelectionOverlay(QWidget):
         self.rubber_band.hide()
         self.show()
         self.raise_()
+        self.setFocus(Qt.ActiveWindowFocusReason)
         self.activateWindow()
 
     def set_hint_text(self, text: str):

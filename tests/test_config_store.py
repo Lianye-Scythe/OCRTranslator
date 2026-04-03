@@ -94,6 +94,38 @@ class ConfigStoreMigrationTests(unittest.TestCase):
         self.assertEqual(profile.available_models, ["models/gemini-1.5-flash"])
         self.assertEqual(config.active_prompt_preset_name, "翻譯")
 
+    def test_migrate_string_false_overlay_flag_as_false(self):
+        config = _migrate_legacy_config(
+            {
+                "overlay_pinned": "false",
+                "api_profiles": [
+                    {
+                        "name": "Default Gemini",
+                        "provider": "gemini",
+                        "api_keys": ["demo-key"],
+                    }
+                ],
+            }
+        )
+
+        self.assertFalse(config.overlay_pinned)
+
+    def test_migrate_close_to_tray_on_close_flag(self):
+        config = _migrate_legacy_config(
+            {
+                "close_to_tray_on_close": "true",
+                "api_profiles": [
+                    {
+                        "name": "Default Gemini",
+                        "provider": "gemini",
+                        "api_keys": ["demo-key"],
+                    }
+                ],
+            }
+        )
+
+        self.assertTrue(config.close_to_tray_on_close)
+
     def test_load_config_reads_existing_portable_config_from_root(self):
         with TemporaryDirectory() as temp_dir:
             config_path = Path(temp_dir) / "config.json"

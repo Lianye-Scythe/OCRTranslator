@@ -1,13 +1,16 @@
 from dataclasses import dataclass, field
 
-from .constants import (
+from .app_defaults import (
     DEFAULT_BASE_URL,
     DEFAULT_CAPTURE_HOTKEY,
     DEFAULT_INPUT_HOTKEY,
     DEFAULT_MODEL,
-    DEFAULT_PROMPT_PRESET_DEFINITIONS,
+    DEFAULT_OVERLAY_FONT_FAMILY,
     DEFAULT_SELECTION_HOTKEY,
+    DEFAULT_TARGET_LANGUAGE,
+    DEFAULT_UI_LANGUAGE,
 )
+from .default_prompts import DEFAULT_PROMPT_PRESET_DEFINITIONS
 
 
 @dataclass
@@ -36,20 +39,21 @@ def default_prompt_presets() -> list[PromptPreset]:
 
 @dataclass
 class AppConfig:
-    target_language: str = "繁體中文"
+    target_language: str = DEFAULT_TARGET_LANGUAGE
     mode: str = "book_lr"
     temperature: float = 0.2
     overlay_width: int = 440
     overlay_height: int = 520
     margin: int = 18
-    ui_language: str = "zh-TW"
+    ui_language: str = DEFAULT_UI_LANGUAGE
     hotkey: str = DEFAULT_CAPTURE_HOTKEY
     selection_hotkey: str = DEFAULT_SELECTION_HOTKEY
     input_hotkey: str = DEFAULT_INPUT_HOTKEY
-    overlay_font_family: str = "Microsoft JhengHei UI"
+    overlay_font_family: str = DEFAULT_OVERLAY_FONT_FAMILY
     overlay_font_size: int = 12
     overlay_opacity: int = 96
     overlay_pinned: bool = False
+    close_to_tray_on_close: bool = False
     active_profile_name: str = "Default Gemini"
     active_prompt_preset_name: str = DEFAULT_PROMPT_PRESET_DEFINITIONS[0]["name"]
     api_profiles: list[ApiProfile] = field(default_factory=lambda: [ApiProfile()])

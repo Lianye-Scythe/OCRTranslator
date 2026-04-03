@@ -7,7 +7,8 @@ from PySide6.QtNetwork import QLocalSocket
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from .config_store import load_config
-from .constants import APP_LOCK_PATH, APP_SERVER_NAME, I18N, LOCK_STALE_MS
+from .i18n import I18N
+from .runtime_paths import APP_LOCK_PATH, APP_SERVER_NAME, LOCK_STALE_MS
 from .ui.main_window import MainWindow
 
 

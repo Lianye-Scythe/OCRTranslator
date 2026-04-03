@@ -15,7 +15,8 @@ class PromptInputDialog(QDialog):
     def _build_ui(self):
         self.setModal(True)
         self.setWindowTitle(self.app_window.tr("manual_input_title"))
-        self.setMinimumSize(520, 360)
+        self.resize(560, 420)
+        self.setMinimumSize(440, 300)
         self.setWindowFlag(Qt.WindowStaysOnTopHint, True)
 
         layout = QVBoxLayout(self)
@@ -62,6 +63,7 @@ class PromptInputDialog(QDialog):
         QShortcut(QKeySequence("Ctrl+Return"), self, self.accept)
         QShortcut(QKeySequence("Ctrl+Enter"), self, self.accept)
         self._refresh_send_state()
+        self.text_edit.setFocus()
 
     def _refresh_send_state(self):
         self.send_button.setEnabled(bool(self.input_text()))

@@ -1,5 +1,5 @@
 from PySide6.QtCore import QEvent, QPoint, QRect, Qt, Signal
-from PySide6.QtGui import QColor, QFont, QFontMetrics, QGuiApplication, QMouseEvent, QTextDocument
+from PySide6.QtGui import QColor, QFont, QFontMetrics, QGuiApplication, QKeySequence, QMouseEvent, QShortcut, QTextDocument
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
@@ -11,6 +11,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from .style_utils import load_style_sheet
 
 
 class TranslationOverlay(QWidget):
@@ -45,6 +47,7 @@ class TranslationOverlay(QWidget):
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setMouseTracking(True)
+        self.setFocusPolicy(Qt.StrongFocus)
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -128,97 +131,19 @@ class TranslationOverlay(QWidget):
             widget.installEventFilter(self)
 
         self.apply_styles()
+        self._shortcuts = [
+            QShortcut(QKeySequence("Esc"), self),
+            QShortcut(QKeySequence("Ctrl+C"), self),
+            QShortcut(QKeySequence("Ctrl+W"), self),
+        ]
+        self._shortcuts[0].activated.connect(self.hide)
+        self._shortcuts[1].activated.connect(self.copy_text)
+        self._shortcuts[2].activated.connect(self.hide)
         self.refresh_language()
         self.apply_surface_state()
 
     def apply_styles(self):
-        self.setStyleSheet(
-            """
-            #overlayCard {
-                background:qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #141c28, stop:1 #101720);
-                border:1px solid #253244;
-                border-radius:22px;
-            }
-            #overlayHeader {
-                background:#151f2e;
-                border-top-left-radius:22px;
-                border-top-right-radius:22px;
-                border-bottom:1px solid #263448;
-            }
-            #overlayTitleLabel {
-                color:#f4efe6;
-                font-size:14px;
-                font-weight:700;
-            }
-            #overlayValueChip {
-                background:#121c2a;
-                color:#dbe5f8;
-                border:1px solid #31425a;
-                border-radius:12px;
-                padding:0 10px;
-                font-size:12px;
-                font-weight:700;
-            }
-            #overlayBody {
-                background:#101720;
-                color:#eef3fb;
-                border:none;
-                padding:14px 16px 16px 16px;
-                border-bottom-left-radius:22px;
-                border-bottom-right-radius:22px;
-                selection-background-color:#7489ff;
-            }
-            #overlayCloseButton {
-                background:#182130;
-                color:#e8eef9;
-                border:1px solid #2d3b4f;
-                border-radius:12px;
-                font-size:18px;
-                font-weight:600;
-            }
-            #overlayActionButton {
-                background:#1d293a;
-                color:#edf2fb;
-                border:1px solid #31425a;
-                border-radius:12px;
-                padding:0 12px;
-                font-weight:700;
-            }
-            #overlayActionButton:checked {
-                background:#7489ff;
-                color:#0f1420;
-                border:1px solid #93a3ff;
-            }
-            #overlayCloseButton:hover {
-                background:#1d2839;
-            }
-            #overlayActionButton:focus,
-            #overlayCloseButton:focus {
-                border:1px solid #90a4ff;
-            }
-            #overlayActionButton:hover {
-                background:#243245;
-            }
-            QScrollBar:vertical {
-                width:10px;
-                margin:2px;
-                background:transparent;
-            }
-            QScrollBar::handle:vertical {
-                background:#2d3a4c;
-                border-radius:5px;
-                min-height:28px;
-            }
-            QScrollBar::add-line:vertical,
-            QScrollBar::sub-line:vertical,
-            QScrollBar::add-page:vertical,
-            QScrollBar::sub-page:vertical {
-                background:none;
-                border:none;
-                height:0;
-            }
-            """
-        )
+        self.setStyleSheet(load_style_sheet("translation_overlay.qss"))
 
     def refresh_language(self):
         title = self.app_window.tr("overlay_title")
@@ -249,8 +174,8 @@ class TranslationOverlay(QWidget):
         metrics = QFontMetrics(self.body.font())
         longest_width = max((metrics.horizontalAdvance(line or " ") for line in lines), default=240)
         line_spacing = metrics.lineSpacing()
-        configured_width = max(self.MIN_WIDTH, int(getattr(self.app_window.config, "overlay_width", 440) or 440))
-        configured_height = max(self.MIN_HEIGHT, int(getattr(self.app_window.config, "overlay_height", 520) or 520))
+        configured_width = max(self.MIN_WIDTH, int(self.app_window.current_overlay_width() or 440))
+        configured_height = max(self.MIN_HEIGHT, int(self.app_window.current_overlay_height() or 520))
         width = min(860, max(configured_width, longest_width + 136))
         height = min(900, max(configured_height, len(lines) * line_spacing + 132))
         return width, height
@@ -302,6 +227,7 @@ class TranslationOverlay(QWidget):
         self.manual_positioned = bool(keep_manual_position)
         self.show()
         self.raise_()
+        self.activateWindow()
 
     def restore_last_overlay(self):
         if not self.last_text.strip() or self.last_geometry is None:
@@ -311,6 +237,7 @@ class TranslationOverlay(QWidget):
         self.body.setPlainText(self.last_text)
         self.show()
         self.raise_()
+        self.activateWindow()
 
     def _header_rect(self) -> QRect:
         top_left = self.header.mapTo(self, QPoint(0, 0))

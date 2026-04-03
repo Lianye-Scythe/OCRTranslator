@@ -25,6 +25,7 @@ OCRTranslator 是一款以 **桌面即時閱讀** 為核心的 **便攜式 OCR /
 - 內建三組預設方案：`翻譯` / `解答` / `潤色`
 - 選取文字流程會**盡量保留原剪貼簿內容**
 - 快捷鍵錄製與全域快捷鍵處理已補強 `Shift` / `Win` 組合
+- 會主動阻止互相包含的快捷鍵組合，避免 `Ctrl+X` / `Ctrl+Shift+X` 類型衝突
 
 ---
 
@@ -280,7 +281,7 @@ python -m app.main --capture
 - 目標語言
 - 顯示模式
 - 三組全域快捷鍵
-- 浮窗字型 / 字級 / 透明度 / 是否固定 / 預設大小
+- 浮窗字型 / 字級 / 透明度 / 是否固定 / 關閉時是否縮到系統匣 / 預設大小
 - 當前啟用的 API Profile
 - 當前啟用的提示詞方案
 - 全部 API Profiles
@@ -336,6 +337,7 @@ python -m app.main --capture
 - `API Keys` 欄位支援每行一個 Key
 - 同一個設定檔中的 Key 會自動輪替
 - 某個 Key 失敗時可繼續嘗試其他 Key
+- 若只剩單一 Key 且認證失敗，不會再對同一個 Key 做無意義重試
 
 ### 模型列表
 - `Fetch Models` 會使用目前表單內容直接請求 API
@@ -344,9 +346,9 @@ python -m app.main --capture
 - 儲存時仍保留正規化模型值
 
 ### API 測試
-- `Test API` 會用目前表單內容實際驗證連線
+- `Test API` 會用目前表單內容送出一次**極輕量的真實文字請求**，驗證實際請求鏈路
 - 不會偷偷自動儲存設定
-- 結果會寫入執行紀錄區
+- 結果會寫入執行紀錄區；若模型沒有遵守測試提示詞，log 中會保留回覆摘要供排查
 
 ---
 
@@ -403,7 +405,7 @@ python -m app.main --capture
   - 開始截圖
   - 退出程式
 
-> 注意：目前右上角 `X` 的行為是**直接退出程式**，不是縮到系統匣。
+> 注意：右上角 `X` 預設仍是**直接退出程式**；若需要，也可以在設定裡改成「按 X 時最小化到系統匣」。
 
 ---
 
@@ -433,7 +435,7 @@ config.broken-YYYYMMDD-HHMMSS.json
 若程式遇到未處理例外而異常退出，會自動在根目錄留下 crash log：
 
 ```text
-ocrtranslator-crash-YYYYMMDD-HHMMSS.log
+ocrtranslator-crash-YYYYMMDD-HHMMSS-xxxxxxxxx.log
 ```
 
 - 原始碼執行時：保存在專案根目錄
@@ -462,6 +464,8 @@ release\OCRTranslator.exe
 5. 複製：
    - `README.md`
    - `config.example.json`
+
+> 內建 QSS 樣式資源會由 PyInstaller 一併打包，不需要額外手動複製。
 
 ### 建議分發內容
 
@@ -503,48 +507,99 @@ python -m compileall app tests
 
 - API 錯誤訊息解析
 - OpenAI / Gemini 回應格式處理
+- API Key 輪替與重試策略
 - 設定遷移與欄位正規化
 - 損壞設定檔重建
 - crash log 生成與落盤
+- 浮窗尺寸與定位邏輯
+- 主視窗執行期值與忙碌狀態控制
+- 儲存設定時的熱鍵註冊失敗回滾
+- 快捷鍵子集衝突偵測與更具體優先匹配
 - 提示詞模板組裝
 - 選取文字快捷鍵相關工具函式
+- 設定表單快照 / 純規則校驗 / candidate config 建構
+- 設定服務層與表單快照模型
 
 ---
 
 ## 專案結構
 
+### 解耦後的核心分層
+
+- `app/ui/`：Qt 視圖與表單綁定
+- `app/services/`：主流程編排、浮窗呈現、截圖與 log store
+- `app/settings_service.py` / `app/settings_models.py`：設定快照、純規則校驗與 candidate config 建構
+- `app/providers/`：不同 Provider 的 API payload / response adapter
+- `app/platform/windows/`：Windows 平台專屬的快捷鍵與選取文字能力
+- `app/api_client.py`：重試、Key 輪替、Provider 調度與統一錯誤處理
+
+---
+
 ```text
 OCRTranslator/
 ├─ app/
 │  ├─ __init__.py
-│  ├─ api_client.py                # Gemini / OpenAI compatible API 呼叫
+│  ├─ app_defaults.py             # 預設模型、URL、快捷鍵與 Provider 顯示定義
+│  ├─ app_metadata.py             # 作者 / 倉庫 metadata
+│  ├─ api_client.py               # 重試、Key 輪替與 Provider 調度
 │  ├─ config_store.py              # 設定載入、遷移、儲存、損壞恢復
-│  ├─ constants.py                 # 常數、預設值、多語系文案
+│  ├─ constants.py                 # 相容匯出層（整合 defaults / metadata / runtime paths）
 │  ├─ crash_reporter.py            # 未處理例外 crash log 生成與落盤
-│  ├─ hotkey_listener.py           # 全域快捷鍵偵測與按鍵抑制
+│  ├─ default_prompts.py           # 內建提示詞與預設方案定義
+│  ├─ hotkey_listener.py           # 舊入口 facade，轉發到 platform/windows
+│  ├─ i18n.py                      # 介面文案與多語系字典
 │  ├─ main.py                      # 入口、單實例控制、啟動流程
 │  ├─ models.py                    # AppConfig / ApiProfile / PromptPreset 資料結構
+│  ├─ platform/
+│  │  ├─ __init__.py
+│  │  └─ windows/
+│  │     ├─ __init__.py
+│  │     ├─ hotkeys.py             # Windows 低階快捷鍵實作
+│  │     └─ selected_text.py       # Windows 選取文字與剪貼簿邏輯
 │  ├─ profile_utils.py             # Provider / Model 正規化工具
+│  ├─ providers/
+│  │  ├─ __init__.py
+│  │  ├─ gemini_compatible.py      # Gemini Compatible Adapter
+│  │  └─ openai_compatible.py      # OpenAI Compatible Adapter
 │  ├─ prompt_utils.py              # 提示詞模板渲染與請求文本組裝
-│  ├─ selected_text_capture.py     # 選取文字擷取與剪貼簿保留邏輯
+│  ├─ runtime_paths.py             # 可攜式執行路徑、鎖檔與單實例 server 名稱
+│  ├─ selected_text_capture.py     # 舊入口 facade，轉發到 platform/windows
+│  ├─ services/
+│  │  ├─ __init__.py
+│  │  ├─ image_capture.py          # 螢幕擷取與預覽圖轉換
+│  │  ├─ overlay_presenter.py      # 浮窗位置、重排與字級重排服務
+│  │  ├─ request_workflow.py       # 請求 / 捕獲工作流編排
+│  │  └─ runtime_log.py            # 執行時 log store
+│  ├─ settings_models.py           # 設定表單快照與校驗結果模型
+│  ├─ settings_service.py          # 設定校驗規則與 candidate config 建構
 │  ├─ workers.py                   # 背景執行緒與 Qt bridge
 │  └─ ui/
 │     ├─ __init__.py
-│     ├─ main_window.py            # 主流程、截圖、請求、托盤、錯誤處理
+│     ├─ main_window.py            # 主視窗協調層（委派給 services）
 │     ├─ main_window_layout.py     # 主介面版面、樣式、元件建構
-│     ├─ main_window_profiles.py   # 設定表單邏輯、驗證、儲存、快捷鍵錄製
+│     ├─ main_window_settings_layout.py  # Settings 頁版面拆分與各 section 建構
+│     ├─ main_window_profiles.py   # 設定表單綁定、UI 驗證呈現、快捷鍵錄製
 │     ├─ main_window_prompts.py    # 提示詞方案表單邏輯
 │     ├─ overlay_positioning.py    # 浮窗尺寸與位置計算
 │     ├─ prompt_input_dialog.py    # 直接輸入文字請求的對話框
 │     ├─ selection_overlay.py      # 全螢幕框選覆蓋層
+│     ├─ style_utils.py            # QSS 載入工具
+│     ├─ styles/
+│     │  ├─ __init__.py
+│     │  ├─ main_window.qss        # 主視窗樣式
+│     │  └─ translation_overlay.qss # 浮窗樣式
 │     └─ translation_overlay.py    # 結果懸浮窗
 ├─ tests/
 │  ├─ __init__.py
 │  ├─ test_api_client.py
 │  ├─ test_config_store.py
 │  ├─ test_crash_reporter.py
+│  ├─ test_hotkey_listener.py
+│  ├─ test_main_window_runtime.py
+│  ├─ test_overlay_positioning.py
 │  ├─ test_prompt_utils.py
-│  └─ test_selected_text_capture.py
+│  ├─ test_selected_text_capture.py
+│  └─ test_settings_service.py
 ├─ launcher.pyw                    # GUI 啟動器，負責啟動期錯誤提示
 ├─ start.bat                       # 推薦啟動入口
 ├─ build_exe.bat                   # Windows 打包腳本
@@ -590,10 +645,10 @@ OCRTranslator/
 如果要繼續維護，建議先從以下檔案開始閱讀：
 
 1. `app/main.py` —— 啟動與單實例入口
-2. `app/ui/main_window.py` —— 主工作流程
-3. `app/ui/main_window_profiles.py` —— 設定表單、驗證與快捷鍵錄製
-4. `app/ui/translation_overlay.py` —— 結果浮窗互動
-5. `app/api_client.py` —— Provider 請求實作
+2. `app/ui/main_window.py` —— 主視窗協調層，負責串接 services
+3. `app/services/request_workflow.py` —— 請求 / 捕獲工作流編排
+4. `app/settings_service.py` —— 設定快照校驗與 candidate config 建構
+5. `app/providers/openai_compatible.py`、`app/providers/gemini_compatible.py` —— Provider Adapter 實作
 
 ---
 

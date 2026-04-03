@@ -26,7 +26,16 @@ mkdir "release"
 if errorlevel 1 goto :prepare_failed
 
 echo [OCRTranslator] Running PyInstaller...
-"%PYTHON_EXE%" -m PyInstaller --noconfirm --clean --noconsole --onefile --name OCRTranslator --distpath release --workpath build launcher.pyw
+"%PYTHON_EXE%" -m PyInstaller ^
+    --noconfirm ^
+    --clean ^
+    --noconsole ^
+    --onefile ^
+    --name OCRTranslator ^
+    --distpath release ^
+    --workpath build ^
+    --add-data "app\ui\styles;app\ui\styles" ^
+    launcher.pyw
 if errorlevel 1 goto :build_failed
 
 echo [OCRTranslator] Copying release assets...

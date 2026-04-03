@@ -1,6 +1,6 @@
 from collections.abc import Iterable
 
-from .constants import (
+from .app_defaults import (
     DEFAULT_BASE_URL,
     DEFAULT_MODEL,
     DEFAULT_OPENAI_BASE_URL,

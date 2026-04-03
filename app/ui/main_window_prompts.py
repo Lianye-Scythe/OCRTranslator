@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import QMessageBox
 
 from ..models import PromptPreset
+from ..settings_service import build_prompt_preset_from_snapshot, validate_prompt_preset_name as validate_prompt_preset_name_rule
 
 
 class MainWindowPromptPresetsMixin:
@@ -56,10 +57,15 @@ class MainWindowPromptPresetsMixin:
             index += 1
 
     def validate_prompt_preset_name(self, name: str, current_name: str | None = None) -> str:
-        normalized = name.strip() or self.tr("untitled_prompt_preset")
-        if normalized in {preset.name for preset in self.config.prompt_presets if preset.name != current_name}:
-            raise ValueError(self.tr("prompt_preset_name_exists", name=normalized))
-        return normalized
+        try:
+            return validate_prompt_preset_name_rule(
+                name,
+                {preset.name for preset in self.config.prompt_presets},
+                current_name,
+                fallback_name=self.tr("untitled_prompt_preset"),
+            )
+        except ValueError as exc:
+            raise ValueError(self.tr("prompt_preset_name_exists", name=str(exc))) from exc
 
     def load_prompt_preset_to_form(self, preset_name: str):
         preset = self.get_prompt_preset_by_name(preset_name)
@@ -79,16 +85,11 @@ class MainWindowPromptPresetsMixin:
             self.refresh_shell_state()
 
     def build_prompt_preset_from_form(self) -> PromptPreset:
+        snapshot = self.capture_settings_snapshot()
         current_preset = self.get_active_prompt_preset()
-        name = self.validate_prompt_preset_name(self.prompt_preset_name_edit.text(), current_preset.name)
-        image_prompt = self.image_prompt_edit.toPlainText().strip() or current_preset.image_prompt.strip()
-        text_prompt = self.text_prompt_edit.toPlainText().strip() or current_preset.text_prompt.strip()
-        return PromptPreset(
-            name=name,
-            builtin_id=getattr(current_preset, "builtin_id", ""),
-            image_prompt=image_prompt,
-            text_prompt=text_prompt,
-        )
+        prompt_preset = build_prompt_preset_from_snapshot(snapshot, current_prompt_preset=current_preset)
+        prompt_preset.name = self.validate_prompt_preset_name(prompt_preset.name, current_preset.name)
+        return prompt_preset
 
     def upsert_prompt_preset(self, preset: PromptPreset):
         current_name = self.config.active_prompt_preset_name

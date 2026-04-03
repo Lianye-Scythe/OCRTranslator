@@ -4,7 +4,16 @@ import sys
 from app.crash_reporter import format_crash_dialog_message, safe_record_exception
 
 
-def show_error(message: str):
+def show_error(message: str, *, prefer_native: bool = False):
+    if prefer_native:
+        try:
+            import ctypes
+
+            ctypes.windll.user32.MessageBoxW(None, message, "OCRTranslator Error", 0x10)
+            return
+        except Exception:
+            pass
+
     try:
         from PySide6.QtWidgets import QApplication, QMessageBox
 
@@ -49,7 +58,7 @@ def handle_unhandled_thread_exception(args):
         context="Unhandled background-thread exception",
         thread_name=args.thread.name if args.thread else None,
     )
-    sys.stderr.write(format_crash_dialog_message(args.exc_value, crash_log_path) + "\n")
+    show_error(format_crash_dialog_message(args.exc_value, crash_log_path), prefer_native=True)
 
 
 sys.excepthook = handle_unhandled_exception
