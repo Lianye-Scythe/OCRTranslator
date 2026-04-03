@@ -52,9 +52,10 @@ class ConfigStoreMigrationTests(unittest.TestCase):
         self.assertEqual(config.overlay_opacity, 55)
         self.assertTrue(config.overlay_pinned)
         self.assertEqual(config.active_prompt_preset_name, "翻譯 (Translate)")
-        self.assertEqual(len(config.prompt_presets), 3)
+        self.assertEqual(len(config.prompt_presets), 4)
         self.assertEqual(config.prompt_presets[0].name, "翻譯 (Translate)")
         self.assertEqual(config.prompt_presets[0].builtin_id, "translate")
+        self.assertEqual(config.prompt_presets[3].builtin_id, "ocr_raw")
         self.assertEqual(len(config.api_profiles), 1)
 
         profile = config.api_profiles[0]
@@ -89,7 +90,8 @@ class ConfigStoreMigrationTests(unittest.TestCase):
         self.assertEqual(config.selection_hotkey, "Shift+Win+C")
         self.assertEqual(config.input_hotkey, "Shift+Win+Z")
         self.assertEqual(len(config.api_profiles), 1)
-        self.assertEqual(len(config.prompt_presets), 3)
+        self.assertEqual(len(config.prompt_presets), 4)
+        self.assertEqual(config.prompt_presets[3].name, "OCR 原文 (Raw OCR)")
 
         profile = config.api_profiles[0]
         self.assertEqual(profile.provider, "gemini")
@@ -199,8 +201,10 @@ class ConfigStoreMigrationTests(unittest.TestCase):
         )
 
         self.assertEqual(config.active_prompt_preset_name, "解答 (Answer)")
-        self.assertEqual([preset.name for preset in config.prompt_presets], ["翻譯 (Translate)", "解答 (Answer)", "潤色 (Polish)"])
-        self.assertEqual([preset.builtin_id for preset in config.prompt_presets], ["translate", "answer", "polish"])
+        self.assertEqual([preset.name for preset in config.prompt_presets], ["翻譯 (Translate)", "解答 (Answer)", "潤色 (Polish)", "OCR 原文 (Raw OCR)"])
+        self.assertEqual([preset.builtin_id for preset in config.prompt_presets], ["translate", "answer", "polish", "ocr_raw"])
+        self.assertIn("Perform OCR", config.prompt_presets[3].image_prompt)
+        self.assertIn("Return the provided text exactly as it was given", config.prompt_presets[3].text_prompt)
 
 
 if __name__ == "__main__":

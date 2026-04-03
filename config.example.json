@@ -46,6 +46,12 @@
       "builtin_id": "polish",
       "image_prompt": "You will receive a screenshot containing text. Recognize the text and rewrite it into polished, natural {target_language}. Preserve the original meaning and key details while improving clarity, fluency, and wording. Output only the polished result.",
       "text_prompt": "Rewrite the provided text into polished, natural {target_language}. Preserve the original meaning and important details while improving clarity, fluency, and tone. Output only the polished result."
+    },
+    {
+      "name": "OCR 原文 (Raw OCR)",
+      "builtin_id": "ocr_raw",
+      "image_prompt": "You will receive a screenshot that may contain text in any language. Perform OCR and return only the recognized text. Preserve the original reading order, paragraph structure, and line breaks as much as possible. Do not translate, summarize, explain, correct, or add any extra commentary. If part of the text is unreadable, leave it out rather than guessing.",
+      "text_prompt": "Return the provided text exactly as it was given. Do not translate, explain, summarize, correct, reformat, or add any extra commentary."
     }
   ]
 }

@@ -16,12 +16,17 @@ DEFAULT_POLISH_IMAGE_PROMPT = """You will receive a screenshot containing text. 
 
 DEFAULT_POLISH_TEXT_PROMPT = """Rewrite the provided text into polished, natural {target_language}. Preserve the original meaning and important details while improving clarity, fluency, and tone. Output only the polished result."""
 
+DEFAULT_RAW_OCR_IMAGE_PROMPT = """You will receive a screenshot that may contain text in any language. Perform OCR and return only the recognized text. Preserve the original reading order, paragraph structure, and line breaks as much as possible. Do not translate, summarize, explain, correct, or add any extra commentary. If part of the text is unreadable, leave it out rather than guessing."""
+
+DEFAULT_RAW_OCR_TEXT_PROMPT = """Return the provided text exactly as it was given. Do not translate, explain, summarize, correct, reformat, or add any extra commentary."""
+
 DEFAULT_PROMPT = DEFAULT_TRANSLATION_IMAGE_PROMPT
 
 DEFAULT_PROMPT_PRESET_NAME_ALIASES = {
     "翻譯": "翻譯 (Translate)",
     "解答": "解答 (Answer)",
     "潤色": "潤色 (Polish)",
+    "OCR 原文": "OCR 原文 (Raw OCR)",
 }
 
 
@@ -56,5 +61,11 @@ DEFAULT_PROMPT_PRESET_DEFINITIONS = [
         "builtin_id": "polish",
         "image_prompt": DEFAULT_POLISH_IMAGE_PROMPT,
         "text_prompt": DEFAULT_POLISH_TEXT_PROMPT,
+    },
+    {
+        "name": "OCR 原文 (Raw OCR)",
+        "builtin_id": "ocr_raw",
+        "image_prompt": DEFAULT_RAW_OCR_IMAGE_PROMPT,
+        "text_prompt": DEFAULT_RAW_OCR_TEXT_PROMPT,
     },
 ]

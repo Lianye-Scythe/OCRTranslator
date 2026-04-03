@@ -50,7 +50,7 @@
   "base_url": "Base URL",
   "api_keys": "API Keys",
   "profile_name_placeholder": "例如：Default Gemini / Work Account",
-  "prompt_preset_name_placeholder": "例如：翻譯 / 解答 / 潤色",
+  "prompt_preset_name_placeholder": "例如：翻譯 / 解答 / 潤色 / OCR 原文",
   "base_url_placeholder": "輸入相容 API 的根地址",
   "model_placeholder": "輸入模型名稱，或先獲取模型列表",
   "target_language_placeholder": "例如：繁體中文 / English / 日本語",

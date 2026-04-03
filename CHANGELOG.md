@@ -7,7 +7,7 @@
 ## Unreleased
 
 ### Added
-- 新增提示詞方案系統，支援多組圖片 / 文字提示詞，並內建 `翻譯 (Translate)`、`解答 (Answer)`、`潤色 (Polish)` 三組預設方案
+- 新增提示詞方案系統，支援多組圖片 / 文字提示詞，並內建 `翻譯 (Translate)`、`解答 (Answer)`、`潤色 (Polish)`、`OCR 原文 (Raw OCR)` 四組預設方案
 - 新增選取文字請求入口，可透過全域快捷鍵直接處理目前選取內容
 - 新增手動輸入請求入口，可快速呼叫輸入框把文字送給 AI
 - 新增 `app/prompt_utils.py`、`app/selected_text_capture.py`、`app/hotkey_listener.py` 等模組，以支援更可擴充的請求管線與快捷鍵處理
@@ -35,7 +35,8 @@
 - 新增 `app/services/operation_manager.py`，把背景操作 task / 取消 / stale result 判斷從 `MainWindow` 抽出，降低主視窗協調層耦合
 - `i18n.py` 改為負責載入 locale 資源、語言正規化與系統語言偵測，不再維護超大內嵌字典
 - 首次啟動在沒有 `config.json` 時，會依系統語言自動選擇 UI 語言，並同步帶出對應的預設目標語言：繁中 → `zh-TW` / `繁體中文`、簡中 → `zh-CN` / `簡體中文`、其他 → `en` / `English`
-- 內建三組預設提示詞方案名稱改為雙語顯示，並在載入舊設定時自動把 `翻譯` / `解答` / `潤色` 遷移成 `翻譯 (Translate)` / `解答 (Answer)` / `潤色 (Polish)`
+- 既有三組預設提示詞方案名稱改為雙語顯示，並在載入舊設定時自動把 `翻譯` / `解答` / `潤色` 遷移成 `翻譯 (Translate)` / `解答 (Answer)` / `潤色 (Polish)`
+- 新增 `OCR 原文 (Raw OCR)` 預設提示詞方案，現有設定在載入時若缺少這組 built-in 方案會自動補上
 
 ### Fixed
 - 修復快捷鍵錄製時 `Shift` / `Win` 組合不穩定的問題

@@ -50,7 +50,7 @@
   "base_url": "Base URL",
   "api_keys": "API Keys",
   "profile_name_placeholder": "e.g. Default Gemini / Work Account",
-  "prompt_preset_name_placeholder": "e.g. Translate / Answer / Polish",
+  "prompt_preset_name_placeholder": "e.g. Translate / Answer / Polish / Raw OCR",
   "base_url_placeholder": "Enter the compatible API root URL",
   "model_placeholder": "Enter a model name, or fetch the list first",
   "target_language_placeholder": "e.g. Traditional Chinese / English / Japanese",

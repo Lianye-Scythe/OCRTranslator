@@ -173,6 +173,16 @@ def _dict_to_prompt_preset(data: dict) -> PromptPreset:
     )
 
 
+def _merge_missing_builtin_prompt_presets(presets: list[PromptPreset]) -> list[PromptPreset]:
+    merged = list(presets)
+    existing_builtin_ids = {preset.builtin_id for preset in merged if preset.builtin_id}
+    for default_preset in default_prompt_presets():
+        if default_preset.builtin_id and default_preset.builtin_id not in existing_builtin_ids:
+            merged.append(default_preset)
+            existing_builtin_ids.add(default_preset.builtin_id)
+    return merged
+
+
 def _migrate_legacy_config(data: dict) -> AppConfig:
     source = data if isinstance(data, dict) else {}
 
@@ -199,7 +209,7 @@ def _migrate_legacy_config(data: dict) -> AppConfig:
         presets_data = source.get("prompt_presets", [])
         if not isinstance(presets_data, list):
             presets_data = [presets_data]
-        prompt_presets = [_dict_to_prompt_preset(item) for item in presets_data] or default_prompt_presets()
+        prompt_presets = _merge_missing_builtin_prompt_presets([_dict_to_prompt_preset(item) for item in presets_data]) or default_prompt_presets()
     else:
         prompt_presets = default_prompt_presets()
 
