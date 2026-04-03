@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        感謝你回報問題。請盡量附上重現步驟、畫面截圖、執行紀錄，以及根目錄中的 crash log（若有）。
+        感謝你回報問題。請盡量附上重現步驟、畫面截圖、執行紀錄，以及根目錄中的 crash log（若有）。若內容包含 API Key、私有 Base URL 或未檢查的敏感日誌，請先自行移除或改走私下回報。
   - type: textarea
     id: summary
     attributes:
@@ -44,7 +44,7 @@ body:
     attributes:
       label: 版本 / Commit
       description: 如果知道目前使用的 commit 或 release，請填上
-      placeholder: 例如：main@3e16875
+      placeholder: 例如：main@8b52773
   - type: dropdown
     id: runtime
     attributes:
