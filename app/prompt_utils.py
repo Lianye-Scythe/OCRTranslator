@@ -16,7 +16,6 @@ def build_text_request_prompt(template: str, text: str, *, target_language: str)
         return instructions
     return (
         f"{instructions}\n\n"
-        "Please process the following text according to the instructions above.\n"
         "<text-input>\n"
         f"{body}\n"
         "</text-input>"

@@ -280,7 +280,7 @@ python -m app.main --capture
 - 目標語言
 - 顯示模式
 - 三組全域快捷鍵
-- 浮窗字型 / 字級 / 透明度 / 是否固定 / 預設大小
+- 浮窗字型 / 字級 / 透明度 / 是否固定 / 關閉時是否縮到系統匣 / 預設大小
 - 當前啟用的 API Profile
 - 當前啟用的提示詞方案
 - 全部 API Profiles
@@ -344,9 +344,9 @@ python -m app.main --capture
 - 儲存時仍保留正規化模型值
 
 ### API 測試
-- `Test API` 會用目前表單內容實際驗證連線
+- `Test API` 會用目前表單內容送出一次**極輕量的真實文字請求**，驗證實際請求鏈路
 - 不會偷偷自動儲存設定
-- 結果會寫入執行紀錄區
+- 結果會寫入執行紀錄區；若模型沒有遵守測試提示詞，log 中會保留回覆摘要供排查
 
 ---
 
@@ -403,7 +403,7 @@ python -m app.main --capture
   - 開始截圖
   - 退出程式
 
-> 注意：目前右上角 `X` 的行為是**直接退出程式**，不是縮到系統匣。
+> 注意：右上角 `X` 預設仍是**直接退出程式**；若需要，也可以在設定裡改成「按 X 時最小化到系統匣」。
 
 ---
 
@@ -433,7 +433,7 @@ config.broken-YYYYMMDD-HHMMSS.json
 若程式遇到未處理例外而異常退出，會自動在根目錄留下 crash log：
 
 ```text
-ocrtranslator-crash-YYYYMMDD-HHMMSS.log
+ocrtranslator-crash-YYYYMMDD-HHMMSS-xxxxxxxxx.log
 ```
 
 - 原始碼執行時：保存在專案根目錄
@@ -506,6 +506,8 @@ python -m compileall app tests
 - 設定遷移與欄位正規化
 - 損壞設定檔重建
 - crash log 生成與落盤
+- 浮窗尺寸與定位邏輯
+- 主視窗執行期值與忙碌狀態控制
 - 提示詞模板組裝
 - 選取文字快捷鍵相關工具函式
 
@@ -519,9 +521,11 @@ OCRTranslator/
 │  ├─ __init__.py
 │  ├─ api_client.py                # Gemini / OpenAI compatible API 呼叫
 │  ├─ config_store.py              # 設定載入、遷移、儲存、損壞恢復
-│  ├─ constants.py                 # 常數、預設值、多語系文案
+│  ├─ constants.py                 # 執行期常數、預設熱鍵與倉庫 metadata
 │  ├─ crash_reporter.py            # 未處理例外 crash log 生成與落盤
+│  ├─ default_prompts.py           # 內建提示詞與預設方案定義
 │  ├─ hotkey_listener.py           # 全域快捷鍵偵測與按鍵抑制
+│  ├─ i18n.py                      # 介面文案與多語系字典
 │  ├─ main.py                      # 入口、單實例控制、啟動流程
 │  ├─ models.py                    # AppConfig / ApiProfile / PromptPreset 資料結構
 │  ├─ profile_utils.py             # Provider / Model 正規化工具
@@ -543,6 +547,8 @@ OCRTranslator/
 │  ├─ test_api_client.py
 │  ├─ test_config_store.py
 │  ├─ test_crash_reporter.py
+│  ├─ test_main_window_runtime.py
+│  ├─ test_overlay_positioning.py
 │  ├─ test_prompt_utils.py
 │  └─ test_selected_text_capture.py
 ├─ launcher.pyw                    # GUI 啟動器，負責啟動期錯誤提示

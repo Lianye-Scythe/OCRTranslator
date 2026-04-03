@@ -135,6 +135,26 @@ class MainWindow(MainWindowLayoutMixin, MainWindowPromptPresetsMixin, MainWindow
             return self.mode_combo.currentData() or self.config.mode
         return self.config.mode
 
+    def current_temperature(self) -> float:
+        if hasattr(self, "temperature_spin"):
+            return float(self.temperature_spin.value())
+        return float(self.config.temperature)
+
+    def current_overlay_width(self) -> int:
+        if hasattr(self, "overlay_width_spin"):
+            return int(self.overlay_width_spin.value())
+        return int(self.config.overlay_width)
+
+    def current_overlay_height(self) -> int:
+        if hasattr(self, "overlay_height_spin"):
+            return int(self.overlay_height_spin.value())
+        return int(self.config.overlay_height)
+
+    def current_margin(self) -> int:
+        if hasattr(self, "overlay_margin_spin"):
+            return int(self.overlay_margin_spin.value())
+        return int(self.config.margin)
+
     def current_overlay_font_family(self) -> str:
         if hasattr(self, "overlay_font_combo"):
             return self.overlay_font_combo.currentFont().family()
@@ -197,12 +217,42 @@ class MainWindow(MainWindowLayoutMixin, MainWindowPromptPresetsMixin, MainWindow
     def update_action_states(self):
         if not hasattr(self, "fetch_models_button"):
             return
-        api_request_busy = self.fetch_models_in_progress or self.test_profile_in_progress
         any_background_busy = self.fetch_models_in_progress or self.test_profile_in_progress or self.translation_in_progress
         capture_busy = self.capture_workflow_active or self.translation_in_progress or self.fetch_models_in_progress or self.test_profile_in_progress
-        for widget_name in ("profile_name_edit", "provider_combo", "base_url_edit", "model_combo", "api_keys_edit", "retry_count_spin", "retry_interval_spin"):
+        for widget_name in (
+            "profile_name_edit",
+            "provider_combo",
+            "base_url_edit",
+            "model_combo",
+            "api_keys_edit",
+            "api_keys_toggle_button",
+            "retry_count_spin",
+            "retry_interval_spin",
+            "target_language_edit",
+            "ui_language_combo",
+            "hotkey_edit",
+            "hotkey_record_button",
+            "selection_hotkey_edit",
+            "selection_hotkey_record_button",
+            "input_hotkey_edit",
+            "input_hotkey_record_button",
+            "overlay_font_combo",
+            "overlay_font_size_spin",
+            "mode_combo",
+            "prompt_preset_combo",
+            "new_prompt_preset_button",
+            "delete_prompt_preset_button",
+            "prompt_preset_name_edit",
+            "image_prompt_edit",
+            "text_prompt_edit",
+            "temperature_spin",
+            "overlay_width_spin",
+            "overlay_height_spin",
+            "overlay_margin_spin",
+            "close_to_tray_on_close_checkbox",
+        ):
             if hasattr(self, widget_name):
-                getattr(self, widget_name).setEnabled(not api_request_busy)
+                getattr(self, widget_name).setEnabled(not any_background_busy)
         self.fetch_models_button.setText(self.tr("fetch_models_busy") if self.fetch_models_in_progress else self.tr("fetch_models"))
         self.test_button.setText(self.tr("test_api_busy") if self.test_profile_in_progress else self.tr("test_api"))
         capture_text = self.tr("start_capture_busy") if self.translation_in_progress else self.tr("start_capture")
@@ -211,11 +261,15 @@ class MainWindow(MainWindowLayoutMixin, MainWindowPromptPresetsMixin, MainWindow
         self.fetch_models_button.setEnabled(not any_background_busy)
         self.test_button.setEnabled(not any_background_busy)
         self.save_button.setEnabled(not any_background_busy)
+        self.hero_tray_button.setEnabled(not any_background_busy)
         self.hero_capture_button.setEnabled(not capture_busy)
         self.preview_capture_button.setEnabled(not capture_busy)
         self.profile_combo.setEnabled(not any_background_busy)
         self.new_profile_button.setEnabled(not any_background_busy)
         self.delete_profile_button.setEnabled(not any_background_busy)
+        if hasattr(self, "close_to_tray_on_close_checkbox"):
+            self.close_to_tray_on_close_checkbox.setEnabled(bool(self.tray) and not any_background_busy)
+            self.close_to_tray_on_close_checkbox.setToolTip("" if self.tray else self.tr("tray_unavailable"))
         if getattr(self, "tray", None):
             self.tray_capture_action.setEnabled(not capture_busy)
 
@@ -395,7 +449,6 @@ class MainWindow(MainWindowLayoutMixin, MainWindowPromptPresetsMixin, MainWindow
             self.hotkey_listener = HotkeyListener(
                 hotkey_actions,
                 lambda action: self.bridge.action_requested.emit(action),
-                normalize_hotkey=self.normalize_hotkey,
                 log_func=self.log,
             )
             self.hotkey_listener.start()
@@ -410,6 +463,8 @@ class MainWindow(MainWindowLayoutMixin, MainWindowPromptPresetsMixin, MainWindow
                 self.set_status("hotkeys_registered")
         except Exception as exc:  # noqa: BLE001
             self.log(f"Hotkey registration failed: {exc}")
+            if hasattr(self, "status_label"):
+                self.set_status("hotkey_register_failed", error=exc)
             if not initial:
                 QMessageBox.critical(self, self.tr("error_title"), self.tr("hotkey_register_failed", error=exc))
 
@@ -554,9 +609,9 @@ class MainWindow(MainWindowLayoutMixin, MainWindowPromptPresetsMixin, MainWindow
         text = text or self.tr("empty_result")
         overlay_config = SimpleNamespace(
             mode=self.current_mode(),
-            margin=self.config.margin,
-            overlay_width=self.config.overlay_width,
-            overlay_height=self.config.overlay_height,
+            margin=self.current_margin(),
+            overlay_width=self.current_overlay_width(),
+            overlay_height=self.current_overlay_height(),
         )
         self.translation_overlay.apply_typography()
         width, height = self.translation_overlay.calculate_size(text)
@@ -599,7 +654,7 @@ class MainWindow(MainWindowLayoutMixin, MainWindowPromptPresetsMixin, MainWindow
         self.show_tray_toast(self.tr(source_key))
         preserve_manual_position = bool(self.translation_overlay.isVisible() and self.translation_overlay.manual_positioned)
         self.run_worker(
-            lambda: self.api_client.request_text(prompt, profile, self.config.temperature),
+            lambda: self.api_client.request_text(prompt, profile, self.current_temperature()),
             lambda result, anchor_point=anchor_point, preset_name=prompt_preset.name, preserve_manual_position=preserve_manual_position: self.show_response_overlay(
                 result,
                 anchor_point=anchor_point,
@@ -725,7 +780,7 @@ class MainWindow(MainWindowLayoutMixin, MainWindowPromptPresetsMixin, MainWindow
         prompt_preset = self.pending_capture_prompt_preset or self.build_prompt_preset_from_form()
         prompt = build_image_request_prompt(prompt_preset.image_prompt, target_language=target_language)
         self.run_worker(
-            lambda: self.api_client.request_image(image, profile, prompt, self.config.temperature),
+            lambda: self.api_client.request_image(image, profile, prompt, self.current_temperature()),
             lambda text, bbox=bbox, preset_name=prompt_preset.name: self.show_translation(bbox, text, preset_name=preset_name),
             operation_key="translation",
         )
@@ -850,6 +905,11 @@ class MainWindow(MainWindowLayoutMixin, MainWindowPromptPresetsMixin, MainWindow
             self.refresh_preview_pixmap()
 
     def closeEvent(self, event):
+        if not self.is_quitting and getattr(self.config, "close_to_tray_on_close", False) and self.tray:
+            self.log("Close button redirected to minimize-to-tray behavior")
+            self.minimize_to_tray()
+            event.ignore()
+            return
         if self.quit_app():
             event.accept()
         else:

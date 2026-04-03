@@ -554,6 +554,7 @@ class MainWindowProfilesMixin:
             self.overlay_width_spin.setValue(self.config.overlay_width)
             self.overlay_height_spin.setValue(self.config.overlay_height)
             self.overlay_margin_spin.setValue(self.config.margin)
+            self.close_to_tray_on_close_checkbox.setChecked(bool(getattr(self.config, "close_to_tray_on_close", False)))
             self.update_mode_options(self.config.mode)
         finally:
             self._suppress_form_tracking = False
@@ -669,6 +670,7 @@ class MainWindowProfilesMixin:
         self.config.overlay_width = self.overlay_width_spin.value()
         self.config.overlay_height = self.overlay_height_spin.value()
         self.config.margin = self.overlay_margin_spin.value()
+        self.config.close_to_tray_on_close = self.close_to_tray_on_close_checkbox.isChecked()
         self.config.mode = self.mode_combo.currentData() or "book_lr"
         self.config.active_prompt_preset_name = prompt_preset.name
         self.translation_overlay.apply_typography()

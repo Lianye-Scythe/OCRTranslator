@@ -249,8 +249,8 @@ class TranslationOverlay(QWidget):
         metrics = QFontMetrics(self.body.font())
         longest_width = max((metrics.horizontalAdvance(line or " ") for line in lines), default=240)
         line_spacing = metrics.lineSpacing()
-        configured_width = max(self.MIN_WIDTH, int(getattr(self.app_window.config, "overlay_width", 440) or 440))
-        configured_height = max(self.MIN_HEIGHT, int(getattr(self.app_window.config, "overlay_height", 520) or 520))
+        configured_width = max(self.MIN_WIDTH, int(self.app_window.current_overlay_width() or 440))
+        configured_height = max(self.MIN_HEIGHT, int(self.app_window.current_overlay_height() or 520))
         width = min(860, max(configured_width, longest_width + 136))
         height = min(900, max(configured_height, len(lines) * line_spacing + 132))
         return width, height

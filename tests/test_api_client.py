@@ -25,8 +25,31 @@ class ApiClientTests(unittest.TestCase):
         response.raise_for_status.side_effect = requests.HTTPError("boom")
         response.json.return_value = {"error": {"message": "invalid api key"}}
 
-        with self.assertRaisesRegex(RuntimeError, "HTTP 401: invalid api key"):
+        with self.assertRaises(ApiClientError) as context:
             self.client._ensure_success(response)
+
+        self.assertEqual(str(context.exception), "HTTP 401: invalid api key")
+        self.assertTrue(context.exception.retryable)
+
+    def test_ensure_success_marks_bad_request_as_non_retryable(self):
+        response = Mock()
+        response.status_code = 400
+        response.reason = "Bad Request"
+        response.raise_for_status.side_effect = requests.HTTPError("boom")
+        response.json.return_value = {"error": {"message": "invalid model"}}
+
+        with self.assertRaises(ApiClientError) as context:
+            self.client._ensure_success(response)
+
+        self.assertEqual(str(context.exception), "HTTP 400: invalid model")
+        self.assertFalse(context.exception.retryable)
+
+    def test_test_profile_uses_real_text_request_chain(self):
+        with patch.object(self.client, "request_text", return_value="OK") as mock_request_text:
+            result = self.client.test_profile(self.profile)
+
+        mock_request_text.assert_called_once_with("Reply with the single word OK.", self.profile, temperature=0.0)
+        self.assertEqual(result, "OK | provider=openai | model=gpt-4o-mini | response=OK")
 
     @patch("app.api_client.requests.post")
     def test_translate_openai_joins_list_content(self, mock_post):
@@ -105,6 +128,28 @@ class ApiClientTests(unittest.TestCase):
 
         self.assertEqual(used_keys, ["key-1", "key-2", "key-3", "key-1"])
 
+    @patch("app.api_client.requests.get")
+    def test_request_gemini_models_filters_non_generate_content_models(self, mock_get):
+        profile = ApiProfile(
+            name="Gemini",
+            provider="gemini",
+            base_url="https://generativelanguage.googleapis.com",
+            api_keys=["demo-key"],
+            model="models/gemini-1.5-flash",
+        )
+        response = Mock()
+        response.raise_for_status.return_value = None
+        response.json.return_value = {
+            "models": [
+                {"name": "models/gemini-1.5-flash", "supportedGenerationMethods": ["generateContent"]},
+                {"name": "models/embedding-001", "supportedGenerationMethods": ["embedContent"]},
+                {"name": "models/gemini-2.0-flash"},
+            ]
+        }
+        mock_get.return_value = response
+
+        self.assertEqual(self.client.list_models(profile), ["models/gemini-1.5-flash", "models/gemini-2.0-flash"])
+
     @patch("app.api_client.requests.post")
     def test_translate_gemini_raises_block_reason_when_prompt_is_blocked(self, mock_post):
         profile = ApiProfile(
@@ -174,6 +219,25 @@ class ApiClientTests(unittest.TestCase):
                 self.client.translate_image(Mock(), profile, "繁體中文", 0.2)
 
         self.assertEqual(mock_translate.call_count, 1)
+
+    def test_list_models_stops_retrying_when_error_is_non_retryable(self):
+        profile = ApiProfile(
+            name="No Retry Models",
+            provider="openai",
+            base_url="https://api.openai.com",
+            api_keys=["key-1", "key-2", "key-3"],
+            model="gpt-4o-mini",
+        )
+
+        with patch.object(
+            self.client,
+            "_request_openai_models",
+            side_effect=ApiClientError("HTTP 400: invalid model", user_message="invalid model", retryable=False),
+        ) as mock_request_models:
+            with self.assertRaisesRegex(ApiClientError, "HTTP 400: invalid model"):
+                self.client.list_models(profile)
+
+        self.assertEqual(mock_request_models.call_count, 1)
 
 
 if __name__ == "__main__":

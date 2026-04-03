@@ -96,10 +96,9 @@ def normalize_virtual_key(vk_code: int) -> int:
 
 
 class HotkeyListener:
-    def __init__(self, hotkeys: dict[str, str], callback, *, normalize_hotkey=None, log_func=None):
+    def __init__(self, hotkeys: dict[str, str], callback, *, log_func=None):
         self.hotkeys = dict(hotkeys)
         self.callback = callback
-        self.normalize_hotkey = normalize_hotkey
         self.log = log_func or (lambda message: None)
         self.listener = None
         self._combo_virtual_keys: dict[str, set[int]] = {}

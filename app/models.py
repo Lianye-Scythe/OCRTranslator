@@ -50,6 +50,7 @@ class AppConfig:
     overlay_font_size: int = 12
     overlay_opacity: int = 96
     overlay_pinned: bool = False
+    close_to_tray_on_close: bool = False
     active_profile_name: str = "Default Gemini"
     active_prompt_preset_name: str = DEFAULT_PROMPT_PRESET_DEFINITIONS[0]["name"]
     api_profiles: list[ApiProfile] = field(default_factory=lambda: [ApiProfile()])

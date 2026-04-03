@@ -76,6 +76,21 @@ def _coerce_float(value, default: float, *, min_value: float | None = None, max_
     return result
 
 
+def _coerce_bool(value, default: bool = False) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    if isinstance(value, (int, float)):
+        return bool(value)
+    normalized = str(value).strip().lower()
+    if normalized in {"1", "true", "yes", "y", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "n", "off", ""}:
+        return False
+    return default
+
+
 def _coerce_str_list(value) -> list[str]:
     if value is None:
         raw_values = []
@@ -194,7 +209,8 @@ def _migrate_legacy_config(data: dict) -> AppConfig:
         overlay_font_family=_coerce_text(source.get("overlay_font_family"), "Microsoft JhengHei UI"),
         overlay_font_size=_coerce_int(source.get("overlay_font_size"), 12, min_value=10, max_value=32),
         overlay_opacity=_coerce_int(source.get("overlay_opacity"), 96, min_value=55, max_value=100),
-        overlay_pinned=bool(source.get("overlay_pinned", False)),
+        overlay_pinned=_coerce_bool(source.get("overlay_pinned", False), False),
+        close_to_tray_on_close=_coerce_bool(source.get("close_to_tray_on_close", False), False),
         active_profile_name=_normalize_active_profile_name(profiles, str(source.get("active_profile_name", "")).strip() or None),
         active_prompt_preset_name=_normalize_active_prompt_preset_name(
             prompt_presets,

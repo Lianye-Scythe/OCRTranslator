@@ -13,6 +13,7 @@
   "overlay_font_size": 12,
   "overlay_opacity": 96,
   "overlay_pinned": false,
+  "close_to_tray_on_close": false,
   "active_profile_name": "Default Gemini",
   "active_prompt_preset_name": "翻譯",
   "api_profiles": [

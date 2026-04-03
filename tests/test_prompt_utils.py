@@ -18,6 +18,7 @@ class PromptUtilsTests(unittest.TestCase):
         self.assertIn("<text-input>", result)
         self.assertIn("Line 1\nLine 2", result)
         self.assertIn("</text-input>", result)
+        self.assertNotIn("Please process the following text according to the instructions above.", result)
 
 
 if __name__ == "__main__":

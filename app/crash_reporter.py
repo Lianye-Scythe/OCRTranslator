@@ -19,7 +19,8 @@ def get_runtime_base_dir() -> Path:
 def build_crash_log_path(base_dir: Path | None = None) -> Path:
     target_dir = (base_dir or get_runtime_base_dir()).resolve()
     timestamp = time.strftime("%Y%m%d-%H%M%S")
-    return target_dir / f"{CRASH_LOG_PREFIX}-{timestamp}.log"
+    unique_suffix = f"{time.time_ns() % 1_000_000_000:09d}"
+    return target_dir / f"{CRASH_LOG_PREFIX}-{timestamp}-{unique_suffix}.log"
 
 
 def format_exception_report(

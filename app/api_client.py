@@ -33,6 +33,34 @@ class ApiClient:
         return (base_url or "").rstrip("/")
 
     @staticmethod
+    def _http_status_retryable(status_code: int) -> bool:
+        return status_code in {401, 403, 408, 409, 425, 429} or 500 <= status_code < 600
+
+    @staticmethod
+    def _http_error_user_message(status_code: int, detail: str) -> str:
+        detail_text = str(detail or "").strip()
+        if status_code in {401, 403}:
+            return f"API 認證失敗（HTTP {status_code}）。請檢查 API Key、Provider、Base URL 與模型設定是否正確。"
+        if status_code == 404:
+            return "找不到對應的 API 端點或模型資源。請檢查 Base URL、Provider 與模型名稱是否正確。"
+        if status_code == 429:
+            return "API 目前觸發速率限制或配額限制。請稍後再試，或切換其他 Key / 模型。"
+        if 500 <= status_code < 600:
+            return f"服務端暫時不可用（HTTP {status_code}）。請稍後重試。"
+        if detail_text:
+            return f"請求失敗（HTTP {status_code}）：{detail_text}"
+        return f"請求失敗（HTTP {status_code}）。"
+
+    @staticmethod
+    def _response_preview(text: str, *, limit: int = 80) -> str:
+        preview = " ".join(str(text or "").split())
+        if not preview:
+            return "(empty)"
+        if len(preview) <= limit:
+            return preview
+        return preview[: max(1, limit - 1)].rstrip() + "…"
+
+    @staticmethod
     def _response_error_message(response: requests.Response) -> str:
         try:
             payload = response.json()
@@ -55,8 +83,13 @@ class ApiClient:
         try:
             response.raise_for_status()
         except requests.HTTPError as exc:
+            status_code = int(getattr(response, "status_code", 0) or 0)
             detail = self._response_error_message(response)
-            raise RuntimeError(f"HTTP {response.status_code}: {detail}") from exc
+            raise ApiClientError(
+                f"HTTP {status_code}: {detail}",
+                user_message=self._http_error_user_message(status_code, detail),
+                retryable=self._http_status_retryable(status_code),
+            ) from exc
 
     def _openai_url(self, base_url: str, path: str) -> str:
         base = self._normalize_base(base_url)
@@ -178,12 +211,20 @@ class ApiClient:
         response = requests.get(self._gemini_models_url(profile.base_url, api_key), timeout=30)
         self._ensure_success(response)
         data = response.json()
-        return [item.get("name", "") for item in data.get("models", []) if isinstance(item, dict) and item.get("name")]
+        models = []
+        for item in data.get("models", []):
+            if not isinstance(item, dict) or not item.get("name"):
+                continue
+            supported_methods = item.get("supportedGenerationMethods")
+            if isinstance(supported_methods, list) and supported_methods and "generateContent" not in supported_methods:
+                continue
+            models.append(item.get("name", ""))
+        return models
 
     def list_models(self, profile: ApiProfile) -> list[str]:
         keys = self._active_keys(profile)
         if not keys:
-            raise RuntimeError("No API key configured")
+            raise ApiClientError("No API key configured", user_message="目前設定檔沒有可用的 API Key。", retryable=False)
         last_error = None
         profile_key, start_index = self._rotation_start_index(profile, keys)
         for attempt in range(len(keys)):
@@ -196,12 +237,23 @@ class ApiClient:
             except Exception as exc:  # noqa: BLE001
                 last_error = exc
                 self.log(f"List models failed on attempt {attempt + 1}: {exc}")
-        raise RuntimeError(str(last_error) if last_error else "Failed to load models")
+                if not self._is_retryable_exception(exc):
+                    self.log("List models retries stopped because the error is non-retryable")
+                    break
+        if last_error:
+            if isinstance(last_error, ApiClientError):
+                raise last_error
+            raise ApiClientError(str(last_error), user_message=str(last_error)) from last_error
+        raise ApiClientError("Failed to load models", user_message="無法載入模型列表。")
 
     def test_profile(self, profile: ApiProfile) -> str:
-        models = self.list_models(profile)
-        preview = ", ".join(models[:5]) if models else "(no models)"
-        return f"OK | provider={profile.provider} | models={len(models)} | {preview}"
+        response = self.request_text(
+            "Reply with the single word OK.",
+            profile,
+            temperature=0.0,
+        )
+        preview = self._response_preview(response)
+        return f"OK | provider={profile.provider} | model={profile.model} | response={preview}"
 
     def _request_with_rotation(self, profile: ApiProfile, *, request_label: str, request_callable) -> str:
         keys = self._active_keys(profile)
@@ -237,7 +289,9 @@ class ApiClient:
                 if attempt < attempts_total - 1 and profile.retry_interval > 0:
                     time.sleep(profile.retry_interval)
         if last_error:
-            raise last_error
+            if isinstance(last_error, ApiClientError):
+                raise last_error
+            raise ApiClientError(str(last_error), user_message=str(last_error)) from last_error
         raise ApiClientError("Request failed", user_message="請求失敗。")
 
     def request_image(self, image: Image.Image, profile: ApiProfile, prompt: str, temperature: float) -> str:

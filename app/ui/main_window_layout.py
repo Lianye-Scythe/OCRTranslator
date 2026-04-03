@@ -1,6 +1,7 @@
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDoubleSpinBox,
     QFontComboBox,
@@ -450,10 +451,18 @@ class MainWindowLayoutMixin:
 
         self.advanced_group, advanced_layout, self.advanced_group_title_label = self.create_section_card()
         content_layout.addWidget(self.advanced_group)
+
+        self.advanced_toggle_button = self.create_button(self.toggle_advanced_section, accent=False, compact=True)
+        advanced_layout.addWidget(self.advanced_toggle_button, alignment=Qt.AlignLeft)
+
+        self.advanced_content = QWidget()
+        advanced_content_layout = QVBoxLayout(self.advanced_content)
+        advanced_content_layout.setContentsMargins(0, 0, 0, 0)
+        advanced_content_layout.setSpacing(14)
         advanced_grid = QGridLayout()
         advanced_grid.setHorizontalSpacing(14)
         advanced_grid.setVerticalSpacing(14)
-        advanced_layout.addLayout(advanced_grid)
+        advanced_content_layout.addLayout(advanced_grid)
 
         self.temperature_label = QLabel()
         self.temperature_spin = ScrollSafeDoubleSpinBox()
@@ -468,11 +477,17 @@ class MainWindowLayoutMixin:
         self.overlay_margin_label = QLabel()
         self.overlay_margin_spin = ScrollSafeSpinBox()
         self.overlay_margin_spin.setRange(8, 120)
+        self.close_to_tray_on_close_checkbox = QCheckBox()
+        self.close_to_tray_on_close_checkbox.setChecked(bool(getattr(self.config, "close_to_tray_on_close", False)))
 
         advanced_grid.addWidget(self.create_field_block(self.temperature_label, self.temperature_spin), 0, 0)
         advanced_grid.addWidget(self.create_field_block(self.overlay_margin_label, self.overlay_margin_spin), 0, 1)
         advanced_grid.addWidget(self.create_field_block(self.overlay_width_label, self.overlay_width_spin), 1, 0)
         advanced_grid.addWidget(self.create_field_block(self.overlay_height_label, self.overlay_height_spin), 1, 1)
+        advanced_content_layout.addWidget(self.close_to_tray_on_close_checkbox)
+        advanced_layout.addWidget(self.advanced_content)
+        self.advanced_section_expanded = True
+        self.set_advanced_section_expanded(False)
 
         self.quick_group, quick_layout, self.quick_group_title_label = self.create_section_card()
         content_layout.addWidget(self.quick_group)
@@ -509,6 +524,7 @@ class MainWindowLayoutMixin:
         self.overlay_width_spin.valueChanged.connect(self.on_form_input_changed)
         self.overlay_height_spin.valueChanged.connect(self.on_form_input_changed)
         self.overlay_margin_spin.valueChanged.connect(self.on_form_input_changed)
+        self.close_to_tray_on_close_checkbox.stateChanged.connect(self.on_form_input_changed)
         self.retry_interval_spin.valueChanged.connect(self.on_form_input_changed)
 
         self.image_prompt_edit.setTabChangesFocus(True)
@@ -632,6 +648,23 @@ class MainWindowLayoutMixin:
                 background:#0f1722;
                 border:1px solid #233244;
                 border-radius:20px;
+            }
+            QCheckBox {
+                color:#d9e3f8;
+                spacing:10px;
+                font-size:13px;
+                font-weight:600;
+            }
+            QCheckBox::indicator {
+                width:18px;
+                height:18px;
+                border-radius:6px;
+                border:1px solid #31425a;
+                background:#0c131c;
+            }
+            QCheckBox::indicator:checked {
+                background:#7489ff;
+                border:1px solid #93a3ff;
             }
             #AboutTitleLabel {
                 color:#d9e3f8;
@@ -999,6 +1032,8 @@ class MainWindowLayoutMixin:
         self.fetch_models_button.setText(self.tr("fetch_models"))
         self.test_button.setText(self.tr("test_api"))
         self.save_button.setText(self.tr("save_settings"))
+        self.set_advanced_section_expanded(getattr(self, "advanced_section_expanded", False))
+        self.close_to_tray_on_close_checkbox.setText(self.tr("close_to_tray_on_close"))
         self.api_keys_toggle_button.setText(self.tr("show_api_keys") if not self.api_keys_visible else self.tr("hide_api_keys"))
         self.export_logs_button.setText(self.tr("export_logs"))
         self.update_provider_options()
@@ -1014,6 +1049,18 @@ class MainWindowLayoutMixin:
         if hasattr(self, "update_action_states"):
             self.update_action_states()
         self.validate_form_inputs()
+
+    def set_advanced_section_expanded(self, expanded: bool):
+        self.advanced_section_expanded = bool(expanded)
+        if hasattr(self, "advanced_content"):
+            self.advanced_content.setVisible(self.advanced_section_expanded)
+        if hasattr(self, "advanced_toggle_button"):
+            self.advanced_toggle_button.setText(
+                self.tr("hide_advanced_settings") if self.advanced_section_expanded else self.tr("show_advanced_settings")
+            )
+
+    def toggle_advanced_section(self):
+        self.set_advanced_section_expanded(not getattr(self, "advanced_section_expanded", True))
 
     def switch_page(self, index: int):
         self.page_stack.setCurrentIndex(index)
