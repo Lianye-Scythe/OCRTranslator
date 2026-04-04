@@ -13,16 +13,20 @@
 1. 建立或檢查 `.venv`
 2. 安裝 `requirements-dev.txt`
 3. 清理舊的 `build/`、`dist/`、`release/`
-4. 透過 PyInstaller 輸出 `release\OCRTranslator.exe`
-5. 複製 `README.md` 與 `config.example.json`
+4. 從 `app/app_metadata.py` 讀取目前版本號
+5. 透過 PyInstaller 輸出 `release\OCRTranslator.exe`
+6. 複製 `README.md` 與 `config.example.json`
+7. 自動建立 `release\OCRTranslator-v<version>-windows-x64.zip`
 
 ## 建議分發內容
 
+建議優先上傳版本化壓縮包，檔名包含專案名稱、版本號與平台資訊，例如：`OCRTranslator-v0.9.1-windows-x64.zip`。
+
 ```text
-release\OCRTranslator.exe
-release\README.md
-release\config.example.json
+release\OCRTranslator-v<version>-windows-x64.zip
 ```
+
+如果需要讓使用者單獨下載，也可另外附上 `release\OCRTranslator.exe`。
 
 ## 不建議分發的內容
 

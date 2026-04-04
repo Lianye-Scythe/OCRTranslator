@@ -4,6 +4,11 @@ cd /d "%~dp0"
 
 set "VENV_DIR=.venv"
 set "PYTHON_EXE=%VENV_DIR%\Scripts\python.exe"
+set "ARCHIVE_PREFIX=OCRTranslator"
+set "ARCHIVE_SUFFIX=windows-x64"
+set "APP_VERSION="
+set "ARCHIVE_NAME="
+set "ARCHIVE_PATH="
 
 echo [OCRTranslator] Preparing build environment...
 
@@ -24,6 +29,14 @@ if exist "dist" rmdir /s /q "dist"
 if exist "release" rmdir /s /q "release"
 mkdir "release"
 if errorlevel 1 goto :prepare_failed
+
+for /f "usebackq delims=" %%v in (`"%PYTHON_EXE%" -c "from app.app_metadata import APP_VERSION; print(APP_VERSION, end='')"`) do set "APP_VERSION=%%v"
+if not defined APP_VERSION goto :version_failed
+
+set "ARCHIVE_NAME=%ARCHIVE_PREFIX%-v%APP_VERSION%-%ARCHIVE_SUFFIX%.zip"
+set "ARCHIVE_PATH=release\%ARCHIVE_NAME%"
+
+echo [OCRTranslator] Target release archive: %ARCHIVE_NAME%
 
 echo [OCRTranslator] Running PyInstaller...
 "%PYTHON_EXE%" -m PyInstaller ^
@@ -48,8 +61,16 @@ if exist "OCRTranslator.spec" del /q "OCRTranslator.spec"
 
 if not exist "release\OCRTranslator.exe" goto :missing_output
 
+echo [OCRTranslator] Creating release archive...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Compress-Archive -Path 'release\OCRTranslator.exe','release\README.md','release\config.example.json' -DestinationPath '%ARCHIVE_PATH%' -Force"
+if errorlevel 1 goto :archive_failed
+
+if not exist "%ARCHIVE_PATH%" goto :archive_failed
+
 echo.
-echo [SUCCESS] Build complete. Package: release\OCRTranslator.exe
+echo [SUCCESS] Build complete.
+echo [SUCCESS] EXE: release\OCRTranslator.exe
+echo [SUCCESS] ZIP: %ARCHIVE_PATH%
 pause
 exit /b 0
 
@@ -95,5 +116,18 @@ exit /b 1
 :missing_output
 echo.
 echo [ERROR] Build finished without producing release\OCRTranslator.exe.
+pause
+exit /b 1
+
+:version_failed
+echo.
+echo [ERROR] Failed to read APP_VERSION from app\app_metadata.py.
+pause
+exit /b 1
+
+:archive_failed
+echo.
+echo [ERROR] Failed to create release archive.
+echo Expected archive: %ARCHIVE_PATH%
 pause
 exit /b 1
