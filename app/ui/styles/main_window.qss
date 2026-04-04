@@ -113,6 +113,7 @@ QScrollArea#SidebarScrollArea > QWidget > QWidget,
 #HintLabel,
 #AboutMetaLabel {
     color:{{muted_fg}};
+    font-size:11px;
 }
 
 QCheckBox {

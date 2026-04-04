@@ -4,9 +4,10 @@
 
 This file records important OCRTranslator changes.
 
-## Unreleased
+## [0.9.0] - 2026-04-04
 
 ### Added
+- Added app version `v0.9.0` and displayed it in the main window title and bottom of the sidebar
 - Added visible main-window and tray entry points for capture and manual input
 - Kept selected-text support, but moved it back to a hotkey-first interaction model
 - Added `app/hotkey_utils.py` to centralize hotkey splitting, modifier detection, and normalization
@@ -16,6 +17,10 @@ This file records important OCRTranslator changes.
 - Added `SelectedTextCaptureSession` to drive selected-text capture as a non-blocking event-loop workflow with cancellation support during the capture phase
 
 ### Changed
+- Optimized settings layout: Applied 50:50 column stretch to grid layouts to prevent multi-language text wrapping inconsistencies
+- Optimized sidebar layout: Widened min/max limits and adjusted height policies to prevent English text truncation or squeezing
+- Refined sidebar spacing: Reduced component gaps, decreased secondary text font size (11px), and added bottom padding for a more compact and elegant look
+- Introduced zero-width space (`&#8203;`) to elegantly wrap long repository URLs, improving multilingual layout flexibility
 - Split settings validation by operation scope so unrelated fields no longer block Fetch Models / Test API / text requests
 - API test stale-result detection now includes the selected model
 - Built-in prompt presets are no longer deletable, avoiding restart-time reappearance confusion

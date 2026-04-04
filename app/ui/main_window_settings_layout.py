@@ -22,7 +22,7 @@ class MainWindowSettingsLayoutMixin:
         scroll.setWidget(content)
 
         content_layout = QVBoxLayout(content)
-        content_layout.setContentsMargins(10, 10, 12, 10)
+        content_layout.setContentsMargins(10, 10, 12, 40)
         content_layout.setSpacing(22)
 
         self._build_connection_section(content_layout)
@@ -65,6 +65,8 @@ class MainWindowSettingsLayoutMixin:
         api_grid = QGridLayout()
         api_grid.setHorizontalSpacing(14)
         api_grid.setVerticalSpacing(14)
+        api_grid.setColumnStretch(0, 1)
+        api_grid.setColumnStretch(1, 1)
         connection_layout.addLayout(api_grid)
 
         self.profile_name_label = QLabel()
@@ -142,7 +144,7 @@ class MainWindowSettingsLayoutMixin:
         self.api_keys_label_row = QLabel()
         self.api_keys_label_row.setObjectName("FieldLabel")
         self.api_keys_toggle_button = self.create_button(self.toggle_api_keys_visibility, accent=False, compact=True)
-        self.api_keys_toggle_button.setFixedWidth(118)
+        self.api_keys_toggle_button.setMinimumWidth(118)
         api_keys_header.addWidget(self.api_keys_label_row)
         api_keys_header.addStretch(1)
         api_keys_header.addWidget(self.api_keys_toggle_button)
@@ -173,6 +175,7 @@ class MainWindowSettingsLayoutMixin:
         translation_grid.setHorizontalSpacing(14)
         translation_grid.setVerticalSpacing(14)
         translation_grid.setColumnStretch(0, 1)
+        translation_grid.setColumnStretch(1, 1)
         translation_layout.addLayout(translation_grid)
 
         self.target_language_label = QLabel()
@@ -282,6 +285,8 @@ class MainWindowSettingsLayoutMixin:
         advanced_grid = QGridLayout()
         advanced_grid.setHorizontalSpacing(14)
         advanced_grid.setVerticalSpacing(14)
+        advanced_grid.setColumnStretch(0, 1)
+        advanced_grid.setColumnStretch(1, 1)
         advanced_content_layout.addLayout(advanced_grid)
 
         self.ui_language_label = QLabel()

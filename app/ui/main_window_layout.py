@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ..app_metadata import AUTHOR_NAME_EN, AUTHOR_NAME_ZH, REPOSITORY_NAME, REPOSITORY_URL
+from ..app_metadata import APP_VERSION, AUTHOR_NAME_EN, AUTHOR_NAME_ZH, REPOSITORY_NAME, REPOSITORY_URL
 from ..profile_utils import normalize_provider_name
 from .style_utils import load_style_sheet
 from .theme_tokens import color, qcolor, set_theme_mode
@@ -75,10 +75,10 @@ class ScrollSafeDoubleSpinBox(QDoubleSpinBox):
 
 class MainWindowLayoutMixin:
     def build_ui(self):
-        self.setWindowTitle(self.tr("window_title"))
+        self.setWindowTitle(f"{self.tr('window_title')} v{APP_VERSION}")
         self.setWindowIcon(self.icon)
         self.resize(1080, 740)
-        self.setMinimumSize(860, 620)
+        self.setMinimumSize(880, 660)
         self.setFocusPolicy(Qt.StrongFocus)
 
         root = QWidget()
@@ -95,18 +95,18 @@ class MainWindowLayoutMixin:
         self.sidebar_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.sidebar_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.sidebar_scroll.setFrameShape(QFrame.NoFrame)
-        self.sidebar_scroll.setMinimumWidth(228)
-        self.sidebar_scroll.setMaximumWidth(286)
+        self.sidebar_scroll.setMinimumWidth(280)
+        self.sidebar_scroll.setMaximumWidth(360)
 
         self.sidebar = QFrame()
         self.sidebar.setObjectName("Sidebar")
-        self.sidebar.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
+        self.sidebar.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
         self.sidebar_scroll.setWidget(self.sidebar)
 
         sidebar_layout = QVBoxLayout(self.sidebar)
         self.sidebar_layout = sidebar_layout
-        sidebar_layout.setContentsMargins(18, 20, 18, 18)
-        sidebar_layout.setSpacing(14)
+        sidebar_layout.setContentsMargins(16, 18, 16, 16)
+        sidebar_layout.setSpacing(10)
         sidebar_layout.setSizeConstraint(QLayout.SetMinimumSize)
 
         self.title_label = QLabel()
@@ -152,15 +152,15 @@ class MainWindowLayoutMixin:
         self.hint_card = QFrame()
         self.hint_card.setObjectName("HintCard")
         hint_layout = QVBoxLayout(self.hint_card)
-        hint_layout.setContentsMargins(14, 14, 14, 14)
-        hint_layout.setSpacing(8)
+        hint_layout.setContentsMargins(12, 12, 12, 12)
+        hint_layout.setSpacing(6)
         self.hint_title_label = QLabel()
         self.hint_title_label.setObjectName("HintTitleLabel")
         self.hint_title_label.setWordWrap(True)
         self.hint_label = QLabel()
         self.hint_label.setObjectName("HintLabel")
         self.hint_label.setWordWrap(True)
-        self.hint_card.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
+        self.hint_card.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
         hint_layout.addWidget(self.hint_title_label)
         hint_layout.addWidget(self.hint_label)
         sidebar_layout.addWidget(self.hint_card)
@@ -168,15 +168,15 @@ class MainWindowLayoutMixin:
         self.about_card = QFrame()
         self.about_card.setObjectName("AboutCard")
         about_layout = QVBoxLayout(self.about_card)
-        about_layout.setContentsMargins(14, 14, 14, 14)
-        about_layout.setSpacing(8)
+        about_layout.setContentsMargins(12, 12, 12, 12)
+        about_layout.setSpacing(6)
         self.about_title_label = QLabel()
         self.about_title_label.setObjectName("AboutTitleLabel")
         self.about_title_label.setWordWrap(True)
         self.about_meta_label = QLabel()
         self.about_meta_label.setObjectName("AboutMetaLabel")
         self.about_meta_label.setWordWrap(True)
-        self.about_card.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
+        self.about_card.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
         self.about_meta_label.setOpenExternalLinks(True)
         self.about_meta_label.setTextFormat(Qt.RichText)
         self.about_meta_label.setTextInteractionFlags(Qt.TextBrowserInteraction)
@@ -304,7 +304,7 @@ class MainWindowLayoutMixin:
 
     def apply_language(self):
         self.apply_styles()
-        self.setWindowTitle(f"{self.tr('window_title')}[*]")
+        self.setWindowTitle(f"{self.tr('window_title')} v{APP_VERSION}[*]")
         self.title_label.setText(self.tr("title"))
         self.subtitle_label.setText(self.tr("subtitle"))
         self.navigation_label.setText(self.tr("navigation"))
@@ -319,13 +319,17 @@ class MainWindowLayoutMixin:
         self.about_title_label.setText(self.tr("sidebar_about_title"))
         self.about_meta_label.setText(
             f"<span style='color:{color('text_secondary')}'>"
-            f"{self.tr('about_author_label')}：</span>"
+            f"v{APP_VERSION}</span><br/>"
+            f"<span style='color:{color('text_secondary')}'>"
+            f"{self.tr('about_author_label')}"
+            f"{':' if self.current_ui_language() == 'en' else '：'}</span>"
             f"<span style='color:{color('text_primary')};'>{AUTHOR_NAME_ZH}</span>"
             f" <span style='color:{color('text_tertiary')};'>/</span> "
             f"<span style='color:{color('text_primary')};'>{AUTHOR_NAME_EN}</span>"
             "<br/>"
-            f"<span style='color:{color('text_secondary')};'>{self.tr('about_repo_label')}：</span>"
-            f"<a href='{REPOSITORY_URL}' style='color:{color('link')}; text-decoration:none;'>{REPOSITORY_NAME}</a>"
+            f"<span style='color:{color('text_secondary')};'>{self.tr('about_repo_label')}"
+            f"{':' if self.current_ui_language() == 'en' else '：'}</span>"
+            f"<a href='{REPOSITORY_URL}' style='color:{color('link')}; text-decoration:none;'>{REPOSITORY_NAME.replace('/', '/&#8203;') if self.current_ui_language() == 'en' else REPOSITORY_NAME}</a>"
         )
         self.connection_group_title_label.setText(self.tr("section_connection"))
         self.connection_intro_label.setText(self.tr("section_connection_intro"))
