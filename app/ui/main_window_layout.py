@@ -363,6 +363,8 @@ class MainWindowLayoutMixin:
         self.overlay_width_label.setText(self.tr("overlay_width"))
         self.overlay_height_label.setText(self.tr("overlay_height"))
         self.overlay_margin_label.setText(self.tr("overlay_margin"))
+        self.overlay_auto_expand_top_margin_label.setText(self.tr("overlay_auto_expand_top_margin"))
+        self.overlay_auto_expand_bottom_margin_label.setText(self.tr("overlay_auto_expand_bottom_margin"))
         self.retry_interval_label.setText(self.tr("retry_interval"))
         self.target_language_label.setText(self.tr("target_language"))
         self.ui_language_label.setText(self.tr("ui_language"))

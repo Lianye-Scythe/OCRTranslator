@@ -17,6 +17,8 @@ class ConfigStoreMigrationTests(unittest.TestCase):
                 "overlay_width": "bad",
                 "overlay_height": 10000,
                 "margin": -5,
+                "overlay_auto_expand_top_margin": -50,
+                "overlay_auto_expand_bottom_margin": 1,
                 "ui_language": "jp",
                 "hotkey": "",
                 "overlay_font_family": "",
@@ -44,6 +46,8 @@ class ConfigStoreMigrationTests(unittest.TestCase):
         self.assertEqual(config.overlay_width, 440)
         self.assertEqual(config.overlay_height, 1600)
         self.assertEqual(config.margin, 8)
+        self.assertEqual(config.overlay_auto_expand_top_margin, 0)
+        self.assertEqual(config.overlay_auto_expand_bottom_margin, 8)
         self.assertEqual(config.ui_language, "en")
         self.assertEqual(config.hotkey, "Shift+Win+X")
         self.assertEqual(config.selection_hotkey, "Shift+Win+C")
@@ -51,7 +55,7 @@ class ConfigStoreMigrationTests(unittest.TestCase):
         self.assertEqual(config.theme_mode, "system")
         self.assertEqual(config.overlay_font_family, "Microsoft JhengHei UI")
         self.assertEqual(config.overlay_font_size, 10)
-        self.assertEqual(config.overlay_opacity, 55)
+        self.assertEqual(config.overlay_opacity, 5)
         self.assertTrue(config.overlay_pinned)
         self.assertEqual(config.active_prompt_preset_name, "翻譯 (Translate)")
         self.assertEqual(len(config.prompt_presets), 4)
@@ -88,7 +92,9 @@ class ConfigStoreMigrationTests(unittest.TestCase):
         self.assertEqual(config.ui_language, "zh-CN")
         self.assertEqual(config.active_profile_name, "Default Gemini")
         self.assertEqual(config.theme_mode, "system")
-        self.assertEqual(config.overlay_opacity, 96)
+        self.assertEqual(config.overlay_auto_expand_top_margin, 42)
+        self.assertEqual(config.overlay_auto_expand_bottom_margin, 24)
+        self.assertEqual(config.overlay_opacity, 95)
         self.assertFalse(config.overlay_pinned)
         self.assertEqual(config.selection_hotkey, "Shift+Win+C")
         self.assertEqual(config.input_hotkey, "Shift+Win+Z")
@@ -118,6 +124,22 @@ class ConfigStoreMigrationTests(unittest.TestCase):
         )
 
         self.assertFalse(config.overlay_pinned)
+
+    def test_migrate_zero_overlay_opacity_is_clamped_to_one(self):
+        config = _migrate_legacy_config(
+            {
+                "overlay_opacity": 0,
+                "api_profiles": [
+                    {
+                        "name": "Default Gemini",
+                        "provider": "gemini",
+                        "api_keys": ["demo-key"],
+                    }
+                ],
+            }
+        )
+
+        self.assertEqual(config.overlay_opacity, 1)
 
     def test_migrate_close_to_tray_on_close_flag(self):
         config = _migrate_legacy_config(

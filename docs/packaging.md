@@ -20,7 +20,7 @@
 
 ## 建議分發內容
 
-建議優先上傳版本化壓縮包，檔名包含專案名稱、版本號與平台資訊，例如：`OCRTranslator-v0.9.2-windows-x64.zip`。
+建議優先上傳版本化壓縮包，檔名包含專案名稱、版本號與平台資訊，例如：`OCRTranslator-v0.9.3-windows-x64.zip`。
 
 ```text
 release\OCRTranslator-v<version>-windows-x64.zip

@@ -4,7 +4,7 @@ import time
 from dataclasses import asdict
 from pathlib import Path
 
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtWidgets import QApplication
 
 from .app_defaults import (
     DEFAULT_BASE_URL,
@@ -29,12 +29,13 @@ from .profile_utils import (
     unique_non_empty,
 )
 from .runtime_paths import CONFIG_PATH
+from .ui.message_boxes import show_warning_message
 
 
 def show_startup_warning(message: str):
     created_app = QApplication.instance() is None
     app = QApplication.instance() or QApplication([])
-    QMessageBox.warning(None, "OCRTranslator", message)
+    show_warning_message(None, "OCRTranslator", message)
     if created_app:
         app.quit()
 
@@ -232,6 +233,8 @@ def _migrate_legacy_config(data: dict) -> AppConfig:
         overlay_width=_coerce_int(source.get("overlay_width"), 440, min_value=240, max_value=1600),
         overlay_height=_coerce_int(source.get("overlay_height"), 520, min_value=220, max_value=1600),
         margin=_coerce_int(source.get("margin"), 18, min_value=8, max_value=120),
+        overlay_auto_expand_top_margin=_coerce_int(source.get("overlay_auto_expand_top_margin"), 42, min_value=0, max_value=200),
+        overlay_auto_expand_bottom_margin=_coerce_int(source.get("overlay_auto_expand_bottom_margin"), 24, min_value=8, max_value=200),
         ui_language=ui_language,
         theme_mode=normalize_theme_mode(source.get("theme_mode"), default=DEFAULT_THEME_MODE),
         hotkey=_coerce_text(source.get("hotkey"), DEFAULT_CAPTURE_HOTKEY),
@@ -239,7 +242,7 @@ def _migrate_legacy_config(data: dict) -> AppConfig:
         input_hotkey=_coerce_text(source.get("input_hotkey"), DEFAULT_INPUT_HOTKEY),
         overlay_font_family=_coerce_text(source.get("overlay_font_family"), DEFAULT_OVERLAY_FONT_FAMILY),
         overlay_font_size=_coerce_int(source.get("overlay_font_size"), 12, min_value=10, max_value=32),
-        overlay_opacity=_coerce_int(source.get("overlay_opacity"), 96, min_value=55, max_value=100),
+        overlay_opacity=_coerce_int(source.get("overlay_opacity"), 95, min_value=1, max_value=100),
         overlay_pinned=_coerce_bool(source.get("overlay_pinned", False), False),
         close_to_tray_on_close=_coerce_bool(source.get("close_to_tray_on_close", False), False),
         active_profile_name=_normalize_active_profile_name(profiles, str(source.get("active_profile_name", "")).strip() or None),

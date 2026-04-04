@@ -4,7 +4,7 @@ from pathlib import Path
 from PIL import Image
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QGuiApplication, QPixmap
-from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QMessageBox
+from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow
 
 from ..api_client import ApiClient
 from ..app_defaults import DEFAULT_UI_LANGUAGE, normalize_theme_mode
@@ -15,6 +15,7 @@ from ..i18n import I18N, normalize_ui_language
 from ..operation_control import RequestCancelledError
 from ..profile_utils import normalize_provider_name
 from ..runtime_paths import APP_SERVER_NAME
+from .message_boxes import show_critical_message, show_information_message
 from ..services.background_task_runner import BackgroundTaskRunner
 from ..services.image_capture import ScreenCaptureService
 from ..services.instance_server import InstanceServerService
@@ -181,6 +182,16 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             return int(self.overlay_margin_spin.value())
         return int(self.config.margin)
 
+    def current_overlay_auto_expand_top_margin(self) -> int:
+        if hasattr(self, "overlay_auto_expand_top_margin_spin"):
+            return int(self.overlay_auto_expand_top_margin_spin.value())
+        return int(getattr(self.config, "overlay_auto_expand_top_margin", 42))
+
+    def current_overlay_auto_expand_bottom_margin(self) -> int:
+        if hasattr(self, "overlay_auto_expand_bottom_margin_spin"):
+            return int(self.overlay_auto_expand_bottom_margin_spin.value())
+        return int(getattr(self.config, "overlay_auto_expand_bottom_margin", 24))
+
     def current_overlay_font_family(self) -> str:
         if hasattr(self, "overlay_font_combo"):
             return self.overlay_font_combo.currentFont().family()
@@ -259,6 +270,8 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             "overlay_width_spin",
             "overlay_height_spin",
             "overlay_margin_spin",
+            "overlay_auto_expand_top_margin_spin",
+            "overlay_auto_expand_bottom_margin_spin",
             "close_to_tray_on_close_checkbox",
         ):
             if hasattr(self, widget_name):
@@ -448,7 +461,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             if hasattr(self, "status_label"):
                 self.set_status("hotkey_register_failed", error=exc)
             if not initial:
-                QMessageBox.critical(self, self.tr("error_title"), self.tr("hotkey_register_failed", error=exc))
+                show_critical_message(self, self.tr("error_title"), self.tr("hotkey_register_failed", error=exc))
             if raise_on_error:
                 raise
             return False
@@ -576,7 +589,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
     def minimize_to_tray(self):
         if not self.tray:
             self.set_status("tray_unavailable")
-            QMessageBox.information(self, self.tr("tray_title"), self.tr("tray_unavailable"))
+            show_information_message(self, self.tr("tray_title"), self.tr("tray_unavailable"))
             return
         self.hide()
         if not self.translation_overlay.is_pinned:
@@ -613,7 +626,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self.set_status("translate_failed" if is_capture_error else "operation_failed")
         self.log(f"Error: {actual_exc}")
         display_message = getattr(actual_exc, "user_message", str(actual_exc))
-        QMessageBox.critical(self if self.isVisible() else None, self.tr("error_title"), display_message)
+        show_critical_message(self if self.isVisible() else None, self.tr("error_title"), display_message)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

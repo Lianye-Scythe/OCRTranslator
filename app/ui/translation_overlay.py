@@ -1,21 +1,103 @@
-from PySide6.QtCore import QEvent, QPoint, QRect, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QFont, QFontMetrics, QGuiApplication, QKeySequence, QMouseEvent, QShortcut, QTextDocument
+from PySide6.QtCore import QEvent, QPoint, QPointF, QRect, QRectF, QSize, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QCursor, QFont, QFontMetrics, QGuiApplication, QIcon, QIntValidator, QKeySequence, QMouseEvent, QPainter, QPainterPath, QPen, QPixmap, QShortcut, QTextDocument
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
     QGraphicsDropShadowEffect,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QPushButton,
     QTextEdit,
     QVBoxLayout,
     QWidget,
 )
 
+from .focus_utils import clear_focus_if_alive, install_mouse_click_focus_clear_many
 from .style_utils import load_style_sheet
 from .overlay_positioning import clamp_rect_to_visible_screen
 from .theme_tokens import qcolor
 from ..platform.windows.window_topmost import ensure_window_topmost
+
+
+class OpacityValueChip(QLineEdit):
+    value_submitted = Signal(int)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._display_value = 95
+        self._editing = False
+        self.setAlignment(Qt.AlignCenter)
+        self.setFrame(False)
+        self.setReadOnly(True)
+        self.setCursor(Qt.PointingHandCursor)
+        self.setContextMenuPolicy(Qt.NoContextMenu)
+        self.setValidator(QIntValidator(1, 100, self))
+
+    @property
+    def editing(self) -> bool:
+        return self._editing
+
+    def set_display_value(self, value: int):
+        self._display_value = max(1, min(100, int(value)))
+        if not self._editing:
+            self.setText(f"{self._display_value}%")
+
+    def start_editing(self):
+        if self._editing:
+            return
+        self._editing = True
+        self.setReadOnly(False)
+        self.setCursor(Qt.IBeamCursor)
+        self.setText(str(self._display_value))
+        self.setFocus(Qt.MouseFocusReason)
+        self.selectAll()
+
+    def cancel_editing(self):
+        if not self._editing:
+            return
+        self._editing = False
+        self.setReadOnly(True)
+        self.setCursor(Qt.PointingHandCursor)
+        self.setText(f"{self._display_value}%")
+        self.clearFocus()
+
+    def _commit_value(self):
+        if not self._editing:
+            return
+        text = self.text().strip()
+        value = self._display_value if text == "" else int(text)
+        self._display_value = max(1, min(100, value))
+        self._editing = False
+        self.setReadOnly(True)
+        self.setCursor(Qt.PointingHandCursor)
+        self.setText(f"{self._display_value}%")
+        self.clearFocus()
+        self.value_submitted.emit(self._display_value)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton and not self._editing:
+            self.start_editing()
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def keyPressEvent(self, event):
+        if self._editing and event.key() in {Qt.Key_Return, Qt.Key_Enter}:
+            self._commit_value()
+            event.accept()
+            return
+        if self._editing and event.key() == Qt.Key_Escape:
+            self.cancel_editing()
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
+    def focusOutEvent(self, event):
+        was_editing = self._editing
+        super().focusOutEvent(event)
+        if was_editing and self._editing:
+            self._commit_value()
 
 
 class TranslationOverlay(QWidget):
@@ -25,6 +107,7 @@ class TranslationOverlay(QWidget):
     MIN_WIDTH = 240
     MIN_HEIGHT = 220
     RESIZE_MARGIN = 18
+    DEFAULT_OPACITY = 95
 
     def __init__(self, app_window):
         super().__init__()
@@ -40,6 +123,10 @@ class TranslationOverlay(QWidget):
         self._resize_mode = None
         self._resize_start_pos = QPoint()
         self._resize_start_geometry = QRect()
+        self._shadow_effect = None
+        self._topbar_hovered = False
+        self._drag_event_widgets = set()
+        self._header_hover_widgets = set()
         self.setup_ui()
 
     @property
@@ -63,6 +150,7 @@ class TranslationOverlay(QWidget):
         shadow.setOffset(0, 8)
         shadow.setColor(qcolor("shadow", alpha=90))
         self.card.setGraphicsEffect(shadow)
+        self._shadow_effect = shadow
 
         card_layout = QVBoxLayout(self.card)
         card_layout.setContentsMargins(0, 0, 0, 0)
@@ -81,24 +169,27 @@ class TranslationOverlay(QWidget):
 
         self.pin_button = QPushButton()
         self.pin_button.setObjectName("overlayActionButton")
+        self.pin_button.setProperty("iconOnly", True)
         self.pin_button.setCheckable(True)
-        self.pin_button.setFixedHeight(32)
+        self.pin_button.setFixedSize(32, 32)
         self.pin_button.clicked.connect(self.toggle_pin)
+        self.pin_button.setIconSize(QSize(16, 16))
 
         self.opacity_down_button = QPushButton("−")
         self.opacity_down_button.setObjectName("overlayActionButton")
         self.opacity_down_button.setFixedSize(32, 32)
-        self.opacity_down_button.clicked.connect(lambda: self.adjust_opacity(-4))
+        self.opacity_down_button.clicked.connect(lambda: self.adjust_opacity(-5))
 
-        self.opacity_value_label = QLabel()
+        self.opacity_value_label = OpacityValueChip()
         self.opacity_value_label.setObjectName("overlayValueChip")
-        self.opacity_value_label.setAlignment(Qt.AlignCenter)
         self.opacity_value_label.setMinimumWidth(58)
+        self.opacity_value_label.setFixedHeight(32)
+        self.opacity_value_label.value_submitted.connect(self.set_overlay_opacity)
 
         self.opacity_up_button = QPushButton("+")
         self.opacity_up_button.setObjectName("overlayActionButton")
         self.opacity_up_button.setFixedSize(32, 32)
-        self.opacity_up_button.clicked.connect(lambda: self.adjust_opacity(4))
+        self.opacity_up_button.clicked.connect(lambda: self.adjust_opacity(5))
 
         self.copy_button = QPushButton()
         self.copy_button.setObjectName("overlayActionButton")
@@ -135,8 +226,26 @@ class TranslationOverlay(QWidget):
         self.resize_grip.setFixedSize(16, 16)
         self.resize_grip.setAttribute(Qt.WA_TransparentForMouseEvents)
 
-        for widget in (self, self.card, self.header, self.title_label, self.body, self.body.viewport()):
+        self._drag_event_widgets = {self, self.card, self.header, self.title_label, self.body, self.body.viewport()}
+        self._header_hover_widgets = {
+            self.header,
+            self.title_label,
+            self.pin_button,
+            self.opacity_down_button,
+            self.opacity_value_label,
+            self.opacity_up_button,
+            self.copy_button,
+            self.close_button,
+        }
+        for widget in self._drag_event_widgets | self._header_hover_widgets:
             widget.installEventFilter(self)
+        self._mouse_focus_clear_filters = install_mouse_click_focus_clear_many(
+            self.pin_button,
+            self.opacity_down_button,
+            self.opacity_up_button,
+            self.copy_button,
+            self.close_button,
+        )
 
         self.apply_styles()
         self._shortcuts = [
@@ -150,8 +259,114 @@ class TranslationOverlay(QWidget):
         self.refresh_language()
         self.apply_surface_state()
 
+    def _current_overlay_opacity(self) -> int:
+        raw_value = getattr(self.app_window.config, "overlay_opacity", self.DEFAULT_OPACITY)
+        try:
+            opacity = int(raw_value)
+        except (TypeError, ValueError):
+            opacity = self.DEFAULT_OPACITY
+        return max(1, min(100, opacity))
+
+    @staticmethod
+    def _alpha_from_percent(percent: int) -> int:
+        return max(0, min(255, round(255 * max(0, min(100, percent)) / 100)))
+
+    def _rgba(self, token: str, *, alpha: int | None = None, theme_name: str | None = None) -> str:
+        color = QColor(qcolor(token, theme_name=theme_name))
+        if alpha is not None:
+            color.setAlpha(max(0, min(255, alpha)))
+        return f"rgba({color.red()}, {color.green()}, {color.blue()}, {color.alpha()})"
+
+    def _build_dynamic_style_sheet(self, theme_name: str | None = None) -> str:
+        opacity = self._current_overlay_opacity()
+        header_opacity = 100 if self._topbar_hovered else opacity
+        card_alpha = self._alpha_from_percent(opacity)
+        header_alpha = self._alpha_from_percent(header_opacity)
+        return "\n".join(
+            [
+                "#overlayCard {",
+                f"    background:{self._rgba('overlay_card_bg', alpha=card_alpha, theme_name=theme_name)};",
+                f"    border-color:{self._rgba('overlay_card_border', alpha=card_alpha, theme_name=theme_name)};",
+                "}",
+                "#overlayHeader {",
+                f"    background:{self._rgba('overlay_card_bg', alpha=header_alpha, theme_name=theme_name)};",
+                f"    border-bottom-color:{self._rgba('overlay_header_border', alpha=header_alpha, theme_name=theme_name)};",
+                "}",
+                "#overlayBody {",
+                f"    selection-background-color:{self._rgba('primary', theme_name=theme_name)};",
+                f"    selection-color:{self._rgba('on_primary', theme_name=theme_name)};",
+                "}",
+                "#overlayValueChip {",
+                f"    background:{self._rgba('overlay_value_bg', alpha=header_alpha, theme_name=theme_name)};",
+                f"    border-color:{self._rgba('overlay_header_border', alpha=header_alpha, theme_name=theme_name)};",
+                "}",
+                "#overlayActionButton:checked {",
+                f"    background:{self._rgba('overlay_action_checked_bg', alpha=header_alpha, theme_name=theme_name)};",
+                f"    border-color:{self._rgba('overlay_action_checked_border', alpha=header_alpha, theme_name=theme_name)};",
+                "}",
+                "#overlayCloseButton:hover,",
+                "#overlayActionButton:hover {",
+                f"    background:{self._rgba('overlay_action_hover_bg', alpha=header_alpha, theme_name=theme_name)};",
+                f"    border-color:{self._rgba('overlay_action_hover_border', alpha=header_alpha, theme_name=theme_name)};",
+                "}",
+            ]
+        )
+
+    def _header_contains_global_pos(self, global_pos: QPoint | None = None) -> bool:
+        if not self.isVisible():
+            return False
+        point = global_pos or QCursor.pos()
+        return self._header_rect().contains(self.mapFromGlobal(point))
+
+    def _set_topbar_hovered(self, hovered: bool):
+        hovered = bool(hovered)
+        if hovered == self._topbar_hovered:
+            return
+        self._topbar_hovered = hovered
+        self.apply_styles()
+
+    def _sync_topbar_hover_state(self, global_pos: QPoint | None = None):
+        self._set_topbar_hovered(self._header_contains_global_pos(global_pos))
+
     def apply_styles(self):
-        self.setStyleSheet(load_style_sheet("translation_overlay.qss", theme_name=self.app_window.effective_theme_name()))
+        theme_name = self.app_window.effective_theme_name()
+        base_style = load_style_sheet("translation_overlay.qss", theme_name=theme_name)
+        self.setStyleSheet(f"{base_style}\n{self._build_dynamic_style_sheet(theme_name)}")
+
+    def _build_pin_icon(self, checked: bool) -> QIcon:
+        color_token = "overlay_action_checked_fg" if checked else "overlay_action_hover_fg" if self.pin_button.underMouse() else "overlay_action_fg"
+        color = qcolor(color_token, theme_name=self.app_window.effective_theme_name())
+        pixmap = QPixmap(16, 16)
+        pixmap.fill(Qt.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setPen(QPen(color, 1.35, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+
+        head = QPainterPath()
+        head.addEllipse(QRectF(4.5, 2.1, 7.0, 4.9))
+        collar = QPainterPath()
+        collar.moveTo(QPointF(5.0, 6.1))
+        collar.lineTo(QPointF(11.0, 6.1))
+        collar.lineTo(QPointF(9.2, 8.6))
+        collar.lineTo(QPointF(6.8, 8.6))
+        collar.closeSubpath()
+
+        if checked:
+            painter.fillPath(head, color)
+            painter.fillPath(collar, color)
+        else:
+            painter.drawPath(head)
+        painter.drawPath(collar)
+        painter.drawLine(QPointF(8.0, 8.6), QPointF(8.0, 12.6))
+        painter.drawLine(QPointF(8.0, 12.6), QPointF(6.9, 14.1))
+        painter.drawLine(QPointF(8.0, 12.6), QPointF(9.1, 14.1))
+        painter.end()
+        return QIcon(pixmap)
+
+    def _refresh_pin_button(self):
+        self.pin_button.setIcon(self._build_pin_icon(self.is_pinned))
+        self.pin_button.setText("")
+        self.pin_button.setAccessibleName(self.app_window.tr("overlay_pinned_short") if self.is_pinned else self.app_window.tr("overlay_pin_short"))
 
     def refresh_language(self):
         title = self.app_window.tr("overlay_title")
@@ -162,16 +377,22 @@ class TranslationOverlay(QWidget):
         self.pin_button.setToolTip(self.app_window.tr("toggle_overlay_pin"))
         self.opacity_down_button.setToolTip(self.app_window.tr("decrease_overlay_opacity"))
         self.opacity_up_button.setToolTip(self.app_window.tr("increase_overlay_opacity"))
+        self.opacity_value_label.setToolTip(self.app_window.tr("overlay_opacity_set", value=self._current_overlay_opacity()))
         self.apply_surface_state()
         self.apply_typography()
 
     def apply_surface_state(self):
-        opacity = int(getattr(self.app_window.config, "overlay_opacity", 96) or 96)
-        self.setWindowOpacity(max(0.55, min(1.0, opacity / 100)))
+        opacity = self._current_overlay_opacity()
+        self.setWindowOpacity(1.0)
+        self.apply_styles()
+        if self._shadow_effect is not None:
+            shadow_alpha = max(0, min(90, round(90 * opacity / 100)))
+            self._shadow_effect.setColor(qcolor("shadow", alpha=shadow_alpha))
         self.pin_button.setChecked(self.is_pinned)
-        self.pin_button.setText(self.app_window.tr("overlay_pinned_short") if self.is_pinned else self.app_window.tr("overlay_pin_short"))
-        self.opacity_value_label.setText(f"{opacity}%")
-        self.opacity_down_button.setEnabled(opacity > 55)
+        self._refresh_pin_button()
+        self.opacity_value_label.set_display_value(opacity)
+        self.opacity_value_label.setToolTip(self.app_window.tr("overlay_opacity_set", value=opacity))
+        self.opacity_down_button.setEnabled(opacity > 1)
         self.opacity_up_button.setEnabled(opacity < 100)
 
     def apply_typography(self):
@@ -216,15 +437,19 @@ class TranslationOverlay(QWidget):
         self.apply_surface_state()
         self.app_window.set_status("overlay_pinned" if checked else "overlay_unpinned")
 
-    def adjust_opacity(self, delta: int):
-        current = int(getattr(self.app_window.config, "overlay_opacity", 96) or 96)
-        next_value = max(55, min(100, current + delta))
+    def set_overlay_opacity(self, value: int):
+        next_value = max(1, min(100, int(value)))
+        current = self._current_overlay_opacity()
         if next_value == current:
+            self.apply_surface_state()
             return
         self.app_window.config.overlay_opacity = next_value
         self.app_window.note_runtime_preference_changed()
         self.apply_surface_state()
         self.app_window.set_status("overlay_opacity_set", value=next_value)
+
+    def adjust_opacity(self, delta: int):
+        self.set_overlay_opacity(self._current_overlay_opacity() + delta)
 
     def show_text(self, text: str, x: int, y: int, width: int, height: int, *, keep_manual_position: bool = False):
         self.refresh_language()
@@ -234,6 +459,7 @@ class TranslationOverlay(QWidget):
         self.last_text = text
         self.manual_positioned = bool(keep_manual_position)
         self._show_as_topmost()
+        self._sync_topbar_hover_state(QCursor.pos())
 
     def restore_last_overlay(self):
         if not self.last_text.strip() or self.last_geometry is None:
@@ -243,11 +469,26 @@ class TranslationOverlay(QWidget):
         self.last_geometry = self.geometry()
         self.body.setPlainText(self.last_text)
         self._show_as_topmost()
+        self._sync_topbar_hover_state(QCursor.pos())
+
+    def _clear_initial_focus(self):
+        for widget in (
+            self.pin_button,
+            self.opacity_down_button,
+            self.opacity_value_label,
+            self.opacity_up_button,
+            self.copy_button,
+            self.close_button,
+        ):
+            clear_focus_if_alive(widget)
+        if self.isVisible():
+            self.setFocus(Qt.OtherFocusReason)
 
     def _show_as_topmost(self):
         self.show()
         self.raise_()
         self.activateWindow()
+        QTimer.singleShot(0, self._clear_initial_focus)
 
         self._ensure_native_topmost()
 
@@ -395,22 +636,35 @@ class TranslationOverlay(QWidget):
             super().mouseReleaseEvent(event)
 
     def eventFilter(self, watched, event):
+        if watched in self._header_hover_widgets:
+            if event.type() == QEvent.Type.Enter:
+                self._sync_topbar_hover_state(QCursor.pos())
+            elif event.type() == QEvent.Type.Leave:
+                QTimer.singleShot(0, self._sync_topbar_hover_state)
+            if watched is self.pin_button and event.type() in {QEvent.Type.Enter, QEvent.Type.Leave}:
+                self._refresh_pin_button()
+            elif isinstance(event, QMouseEvent) and event.type() == QEvent.Type.MouseMove:
+                self._sync_topbar_hover_state(event.globalPosition().toPoint())
         if event.type() == QEvent.Type.Wheel and watched in {self.body, self.body.viewport()}:
             if QApplication.keyboardModifiers() & Qt.ControlModifier:
                 direction = 1 if event.angleDelta().y() > 0 else -1
                 self.request_font_zoom.emit(direction)
                 return True
-        if isinstance(event, QMouseEvent) and watched in {self.card, self.header, self.title_label, self.body, self.body.viewport()}:
+        if isinstance(event, QMouseEvent) and watched in self._drag_event_widgets:
             if event.type() == QEvent.Type.MouseButtonPress and self._handle_mouse_press(watched, event):
                 return True
             if event.type() == QEvent.Type.MouseMove and self._handle_mouse_move(watched, event):
                 return True
             if event.type() == QEvent.Type.MouseButtonRelease and self._handle_mouse_release(watched, event):
                 return True
-        if event.type() == QEvent.Type.Leave and watched in {self, self.card, self.header, self.title_label, self.body, self.body.viewport()}:
+        if event.type() == QEvent.Type.Leave and watched in self._drag_event_widgets:
             if not self._resize_mode and not self._dragging:
                 self.unsetCursor()
         return super().eventFilter(watched, event)
+
+    def hideEvent(self, event):
+        self._set_topbar_hovered(False)
+        super().hideEvent(event)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

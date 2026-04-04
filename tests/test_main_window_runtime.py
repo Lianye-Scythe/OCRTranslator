@@ -149,16 +149,27 @@ class MainWindowRuntimeTests(unittest.TestCase):
 
     def test_current_runtime_values_prefer_live_form_widgets(self):
         window = MainWindow.__new__(MainWindow)
-        window.config = SimpleNamespace(temperature=0.2, overlay_width=440, overlay_height=520, margin=18)
+        window.config = SimpleNamespace(
+            temperature=0.2,
+            overlay_width=440,
+            overlay_height=520,
+            margin=18,
+            overlay_auto_expand_top_margin=42,
+            overlay_auto_expand_bottom_margin=24,
+        )
         window.temperature_spin = _ValueWidget(0.7)
         window.overlay_width_spin = _ValueWidget(900)
         window.overlay_height_spin = _ValueWidget(640)
         window.overlay_margin_spin = _ValueWidget(24)
+        window.overlay_auto_expand_top_margin_spin = _ValueWidget(64)
+        window.overlay_auto_expand_bottom_margin_spin = _ValueWidget(18)
 
         self.assertEqual(window.current_temperature(), 0.7)
         self.assertEqual(window.current_overlay_width(), 900)
         self.assertEqual(window.current_overlay_height(), 640)
         self.assertEqual(window.current_margin(), 24)
+        self.assertEqual(window.current_overlay_auto_expand_top_margin(), 64)
+        self.assertEqual(window.current_overlay_auto_expand_bottom_margin(), 18)
 
     def test_update_action_states_freezes_settings_during_translation(self):
         window = MainWindow.__new__(MainWindow)
@@ -264,7 +275,7 @@ class MainWindowRuntimeTests(unittest.TestCase):
         window.sync_form_to_config = lambda: ("en", candidate_config, profile)
         window.setup_hotkey_listener = Mock(side_effect=[RuntimeError("hook failed"), True])
 
-        with patch("app.ui.main_window_profiles.QMessageBox.critical") as mock_critical, patch(
+        with patch("app.ui.main_window_profiles.show_critical_message") as mock_critical, patch(
             "app.ui.main_window_profiles.save_config"
         ) as mock_save_config:
             result = window.save_settings()

@@ -25,8 +25,10 @@ It is not just a screenshot translator. It is a desktop AI workspace organized a
 - Runtime logs now report `capture / request / total / png` timing so you can tell whether latency comes from local processing or the model side
 - Global hotkeys now include modifier-release pairing and state resynchronization safeguards to reduce stuck-looking `Shift / Ctrl / Win` behavior
 - A workflow-first settings page organized as `Connection and model → Translation workflow → Appearance and advanced`
+- Advanced settings now include configurable overlay auto-expand top / bottom safe margins so you can tune how close the popup grows toward the taskbar
 - Selected-text capture now runs as a non-blocking flow, shows a single processing toast only when the request is submitted, and supports cancellation during capture
-- Result overlay supports copy, pin / unpin, opacity adjustment, drag to move, corner resize, and `Ctrl + mouse wheel` font zoom
+- Result overlay supports copy, a pushpin-style keep-visible toggle, surface-only opacity control, direct opacity input, drag to move, corner resize, and `Ctrl + mouse wheel` font zoom
+- Message boxes and destructive confirmations now share consistent button semantics, focus handling, and Escape behavior
 - Global hotkeys, system tray, and single-instance protection
 - Portable config stored next to the project root or packaged exe
 

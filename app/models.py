@@ -46,6 +46,8 @@ class AppConfig:
     overlay_width: int = 440
     overlay_height: int = 520
     margin: int = 18
+    overlay_auto_expand_top_margin: int = 42
+    overlay_auto_expand_bottom_margin: int = 24
     ui_language: str = DEFAULT_UI_LANGUAGE
     theme_mode: str = DEFAULT_THEME_MODE
     hotkey: str = DEFAULT_CAPTURE_HOTKEY
@@ -53,7 +55,7 @@ class AppConfig:
     input_hotkey: str = DEFAULT_INPUT_HOTKEY
     overlay_font_family: str = DEFAULT_OVERLAY_FONT_FAMILY
     overlay_font_size: int = 12
-    overlay_opacity: int = 96
+    overlay_opacity: int = 95
     overlay_pinned: bool = False
     close_to_tray_on_close: bool = False
     active_profile_name: str = "Default Gemini"

@@ -34,7 +34,19 @@ class OverlayPositioningTests(unittest.TestCase):
         width, height = clamp_overlay_size_to_screen(config, overlay, screen_rect, "translated text", 2000, 1200)
 
         self.assertEqual(width, 1244)
-        self.assertEqual(height, 518)
+        self.assertEqual(height, 654)
+
+    def test_clamp_overlay_size_uses_configurable_bottom_safe_margin(self):
+        config = _FakeConfig(margin=18)
+        config.overlay_auto_expand_top_margin = 42
+        config.overlay_auto_expand_bottom_margin = 60
+        overlay = _FakeOverlay()
+        screen_rect = QRect(0, 0, 1280, 720)
+
+        width, height = clamp_overlay_size_to_screen(config, overlay, screen_rect, "translated text", 900, 1200)
+
+        self.assertEqual(width, 900)
+        self.assertEqual(height, 618)
 
     @patch("app.ui.overlay_positioning.get_target_screen_rect", return_value=QRect(0, 0, 1920, 1080))
     def test_fit_overlay_size_prefers_available_side_space_for_book_mode(self, _mock_screen_rect):

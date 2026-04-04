@@ -8,12 +8,14 @@ install_crash_hooks()
 from PySide6.QtCore import QLockFile, Qt, QTimer
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtNetwork import QLocalSocket
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtWidgets import QApplication
 
 from .app_defaults import DEFAULT_UI_LANGUAGE
 from .config_store import load_config
 from .i18n import I18N, normalize_ui_language
 from .runtime_paths import APP_LOCK_PATH, APP_SERVER_NAME, LOCK_STALE_MS
+from .ui.message_boxes import show_information_message
+from .ui.theme_tokens import resolve_theme_name
 from .ui.main_window import MainWindow
 
 
@@ -92,7 +94,12 @@ def run_app():
         if lock is None:
             message_config = load_config()
             lang = normalize_ui_language(message_config.ui_language, default=DEFAULT_UI_LANGUAGE)
-            QMessageBox.information(None, I18N[lang]["already_running_title"], I18N[lang]["already_running_message"])
+            show_information_message(
+                None,
+                I18N[lang]["already_running_title"],
+                I18N[lang]["already_running_message"],
+                theme_name=resolve_theme_name(getattr(message_config, "theme_mode", None)),
+            )
             return
 
     window = MainWindow()

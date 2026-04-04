@@ -102,6 +102,8 @@ OCRTranslator/
 │     ├─ main_window_profiles.py     # Profile 表单绑定、验证呈现、快捷键录制
 │     ├─ main_window_prompts.py      # Prompt Preset 表单逻辑与内建 preset 保护
 │     ├─ main_window_settings_layout.py # workflow-first Settings 布局（连接 / 翻译 / 进阶）
+│     ├─ focus_utils.py              # 共用鼠标点击后焦点清理与安全 clearFocus 工具
+│     ├─ message_boxes.py            # 共用消息框 helper、危险操作确认与 Escape Hatch
 │     ├─ overlay_positioning.py      # 浮窗定位、尺寸与屏幕边界计算
 │     ├─ prompt_input_dialog.py      # 手动输入文本请求对话框
 │     ├─ selection_overlay.py        # 全屏框选覆盖层

@@ -7,6 +7,7 @@ from ..ui.overlay_positioning import (
     compute_overlay_position,
     compute_overlay_position_for_point,
     fit_overlay_size,
+    overlay_vertical_safe_margins,
     get_screen_rect_for_point,
     get_target_screen_rect,
 )
@@ -21,6 +22,8 @@ class OverlayPresenter:
         return SimpleNamespace(
             mode=self.window.current_mode(),
             margin=self.window.current_margin(),
+            overlay_auto_expand_top_margin=self.window.current_overlay_auto_expand_top_margin(),
+            overlay_auto_expand_bottom_margin=self.window.current_overlay_auto_expand_bottom_margin(),
             overlay_width=self.window.current_overlay_width(),
             overlay_height=self.window.current_overlay_height(),
         )
@@ -46,14 +49,14 @@ class OverlayPresenter:
             target_screen_rect = get_target_screen_rect(bbox)
             if preserve_manual_position and self.overlay.last_geometry is not None:
                 margin = overlay_config.margin
-                soft_margin = max(42, margin * 2)
+                soft_top_margin, soft_bottom_margin = overlay_vertical_safe_margins(overlay_config)
                 x = max(
                     target_screen_rect.left() + margin,
                     min(self.overlay.last_geometry.x(), target_screen_rect.right() - width - margin + 1),
                 )
                 y = max(
-                    target_screen_rect.top() + soft_margin,
-                    min(self.overlay.last_geometry.y(), target_screen_rect.bottom() - height - soft_margin + 1),
+                    target_screen_rect.top() + soft_top_margin,
+                    min(self.overlay.last_geometry.y(), target_screen_rect.bottom() - height - soft_bottom_margin + 1),
                 )
             else:
                 x, y = compute_overlay_position(overlay_config, bbox, width, height)
@@ -63,14 +66,14 @@ class OverlayPresenter:
             width, height = clamp_overlay_size_to_screen(overlay_config, self.overlay, target_screen_rect, text, width, height)
             if preserve_manual_position and self.overlay.last_geometry is not None:
                 margin = overlay_config.margin
-                soft_margin = max(42, margin * 2)
+                soft_top_margin, soft_bottom_margin = overlay_vertical_safe_margins(overlay_config)
                 x = max(
                     target_screen_rect.left() + margin,
                     min(self.overlay.last_geometry.x(), target_screen_rect.right() - width - margin + 1),
                 )
                 y = max(
-                    target_screen_rect.top() + soft_margin,
-                    min(self.overlay.last_geometry.y(), target_screen_rect.bottom() - height - soft_margin + 1),
+                    target_screen_rect.top() + soft_top_margin,
+                    min(self.overlay.last_geometry.y(), target_screen_rect.bottom() - height - soft_bottom_margin + 1),
                 )
             else:
                 x, y = compute_overlay_position_for_point(overlay_config, anchor_point, width, height)

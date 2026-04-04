@@ -4,6 +4,24 @@
 
 This file records important OCRTranslator changes.
 
+## [0.9.3] - 2026-04-04
+
+### Added
+- Added configurable top / bottom safe margins for translation-overlay auto expansion under the Appearance and Advanced section so the popup can better match different desktop and taskbar setups
+- Added a shared `message_boxes.py` helper to normalize dialog button semantics, destructive confirmations, escape behavior, and opt-out escape hatches (`prefer_native` / `preserve_initial_focus`)
+
+### Changed
+- Translation-overlay opacity now affects only surface layers instead of fading the translated text; the opacity chip now supports direct input, `+ / -` steps are 5, and the top bar temporarily returns to full opacity on hover
+- Replaced the overlay Pin text button with a more intuitive pushpin icon while keeping tooltip and accessibility naming intact
+- Relaxed overlay auto-expansion limits so the popup can grow closer to the taskbar while still respecting a configurable safe gap and never auto-touching the taskbar
+- Reworked destructive confirmations for profile / preset deletion to use explicit action labels (`Cancel` / `Delete …`) instead of ambiguous `Yes / No`
+- Reordered advanced settings so overlay margin now sits last, and renamed the auto-expand safe-margin fields to make their overlay scope explicit
+
+### Fixed
+- Fixed dark-mode text selection in editable inputs and numeric fields so selected text no longer turns black and unreadable
+- Fixed overly bright initial focus rings / occasional white outlines in overlays and confirmation dialogs, plus the delayed focus-clear error log after cancelling a dialog
+- Added regression coverage for overlay opacity behavior, message-box helpers, configurable safe margins, and dark-mode selection foregrounds
+
 ## [0.9.2] - 2026-04-04
 
 ### Added

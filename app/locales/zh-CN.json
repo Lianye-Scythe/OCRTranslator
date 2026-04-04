@@ -98,6 +98,8 @@
   "overlay_width": "浮窗基准宽度",
   "overlay_height": "浮窗基准高度",
   "overlay_margin": "浮窗边距",
+  "overlay_auto_expand_top_margin": "浮窗自动扩展顶部安全边距",
+  "overlay_auto_expand_bottom_margin": "浮窗自动扩展底部安全边距",
   "save_settings": "保存设置",
   "start_capture": "开始框选截图",
   "minimize_to_tray": "最小化到系统托盘",

@@ -1,5 +1,4 @@
-from PySide6.QtWidgets import QMessageBox
-
+from .message_boxes import show_destructive_confirmation, show_information_message, show_warning_message
 from ..models import PromptPreset
 from ..settings_service import build_prompt_preset_from_snapshot, validate_prompt_preset_name as validate_prompt_preset_name_rule
 
@@ -128,13 +127,19 @@ class MainWindowPromptPresetsMixin:
         if not self.resolve_unsaved_changes():
             return
         if self.active_prompt_preset_is_builtin():
-            QMessageBox.information(self, self.tr("warning_title"), self.tr("builtin_prompt_preset_locked"))
+            show_information_message(self, self.tr("warning_title"), self.tr("builtin_prompt_preset_locked"))
             return
         if len(self.config.prompt_presets) <= 1:
-            QMessageBox.warning(self, self.tr("warning_title"), self.tr("at_least_one_prompt_preset"))
+            show_warning_message(self, self.tr("warning_title"), self.tr("at_least_one_prompt_preset"))
             return
         name = self.config.active_prompt_preset_name
-        if QMessageBox.question(self, self.tr("confirm_title"), self.tr("confirm_delete_prompt_preset", name=name)) != QMessageBox.Yes:
+        if not show_destructive_confirmation(
+            self,
+            self.tr("confirm_title"),
+            self.tr("confirm_delete_prompt_preset", name=name),
+            confirm_text=self.tr("delete_prompt_preset"),
+            cancel_text=self.tr("unsaved_changes_cancel"),
+        ):
             return
         self.config.prompt_presets = [preset for preset in self.config.prompt_presets if preset.name != name]
         self.config.active_prompt_preset_name = self.config.prompt_presets[0].name

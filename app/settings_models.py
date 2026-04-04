@@ -23,6 +23,8 @@ class SettingsFormSnapshot:
     overlay_width: int = 440
     overlay_height: int = 520
     overlay_margin: int = 18
+    overlay_auto_expand_top_margin: int = 42
+    overlay_auto_expand_bottom_margin: int = 24
     close_to_tray_on_close: bool = False
     mode: str = "book_lr"
     prompt_preset_name: str = ""

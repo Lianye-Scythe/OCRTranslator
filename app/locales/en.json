@@ -98,6 +98,8 @@
   "overlay_width": "Overlay Base Width",
   "overlay_height": "Overlay Base Height",
   "overlay_margin": "Overlay Margin",
+  "overlay_auto_expand_top_margin": "Overlay Auto-expand Top Safe Margin",
+  "overlay_auto_expand_bottom_margin": "Overlay Auto-expand Bottom Safe Margin",
   "save_settings": "Save Settings",
   "start_capture": "Start Capture",
   "minimize_to_tray": "Minimize to Tray",

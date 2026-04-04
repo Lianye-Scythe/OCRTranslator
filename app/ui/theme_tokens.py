@@ -142,7 +142,7 @@ def _compatibility_tokens(scheme: dict[str, str]) -> dict[str, str]:
     return {
         "accent": scheme["primary"],
         "accent_soft": scheme["primary_container"],
-        "accent_focus": scheme["primary"],
+        "accent_focus": scheme["primary_focus"],
         "accent_hover": scheme["primary_hover"],
         "accent_border": scheme["secondary_border"],
         "on_accent": scheme["on_primary"],
@@ -208,7 +208,7 @@ def _ui_role_tokens(scheme: dict[str, str]) -> dict[str, str]:
         "nav_selected_bg": scheme["secondary_container"],
         "nav_selected_border": scheme["secondary_border"],
         "nav_selected_fg": scheme["on_secondary_container"],
-        "nav_focus_border": scheme["primary"],
+        "nav_focus_border": scheme["primary_focus"],
         "panel_bg": scheme["surface_container_low"],
         "panel_border": scheme["outline_variant"],
         "monitor_card_bg": scheme["surface_container"],
@@ -217,7 +217,7 @@ def _ui_role_tokens(scheme: dict[str, str]) -> dict[str, str]:
         "field_fg": scheme["on_surface"],
         "field_border": scheme["outline"],
         "field_focus_bg": scheme["surface_bright"],
-        "field_focus_border": scheme["primary"],
+        "field_focus_border": scheme["primary_focus"],
         "field_invalid_bg": scheme["error_container"],
         "field_invalid_border": scheme["error"],
         "selection_bg": scheme["primary_container"],
@@ -265,7 +265,7 @@ def _ui_role_tokens(scheme: dict[str, str]) -> dict[str, str]:
         "overlay_action_hover_bg": scheme["surface_container_high"],
         "overlay_action_hover_border": scheme["outline_variant"],
         "overlay_action_hover_fg": scheme["on_surface"],
-        "overlay_focus_border": scheme["primary"],
+        "overlay_focus_border": scheme["primary_focus"],
         "scrollbar_handle": scheme["scrollbar_handle"],
     }
 

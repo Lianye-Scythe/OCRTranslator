@@ -20,11 +20,12 @@ def show_error(message: str, *, prefer_native: bool = False):
             pass
 
     try:
-        from PySide6.QtWidgets import QApplication, QMessageBox
+        from PySide6.QtWidgets import QApplication
+        from .ui.message_boxes import show_critical_message
 
         created_app = QApplication.instance() is None
         app = QApplication.instance() or QApplication([])
-        QMessageBox.critical(None, _ERROR_TITLE, message)
+        show_critical_message(None, _ERROR_TITLE, message)
         if created_app:
             app.quit()
         return

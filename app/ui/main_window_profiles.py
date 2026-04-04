@@ -9,6 +9,13 @@ from ..app_defaults import DEFAULT_THEME_MODE, PROVIDER_LABELS, normalize_theme_
 from ..hotkey_utils import hotkey_has_modifier as hotkey_has_modifier_rule
 from ..i18n import I18N
 from ..models import ApiProfile, AppConfig
+from .message_boxes import (
+    MessageBoxAction,
+    show_critical_message,
+    show_custom_message_box,
+    show_destructive_confirmation,
+    show_warning_message,
+)
 from ..profile_utils import (
     default_base_url_for_provider,
     default_model_for_provider,
@@ -64,23 +71,19 @@ class MainWindowProfilesMixin:
         self.load_prompt_preset_to_form(self.config.active_prompt_preset_name)
 
     def prompt_unsaved_changes(self) -> QMessageBox.StandardButton:
-        dialog = QMessageBox(self)
-        dialog.setIcon(QMessageBox.Warning)
-        dialog.setWindowTitle(self.tr("unsaved_changes_title"))
-        dialog.setText(self.tr("unsaved_changes_message"))
-        save_button = dialog.addButton(self.tr("unsaved_changes_save"), QMessageBox.AcceptRole)
-        discard_button = dialog.addButton(self.tr("unsaved_changes_discard"), QMessageBox.DestructiveRole)
-        cancel_button = dialog.addButton(self.tr("unsaved_changes_cancel"), QMessageBox.RejectRole)
-        dialog.setDefaultButton(save_button)
-        dialog.exec()
-        clicked = dialog.clickedButton()
-        if clicked == save_button:
-            return QMessageBox.Save
-        if clicked == discard_button:
-            return QMessageBox.Discard
-        if clicked == cancel_button:
-            return QMessageBox.Cancel
-        return QMessageBox.Cancel
+        return show_custom_message_box(
+            self,
+            self.tr("unsaved_changes_title"),
+            self.tr("unsaved_changes_message"),
+            icon=QMessageBox.Warning,
+            actions=[
+                MessageBoxAction(self.tr("unsaved_changes_save"), QMessageBox.AcceptRole, QMessageBox.Save, variant="primary", is_default=True),
+                MessageBoxAction(self.tr("unsaved_changes_discard"), QMessageBox.DestructiveRole, QMessageBox.Discard, variant="danger"),
+                MessageBoxAction(self.tr("unsaved_changes_cancel"), QMessageBox.RejectRole, QMessageBox.Cancel, variant="neutral", is_escape=True),
+            ],
+            preserve_initial_focus=False,
+            escape_result=QMessageBox.Cancel,
+        )
 
     def resolve_unsaved_changes(self, *, for_exit: bool = False) -> bool:
         if not getattr(self, "has_unsaved_changes", False):
@@ -307,6 +310,8 @@ class MainWindowProfilesMixin:
             overlay_width=self.overlay_width_spin.value(),
             overlay_height=self.overlay_height_spin.value(),
             overlay_margin=self.overlay_margin_spin.value(),
+            overlay_auto_expand_top_margin=self.overlay_auto_expand_top_margin_spin.value(),
+            overlay_auto_expand_bottom_margin=self.overlay_auto_expand_bottom_margin_spin.value(),
             close_to_tray_on_close=self.close_to_tray_on_close_checkbox.isChecked(),
             mode=self.mode_combo.currentData() or self.config.mode,
             prompt_preset_name=self.prompt_preset_name_edit.text().strip() or current_prompt_preset.name,
@@ -598,6 +603,8 @@ class MainWindowProfilesMixin:
             self.overlay_width_spin.setValue(self.config.overlay_width)
             self.overlay_height_spin.setValue(self.config.overlay_height)
             self.overlay_margin_spin.setValue(self.config.margin)
+            self.overlay_auto_expand_top_margin_spin.setValue(int(getattr(self.config, "overlay_auto_expand_top_margin", 42)))
+            self.overlay_auto_expand_bottom_margin_spin.setValue(int(getattr(self.config, "overlay_auto_expand_bottom_margin", 24)))
             self.close_to_tray_on_close_checkbox.setChecked(bool(getattr(self.config, "close_to_tray_on_close", False)))
             self.update_mode_options(self.config.mode)
         finally:
@@ -650,10 +657,16 @@ class MainWindowProfilesMixin:
         if not self.resolve_unsaved_changes():
             return
         if len(self.config.api_profiles) <= 1:
-            QMessageBox.warning(self, self.tr("warning_title"), self.tr("at_least_one_profile"))
+            show_warning_message(self, self.tr("warning_title"), self.tr("at_least_one_profile"))
             return
         name = self.config.active_profile_name
-        if QMessageBox.question(self, self.tr("confirm_title"), self.tr("confirm_delete_profile", name=name)) != QMessageBox.Yes:
+        if not show_destructive_confirmation(
+            self,
+            self.tr("confirm_title"),
+            self.tr("confirm_delete_profile", name=name),
+            confirm_text=self.tr("delete_profile"),
+            cancel_text=self.tr("unsaved_changes_cancel"),
+        ):
             return
         self.config.api_profiles = [profile for profile in self.config.api_profiles if profile.name != name]
         self.config.active_profile_name = self.config.api_profiles[0].name
@@ -717,7 +730,7 @@ class MainWindowProfilesMixin:
                     self.log(f"Failed to restore previous hotkeys after save abort: {restore_exc}")
                 self.set_status("hotkey_register_failed", error=exc)
                 self.log(f"Settings not saved because hotkey registration failed: {exc}")
-                QMessageBox.critical(self, self.tr("error_title"), self.tr("save_settings_aborted_hotkeys", error=exc))
+                show_critical_message(self, self.tr("error_title"), self.tr("save_settings_aborted_hotkeys", error=exc))
                 return False
 
             self.config = candidate_config

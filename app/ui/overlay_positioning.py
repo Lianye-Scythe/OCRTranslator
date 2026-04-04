@@ -2,6 +2,17 @@ from PySide6.QtCore import QPoint, QRect
 from PySide6.QtGui import QGuiApplication
 
 
+def overlay_vertical_safe_margins(config) -> tuple[int, int]:
+    margin = int(getattr(config, "margin", 18) or 18)
+    default_top_margin = max(42, margin * 2)
+    default_bottom_margin = max(16, margin + 6)
+    top_margin = int(getattr(config, "overlay_auto_expand_top_margin", default_top_margin) or 0)
+    bottom_margin = int(getattr(config, "overlay_auto_expand_bottom_margin", default_bottom_margin) or default_bottom_margin)
+    top_margin = max(0, min(200, top_margin))
+    bottom_margin = max(8, min(200, bottom_margin))
+    return top_margin, bottom_margin
+
+
 def get_screen_rect_for_point(point: QPoint) -> QRect:
     screen = QGuiApplication.screenAt(point) or QGuiApplication.primaryScreen()
     return screen.availableGeometry() if screen else QRect(0, 0, 1920, 1080)
@@ -26,13 +37,12 @@ def clamp_rect_to_visible_screen(rect: QRect) -> QRect:
 
 def clamp_overlay_size_to_screen(config, translation_overlay, screen_rect: QRect, text: str, width: int, height: int) -> tuple[int, int]:
     margin = config.margin
-    vertical_comfort_margin = max(42, margin * 2)
+    top_margin, bottom_margin = overlay_vertical_safe_margins(config)
     width = min(width, max(240, screen_rect.width() - margin * 2))
-    available_height = max(220, screen_rect.height() - vertical_comfort_margin * 2)
-    moderate_height_cap = max(260, int(screen_rect.height() * 0.72))
+    available_height = max(220, screen_rect.height() - top_margin - bottom_margin)
     desired_height = translation_overlay.measure_content_height(text, width)
     height = max(height, desired_height)
-    height = min(height, available_height, moderate_height_cap)
+    height = min(height, available_height)
     return int(width), int(height)
 
 
@@ -51,8 +61,9 @@ def fit_overlay_size(config, translation_overlay, bbox, text: str, width: int, h
         preferred_width = left_space if ((left + right) / 2) >= screen_rect.center().x() else right_space
         width = min(width, preferred_width)
     else:
-        top_space = max(200, top - screen_top - margin * 2)
-        bottom_space = max(200, screen_bottom - bottom - margin * 2)
+        top_margin, bottom_margin = overlay_vertical_safe_margins(config)
+        top_space = max(200, top - screen_top - top_margin)
+        bottom_space = max(200, screen_bottom - bottom - bottom_margin)
         preferred_height = bottom_space if ((top + bottom) / 2) < screen_rect.center().y() else top_space
         height = min(height, preferred_height)
 
@@ -63,8 +74,7 @@ def compute_overlay_position(config, bbox, width: int, height: int) -> tuple[int
     left, top, right, bottom = bbox
     screen_rect = get_target_screen_rect(bbox)
     margin = config.margin
-    soft_top_margin = max(42, margin * 2)
-    soft_bottom_margin = soft_top_margin
+    soft_top_margin, soft_bottom_margin = overlay_vertical_safe_margins(config)
     screen_left = screen_rect.left()
     screen_top = screen_rect.top()
     screen_right = screen_rect.right()
@@ -93,9 +103,9 @@ def compute_overlay_position(config, bbox, width: int, height: int) -> tuple[int
         prefer_below = center_y < screen_rect.center().y()
         preferred_y = bottom + margin if prefer_below else top - height - margin
         alternate_y = top - height - margin if prefer_below else bottom + margin
-        if screen_top + margin <= preferred_y <= screen_bottom - height - margin + 1:
+        if screen_top + soft_top_margin <= preferred_y <= screen_bottom - height - soft_bottom_margin + 1:
             y = preferred_y
-        elif screen_top + margin <= alternate_y <= screen_bottom - height - margin + 1:
+        elif screen_top + soft_top_margin <= alternate_y <= screen_bottom - height - soft_bottom_margin + 1:
             y = alternate_y
         else:
             y = clamp_y(preferred_y)
@@ -106,8 +116,7 @@ def compute_overlay_position(config, bbox, width: int, height: int) -> tuple[int
 def compute_overlay_position_for_point(config, anchor_point: QPoint, width: int, height: int) -> tuple[int, int]:
     screen_rect = get_screen_rect_for_point(anchor_point)
     margin = config.margin
-    soft_top_margin = max(42, margin * 2)
-    soft_bottom_margin = soft_top_margin
+    soft_top_margin, soft_bottom_margin = overlay_vertical_safe_margins(config)
 
     def clamp_x(value: int) -> int:
         return max(screen_rect.left() + margin, min(value, screen_rect.right() - width - margin + 1))

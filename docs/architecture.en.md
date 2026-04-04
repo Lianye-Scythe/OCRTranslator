@@ -102,6 +102,8 @@ OCRTranslator/
 │     ├─ main_window_profiles.py     # profile form binding, validation rendering, hotkey recording
 │     ├─ main_window_prompts.py      # prompt preset form logic and built-in preset protection
 │     ├─ main_window_settings_layout.py # workflow-first settings layout (connection / translation / advanced)
+│     ├─ focus_utils.py              # shared post-click focus clearing and safe clearFocus helpers
+│     ├─ message_boxes.py            # shared message-box helper, destructive confirmations, and escape hatches
 │     ├─ overlay_positioning.py      # overlay position, size, and screen-bound calculations
 │     ├─ prompt_input_dialog.py      # manual text input dialog
 │     ├─ selection_overlay.py        # full-screen selection overlay

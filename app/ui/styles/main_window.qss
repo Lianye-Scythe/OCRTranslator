@@ -241,6 +241,7 @@ QDoubleSpinBox {
     padding:10px 12px;
     color:{{field_fg}};
     selection-background-color:{{accent_soft}};
+    selection-color:{{field_fg}};
     min-height:18px;
 }
 
@@ -430,6 +431,70 @@ QPushButton[variant="danger"] {
 
 QPushButton[variant="danger"]:hover {
     background:{{button_danger_bg}};
+}
+
+QMessageBox[messageBox="true"] {
+    background:{{panel_bg}};
+}
+
+QMessageBox[messageBox="true"] QLabel {
+    background:transparent;
+}
+
+QMessageBox[messageBox="true"] QLabel#qt_msgbox_label {
+    color:{{text_primary}};
+    font-size:14px;
+    font-weight:600;
+    min-width:300px;
+    padding-top:2px;
+}
+
+QMessageBox[messageBox="true"] QLabel#qt_msgbox_informativelabel {
+    color:{{text_secondary}};
+    font-size:12px;
+    padding-top:6px;
+}
+
+QMessageBox[messageBox="true"] QLabel#qt_msgboxex_icon_label {
+    min-width:48px;
+    min-height:48px;
+    max-width:48px;
+    max-height:48px;
+    border-radius:14px;
+    padding-right:10px;
+}
+
+QMessageBox[messageBox="true"][messageBoxTone="information"] QLabel#qt_msgboxex_icon_label {
+    background:{{accent_soft}};
+    border:1px solid {{accent_focus}};
+}
+
+QMessageBox[messageBox="true"][messageBoxTone="question"] QLabel#qt_msgboxex_icon_label {
+    background:{{surface_hover}};
+    border:1px solid {{border_soft}};
+}
+
+QMessageBox[messageBox="true"][messageBoxTone="warning"] QLabel#qt_msgboxex_icon_label {
+    background:{{button_warning_bg}};
+    border:1px solid {{button_warning_border}};
+}
+
+QMessageBox[messageBox="true"][messageBoxTone="critical"] QLabel#qt_msgboxex_icon_label,
+QMessageBox[messageBox="true"][messageBoxTone="destructive"] QLabel#qt_msgboxex_icon_label {
+    background:{{danger_surface}};
+    border:1px solid {{danger_border}};
+}
+
+QMessageBox[messageBox="true"] QPushButton {
+    min-width:92px;
+}
+
+QMessageBox[messageBox="true"][messageBoxTone="destructive"] QPushButton[variant="danger"] {
+    min-width:104px;
+}
+
+QMessageBox[messageBox="true"] QDialogButtonBox {
+    background:transparent;
 }
 
 #ThemeModeSwitch {

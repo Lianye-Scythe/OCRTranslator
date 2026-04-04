@@ -20,7 +20,7 @@
 
 ## 推荐分发内容
 
-建议优先上传带版本号的压缩包，文件名包含项目名称、版本号与平台信息，例如：`OCRTranslator-v0.9.2-windows-x64.zip`。
+建议优先上传带版本号的压缩包，文件名包含项目名称、版本号与平台信息，例如：`OCRTranslator-v0.9.3-windows-x64.zip`。
 
 ```text
 release\OCRTranslator-v<version>-windows-x64.zip

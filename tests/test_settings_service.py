@@ -1,4 +1,11 @@
+import sys
+import types
 import unittest
+
+if "pynput" not in sys.modules:
+    pynput_stub = types.ModuleType("pynput")
+    pynput_stub.keyboard = types.SimpleNamespace(Listener=object)
+    sys.modules["pynput"] = pynput_stub
 
 from app.models import ApiProfile, AppConfig, PromptPreset
 from app.settings_models import SettingsFormSnapshot
@@ -28,6 +35,8 @@ class SettingsServiceTests(unittest.TestCase):
             "overlay_width": 500,
             "overlay_height": 600,
             "overlay_margin": 20,
+            "overlay_auto_expand_top_margin": 56,
+            "overlay_auto_expand_bottom_margin": 18,
             "close_to_tray_on_close": True,
             "mode": "web_ud",
             "prompt_preset_name": "Translate",
@@ -128,6 +137,8 @@ class SettingsServiceTests(unittest.TestCase):
         self.assertEqual(profile.provider, "openai")
         self.assertEqual(prompt_preset.name, "Translate")
         self.assertEqual(candidate_config.api_profiles[0].api_keys, ["key-1", "key-2"])
+        self.assertEqual(candidate_config.overlay_auto_expand_top_margin, 56)
+        self.assertEqual(candidate_config.overlay_auto_expand_bottom_margin, 18)
 
 
 if __name__ == "__main__":
