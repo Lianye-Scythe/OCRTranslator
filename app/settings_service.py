@@ -29,6 +29,20 @@ def snapshot_hotkeys(snapshot: SettingsFormSnapshot) -> dict[str, str]:
     }
 
 
+def _validation_scope_flags(scope: str) -> dict[str, bool]:
+    normalized = str(scope or "save").strip().lower() or "save"
+    return {
+        "validate_names": normalized == "save",
+        "validate_api": normalized in {"save", "fetch_models", "test_profile", "image_request", "text_request"},
+        "require_model": normalized in {"save", "test_profile", "image_request", "text_request"},
+        "validate_prompts": normalized in {"save", "image_request", "text_request"},
+        "require_image_prompt": normalized in {"save", "image_request"},
+        "require_text_prompt": normalized in {"save", "text_request"},
+        "require_target_language": normalized in {"save", "image_request", "text_request"},
+        "validate_hotkeys": normalized == "save",
+    }
+
+
 def validate_settings_snapshot(
     snapshot: SettingsFormSnapshot,
     *,
@@ -39,80 +53,87 @@ def validate_settings_snapshot(
     normalize_hotkey,
     hotkey_has_modifier,
     tr,
+    scope: str = "save",
 ) -> SettingsValidationResult:
     issues: list[ValidationIssue] = []
+    flags = _validation_scope_flags(scope)
 
     def add_issue(field_key: str, category: str, message: str):
         issues.append(ValidationIssue(field_key=field_key, category=category, message=message))
 
-    try:
-        validate_profile_name(snapshot.profile_name, existing_profile_names, current_profile_name, fallback_name=tr("untitled_profile"))
-    except ValueError as exc:
-        add_issue("profile_name", "api", tr("profile_name_exists", name=str(exc)))
+    if flags["validate_names"]:
+        try:
+            validate_profile_name(snapshot.profile_name, existing_profile_names, current_profile_name, fallback_name=tr("untitled_profile"))
+        except ValueError as exc:
+            add_issue("profile_name", "api", tr("profile_name_exists", name=str(exc)))
 
-    base_url = snapshot.base_url.strip()
-    if not base_url:
-        add_issue("base_url", "api", tr("validation_base_url_required"))
-    elif not base_url.lower().startswith(("http://", "https://")):
-        add_issue("base_url", "api", tr("validation_base_url_scheme"))
+    if flags["validate_api"]:
+        base_url = snapshot.base_url.strip()
+        if not base_url:
+            add_issue("base_url", "api", tr("validation_base_url_required"))
+        elif not base_url.lower().startswith(("http://", "https://")):
+            add_issue("base_url", "api", tr("validation_base_url_scheme"))
 
-    if not snapshot.model_text.strip():
-        add_issue("model", "api", tr("validation_model_required"))
+        if flags["require_model"] and not snapshot.model_text.strip():
+            add_issue("model", "api", tr("validation_model_required"))
 
-    if not unique_non_empty(snapshot.api_keys_text.splitlines()):
-        add_issue("api_keys", "api", tr("validation_api_keys_required"))
+        if not unique_non_empty(snapshot.api_keys_text.splitlines()):
+            add_issue("api_keys", "api", tr("validation_api_keys_required"))
 
-    try:
-        validate_prompt_preset_name(
-            snapshot.prompt_preset_name,
-            existing_prompt_preset_names,
-            current_prompt_preset_name,
-            fallback_name=tr("untitled_prompt_preset"),
-        )
-    except ValueError as exc:
-        add_issue("prompt_preset_name", "prompt", tr("prompt_preset_name_exists", name=str(exc)))
+    if flags["validate_names"]:
+        try:
+            validate_prompt_preset_name(
+                snapshot.prompt_preset_name,
+                existing_prompt_preset_names,
+                current_prompt_preset_name,
+                fallback_name=tr("untitled_prompt_preset"),
+            )
+        except ValueError as exc:
+            add_issue("prompt_preset_name", "prompt", tr("prompt_preset_name_exists", name=str(exc)))
 
-    if not snapshot.image_prompt.strip():
-        add_issue("image_prompt", "prompt", tr("validation_prompt_image_required"))
-    if not snapshot.text_prompt.strip():
-        add_issue("text_prompt", "prompt", tr("validation_prompt_text_required"))
+    if flags["validate_prompts"]:
+        if flags["require_image_prompt"] and not snapshot.image_prompt.strip():
+            add_issue("image_prompt", "prompt", tr("validation_prompt_image_required"))
+        if flags["require_text_prompt"] and not snapshot.text_prompt.strip():
+            add_issue("text_prompt", "prompt", tr("validation_prompt_text_required"))
 
-    if not snapshot.target_language.strip():
+    if flags["require_target_language"] and not snapshot.target_language.strip():
         add_issue("target_language", "reading", tr("validation_target_language_required"))
 
-    hotkeys = snapshot_hotkeys(snapshot)
-    normalized_hotkeys: dict[str, str] = {}
-    for field_key, hotkey_value in hotkeys.items():
-        if snapshot.active_record_target == field_key:
-            add_issue(field_key, "reading", tr("validation_hotkey_recording"))
-            continue
-        if not hotkey_value:
-            add_issue(field_key, "reading", tr("validation_hotkey_required"))
-            continue
-        try:
-            normalized = normalize_hotkey(hotkey_value)
-            if not hotkey_has_modifier(hotkey_value):
-                add_issue(field_key, "reading", tr("validation_hotkey_requires_modifier"))
+    if flags["validate_hotkeys"]:
+        hotkeys = snapshot_hotkeys(snapshot)
+        normalized_hotkeys: dict[str, str] = {}
+        for field_key, hotkey_value in hotkeys.items():
+            if snapshot.active_record_target == field_key:
+                add_issue(field_key, "reading", tr("validation_hotkey_recording"))
                 continue
-            if normalized in normalized_hotkeys:
-                add_issue(field_key, "reading", tr("validation_hotkey_duplicate", hotkey=hotkey_value))
-                add_issue(normalized_hotkeys[normalized], "reading", tr("validation_hotkey_duplicate", hotkey=hotkey_value))
+            if not hotkey_value:
+                add_issue(field_key, "reading", tr("validation_hotkey_required"))
                 continue
-            normalized_hotkeys[normalized] = field_key
-        except Exception as exc:  # noqa: BLE001
-            add_issue(field_key, "reading", tr("validation_hotkey_invalid", error=exc))
+            try:
+                normalized = normalize_hotkey(hotkey_value)
+                if not hotkey_has_modifier(hotkey_value):
+                    add_issue(field_key, "reading", tr("validation_hotkey_requires_modifier"))
+                    continue
+                if normalized in normalized_hotkeys:
+                    add_issue(field_key, "reading", tr("validation_hotkey_duplicate", hotkey=hotkey_value))
+                    add_issue(normalized_hotkeys[normalized], "reading", tr("validation_hotkey_duplicate", hotkey=hotkey_value))
+                    continue
+                normalized_hotkeys[normalized] = field_key
+            except Exception as exc:  # noqa: BLE001
+                add_issue(field_key, "reading", tr("validation_hotkey_invalid", error=exc))
 
-    for kind, left_action, right_action in find_hotkey_conflicts(hotkeys):
-        if kind == "duplicate":
-            message = tr("validation_hotkey_duplicate", hotkey=hotkeys.get(left_action) or hotkeys.get(right_action) or "")
-        else:
-            message = tr(
-                "validation_hotkey_conflict",
-                hotkey_a=hotkeys.get(left_action, ""),
-                hotkey_b=hotkeys.get(right_action, ""),
-            )
-        add_issue(left_action, "reading", message)
-        add_issue(right_action, "reading", message)
+        for kind, left_action, right_action in find_hotkey_conflicts(hotkeys):
+            if kind == "duplicate":
+                message = tr("validation_hotkey_duplicate", hotkey=hotkeys.get(left_action) or hotkeys.get(right_action) or "")
+            else:
+                message = tr(
+                    "validation_hotkey_conflict",
+                    hotkey_a=hotkeys.get(left_action, ""),
+                    hotkey_b=hotkeys.get(right_action, ""),
+                )
+            add_issue(left_action, "reading", message)
+            add_issue(right_action, "reading", message)
 
     return SettingsValidationResult(issues=issues)
 

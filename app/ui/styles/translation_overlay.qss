@@ -1,6 +1,6 @@
 #overlayCard {
-    background:qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #141c28, stop:1 #101720);
-    border:1px solid #253244;
+    background:qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #141c28, stop:1 {{surface_base}});
+    border:1px solid {{border_base}};
     border-radius:22px;
 }
 #overlayHeader {
@@ -10,27 +10,27 @@
     border-bottom:1px solid #263448;
 }
 #overlayTitleLabel {
-    color:#f4efe6;
+    color:{{text_emphasis}};
     font-size:14px;
     font-weight:700;
 }
 #overlayValueChip {
     background:#121c2a;
     color:#dbe5f8;
-    border:1px solid #31425a;
+    border:1px solid {{border_soft}};
     border-radius:12px;
     padding:0 10px;
     font-size:12px;
     font-weight:700;
 }
 #overlayBody {
-    background:#101720;
-    color:#eef3fb;
+    background:{{surface_base}};
+    color:{{text_primary}};
     border:none;
     padding:14px 16px 16px 16px;
     border-bottom-left-radius:22px;
     border-bottom-right-radius:22px;
-    selection-background-color:#7489ff;
+    selection-background-color:{{accent}};
 }
 #overlayCloseButton {
     background:#182130;
@@ -43,22 +43,22 @@
 #overlayActionButton {
     background:#1d293a;
     color:#edf2fb;
-    border:1px solid #31425a;
+    border:1px solid {{border_soft}};
     border-radius:12px;
     padding:0 12px;
     font-weight:700;
 }
 #overlayActionButton:checked {
-    background:#7489ff;
+    background:{{accent}};
     color:#0f1420;
-    border:1px solid #93a3ff;
+    border:1px solid {{accent_soft}};
 }
 #overlayCloseButton:hover {
     background:#1d2839;
 }
 #overlayActionButton:focus,
 #overlayCloseButton:focus {
-    border:1px solid #90a4ff;
+    border:1px solid {{accent_focus}};
 }
 #overlayActionButton:hover {
     background:#243245;
@@ -69,7 +69,7 @@ QScrollBar:vertical {
     background:transparent;
 }
 QScrollBar::handle:vertical {
-    background:#2d3a4c;
+    background:{{scroll_handle}};
     border-radius:5px;
     min-height:28px;
 }

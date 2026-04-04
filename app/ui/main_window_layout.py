@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 from ..app_metadata import AUTHOR_NAME_EN, AUTHOR_NAME_ZH, REPOSITORY_NAME, REPOSITORY_URL
 from ..profile_utils import normalize_provider_name
 from .style_utils import load_style_sheet
+from .theme_tokens import color, qcolor
 
 
 class ScrollSafeComboBox(QComboBox):
@@ -143,8 +144,10 @@ class MainWindowLayoutMixin:
         sidebar_layout.addWidget(self.quick_actions_label)
 
         self.hero_capture_button = self.create_button(self.start_selection)
-        self.hero_tray_button = self.create_button(self.minimize_to_tray, accent=False)
+        self.hero_manual_input_button = self.create_button(self.open_prompt_input_dialog, accent=False)
+        self.hero_tray_button = self.create_button(self.minimize_to_tray, accent=False, compact=True)
         sidebar_layout.addWidget(self.hero_capture_button)
+        sidebar_layout.addWidget(self.hero_manual_input_button)
         sidebar_layout.addWidget(self.hero_tray_button)
 
         self.hint_card = QFrame()
@@ -300,6 +303,7 @@ class MainWindowLayoutMixin:
         self.navigation_label.setText(self.tr("navigation"))
         self.quick_actions_label.setText(self.tr("quick_actions"))
         self.hero_capture_button.setText(self.tr("start_capture"))
+        self.hero_manual_input_button.setText(self.tr("open_manual_input"))
         self.hero_tray_button.setText(self.tr("minimize_to_tray"))
         self.nav_settings_button.setText(self.tr("tab_settings"))
         self.nav_monitor_button.setText(self.tr("tab_monitor"))
@@ -307,14 +311,14 @@ class MainWindowLayoutMixin:
         self.hint_label.setText(self.tr("hint"))
         self.about_title_label.setText(self.tr("sidebar_about_title"))
         self.about_meta_label.setText(
-            "<span style='color:#90a0b6;'>"
+            f"<span style='color:{color('text_secondary')}'>"
             f"{self.tr('about_author_label')}：</span>"
-            f"<span style='color:#eef3fb;'>{AUTHOR_NAME_ZH}</span>"
-            f" <span style='color:#70809b;'>/</span> "
-            f"<span style='color:#cfdaf0;'>{AUTHOR_NAME_EN}</span>"
+            f"<span style='color:{color('text_primary')};'>{AUTHOR_NAME_ZH}</span>"
+            f" <span style='color:{color('text_tertiary')};'>/</span> "
+            f"<span style='color:{color('text_primary')};'>{AUTHOR_NAME_EN}</span>"
             "<br/>"
-            f"<span style='color:#90a0b6;'>{self.tr('about_repo_label')}：</span>"
-            f"<a href='{REPOSITORY_URL}' style='color:#9db1ff; text-decoration:none;'>{REPOSITORY_NAME}</a>"
+            f"<span style='color:{color('text_secondary')};'>{self.tr('about_repo_label')}：</span>"
+            f"<a href='{REPOSITORY_URL}' style='color:{color('accent_soft')}; text-decoration:none;'>{REPOSITORY_NAME}</a>"
         )
         self.profile_group_title_label.setText(self.tr("section_profiles"))
         self.api_group_title_label.setText(self.tr("section_api"))
@@ -534,17 +538,17 @@ class MainWindowLayoutMixin:
         painter = QPainter(pix)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setPen(Qt.NoPen)
-        painter.setBrush(QColor("#7489ff"))
+        painter.setBrush(qcolor("accent"))
         painter.drawRoundedRect(4, 4, 56, 56, 18, 18)
-        painter.setBrush(QColor("#111722"))
+        painter.setBrush(qcolor("surface_alt"))
         painter.drawRoundedRect(13, 10, 38, 44, 13, 13)
-        painter.setPen(QPen(QColor("#f3efe5"), 4))
+        painter.setPen(QPen(qcolor("text_emphasis"), 4))
         painter.drawLine(23, 19, 23, 45)
-        painter.setPen(QPen(QColor("#d7bf88"), 4))
+        painter.setPen(QPen(qcolor("warning"), 4))
         painter.drawLine(23, 19, 38, 19)
-        painter.setPen(QPen(QColor("#f3efe5"), 3))
+        painter.setPen(QPen(qcolor("text_emphasis"), 3))
         painter.drawLine(23, 31, 44, 31)
-        painter.setPen(QPen(QColor("#a8b7ff"), 3))
+        painter.setPen(QPen(qcolor("accent_soft"), 3))
         painter.drawLine(23, 41, 39, 41)
         painter.end()
         return QIcon(pix)

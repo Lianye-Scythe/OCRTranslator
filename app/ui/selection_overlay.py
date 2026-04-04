@@ -2,6 +2,8 @@ from PySide6.QtCore import QPoint, QRect, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QGuiApplication, QMouseEvent, QPainter, QPen
 from PySide6.QtWidgets import QRubberBand, QWidget
 
+from .theme_tokens import color, qcolor
+
 
 class SelectionOverlay(QWidget):
     selected = Signal(tuple)
@@ -17,11 +19,12 @@ class SelectionOverlay(QWidget):
         self.rubber_band.setStyleSheet(
             """
             QRubberBand {
-                border:2px solid #7489ff;
-                background:rgba(116, 137, 255, 0.16);
+                border:2px solid BORDER_COLOR;
+                background:OVERLAY_SCRIM;
                 border-radius:10px;
             }
             """
+            .replace("BORDER_COLOR", color("accent")).replace("OVERLAY_SCRIM", color("overlay_scrim"))
         )
         self.origin = QPoint()
         self.hint_text = ""
@@ -87,10 +90,10 @@ class SelectionOverlay(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.fillRect(self.rect(), QColor(7, 11, 17, 160))
-        painter.setPen(QPen(QColor(167, 183, 255, 180), 1))
+        painter.setPen(QPen(qcolor("accent_soft", alpha=180), 1))
         painter.drawRect(self.rect().adjusted(0, 0, -1, -1))
         if self.hint_text:
-            painter.setPen(QColor(235, 241, 252, 220))
+            painter.setPen(qcolor("text_primary", alpha=220))
             hint_rect = self.rect().adjusted(24, 24, -24, -24)
             painter.drawText(
                 hint_rect,

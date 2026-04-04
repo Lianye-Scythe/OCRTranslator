@@ -12,52 +12,53 @@ class RequestWorkflowController:
     def __init__(self, window):
         self.window = window
 
-    def prepare_request_context(self, *, focus_first_invalid: bool = True):
+    def prepare_request_context(self, *, focus_first_invalid: bool = True, validation_scope: str = "image_request"):
         if self.window.capture_workflow_active:
-            self.window.log("Request ignored because another capture workflow is still active")
+            self.window.log_tr("log_request_ignored_capture_workflow")
             return None
         if self.window.background_busy():
-            self.window.log("Request ignored because another background operation is still running")
+            self.window.log_tr("log_request_ignored_background_busy")
             return None
-        valid, first_error = self.window.validate_form_inputs(focus_first_invalid=focus_first_invalid)
+        valid, first_error = self.window.validate_form_inputs(focus_first_invalid=focus_first_invalid, scope=validation_scope)
         if not valid:
             self.window.set_status("validation_failed")
-            self.window.log(f"Request blocked by validation: {first_error}")
+            self.window.log_tr("log_request_blocked_validation", error=first_error)
             return None
         return {
-            "profile": self.window.build_profile_from_form(),
+            "profile": self.window.build_profile_from_form(validate_name=False),
             "target_language": self.window.current_target_language(),
-            "prompt_preset": self.window.build_prompt_preset_from_form(),
+            "prompt_preset": self.window.build_prompt_preset_from_form(validate_name=False),
         }
 
     @staticmethod
-    def profile_request_signature(profile) -> tuple:
+    def profile_request_signature(profile, *, include_model: bool = False) -> tuple:
         return (
             profile.name,
             profile.provider,
             profile.base_url.strip(),
             tuple(profile.api_keys),
+            str(profile.model or "").strip() if include_model else "",
         )
 
-    def form_matches_profile_request(self, signature: tuple) -> bool:
+    def form_matches_profile_request(self, signature: tuple, *, include_model: bool = False) -> bool:
         try:
-            current_profile = self.window.build_profile_from_form()
+            current_profile = self.window.build_profile_from_form(validate_name=False)
         except Exception:  # noqa: BLE001
             return False
-        return self.profile_request_signature(current_profile) == signature
+        return self.profile_request_signature(current_profile, include_model=include_model) == signature
 
     def fetch_models(self):
         if self.window.fetch_models_in_progress or self.window.test_profile_in_progress or self.window.translation_in_progress:
             return
-        valid, first_error = self.window.validate_form_inputs(focus_first_invalid=True)
+        valid, first_error = self.window.validate_form_inputs(focus_first_invalid=True, scope="fetch_models")
         if not valid:
             self.window.set_status("validation_failed")
-            self.window.log(f"Fetch models blocked by validation: {first_error}")
+            self.window.log_tr("log_request_blocked_validation", error=first_error)
             return
-        profile = self.window.build_profile_from_form()
+        profile = self.window.build_profile_from_form(validate_name=False)
         request_id = self.window._fetch_models_request_id = self.window._fetch_models_request_id + 1
         request_signature = self.profile_request_signature(profile)
-        self.window.log(f"Fetching models for profile: {profile.name}")
+        self.window.log_tr("log_fetch_models_started", name=profile.name)
         self.window.run_worker(
             lambda request_context: (request_id, request_signature, profile.provider, self.window.api_client.list_models(profile, request_context=request_context)),
             self.on_models_loaded,
@@ -68,10 +69,10 @@ class RequestWorkflowController:
     def on_models_loaded(self, result):
         request_id, request_signature, provider, models = result
         if request_id != self.window._fetch_models_request_id:
-            self.window.log("Discarded stale model list result from an older request")
+            self.window.log_tr("log_models_stale_request")
             return
         if not self.form_matches_profile_request(request_signature):
-            self.window.log("Discarded model list result because the form changed while the request was running")
+            self.window.log_tr("log_models_stale_form")
             return
         normalized_models = unique_non_empty(normalize_model_value(item, provider) for item in models)
         if not normalized_models:
@@ -89,20 +90,20 @@ class RequestWorkflowController:
             self.window._suppress_form_tracking = False
         self.window.on_form_input_changed()
         self.window.set_status("models_loaded", count=len(normalized_models))
-        self.window.log(f"Loaded {len(normalized_models)} models")
+        self.window.log_tr("log_models_loaded", count=len(normalized_models))
 
     def test_profile(self):
         if self.window.fetch_models_in_progress or self.window.test_profile_in_progress or self.window.translation_in_progress:
             return
-        valid, first_error = self.window.validate_form_inputs(focus_first_invalid=True)
+        valid, first_error = self.window.validate_form_inputs(focus_first_invalid=True, scope="test_profile")
         if not valid:
             self.window.set_status("validation_failed")
-            self.window.log(f"Test API blocked by validation: {first_error}")
+            self.window.log_tr("log_request_blocked_validation", error=first_error)
             return
-        profile = self.window.build_profile_from_form()
+        profile = self.window.build_profile_from_form(validate_name=False)
         request_id = self.window._test_profile_request_id = self.window._test_profile_request_id + 1
-        request_signature = self.profile_request_signature(profile)
-        self.window.log(f"Testing profile: {profile.name}")
+        request_signature = self.profile_request_signature(profile, include_model=True)
+        self.window.log_tr("log_test_started", name=profile.name, model=profile.model)
         self.window.run_worker(
             lambda request_context: (request_id, request_signature, self.window.api_client.test_profile(profile, request_context=request_context)),
             self.on_test_success,
@@ -112,8 +113,8 @@ class RequestWorkflowController:
 
     def on_test_success(self, result):
         request_id, request_signature, message = result
-        if request_id != self.window._test_profile_request_id or not self.form_matches_profile_request(request_signature):
-            self.window.log("Discarded stale API test result because the form changed while the request was running")
+        if request_id != self.window._test_profile_request_id or not self.form_matches_profile_request(request_signature, include_model=True):
+            self.window.log_tr("log_test_stale_form")
             return
         self.window.log(message)
         self.window.set_status("test_success")
@@ -121,7 +122,7 @@ class RequestWorkflowController:
     def submit_text_request(self, text: str, *, profile, target_language: str, prompt_preset, anchor_point, source_key: str):
         prompt = build_text_request_prompt(prompt_preset.text_prompt, text, target_language=target_language)
         self.window.set_status(source_key)
-        self.window.log(f"Submitting text request | preset={prompt_preset.name} | chars={len(text)}")
+        self.window.log_tr("log_text_request_submitted", preset=prompt_preset.name, chars=len(text))
         self.window.show_tray_toast(self.window.tr(source_key))
         preserve_manual_position = bool(self.window.translation_overlay.isVisible() and self.window.translation_overlay.manual_positioned)
         self.window.run_worker(
@@ -137,10 +138,10 @@ class RequestWorkflowController:
         )
 
     def translate_selected_text(self):
-        request_context = self.prepare_request_context(focus_first_invalid=True)
+        request_context = self.prepare_request_context(focus_first_invalid=True, validation_scope="text_request")
         if not request_context:
             return
-        self.window.log("Attempting to capture selected text via clipboard preservation")
+        self.window.log_tr("log_selected_text_capture_started")
         self.window.set_status("selected_text_capturing")
         self.window.show_tray_toast(self.window.tr("selected_text_capturing"))
         QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
@@ -150,7 +151,7 @@ class RequestWorkflowController:
             QApplication.restoreOverrideCursor()
         if not selected_text:
             self.window.set_status("selected_text_empty")
-            self.window.log("Selected text capture returned no usable text")
+            self.window.log_tr("log_selected_text_empty")
             self.window.show_tray_toast(self.window.tr("selected_text_empty"))
             return
         self.submit_text_request(
@@ -163,7 +164,7 @@ class RequestWorkflowController:
         )
 
     def open_prompt_input_dialog(self):
-        request_context = self.prepare_request_context(focus_first_invalid=True)
+        request_context = self.prepare_request_context(focus_first_invalid=True, validation_scope="text_request")
         if not request_context:
             return
         dialog = PromptInputDialog(self.window, request_context["prompt_preset"].name, request_context["target_language"])
@@ -179,7 +180,7 @@ class RequestWorkflowController:
         )
 
     def start_selection(self):
-        request_context = self.prepare_request_context(focus_first_invalid=True)
+        request_context = self.prepare_request_context(focus_first_invalid=True, validation_scope="image_request")
         if not request_context:
             return
         restore_window_after_capture = self.window.isVisible() and not self.window.isMinimized()
@@ -191,9 +192,7 @@ class RequestWorkflowController:
             and self.window.translation_overlay.is_pinned
             and self.window.translation_overlay.last_text.strip()
         )
-        self.window.log(
-            f"Starting capture workflow | preset={self.window.pending_capture_prompt_preset.name} | target={self.window.pending_capture_target_language}"
-        )
+        self.window.log_tr("log_capture_started", preset=self.window.pending_capture_prompt_preset.name, target=self.window.pending_capture_target_language)
         self.window.capture_workflow_active = True
         self.window.restore_window_after_capture = restore_window_after_capture
         self.window.update_action_states()
@@ -213,7 +212,7 @@ class RequestWorkflowController:
             self.window.show_main_window()
 
     def handle_capture_cancelled(self):
-        self.window.log("Capture cancelled")
+        self.window.log_tr("log_capture_cancelled")
         self.finish_capture_workflow(restore_window=True)
         if self.window.restore_pinned_overlay_after_capture:
             self.window.translation_overlay.restore_last_overlay()
@@ -226,9 +225,9 @@ class RequestWorkflowController:
         self.window.update_preview(image)
         self.window.set_status("capturing")
         self.window.show_tray_toast(self.window.tr("tray_capturing"))
-        profile = self.window.pending_capture_profile or self.window.build_profile_from_form()
+        profile = self.window.pending_capture_profile or self.window.build_profile_from_form(validate_name=False)
         target_language = self.window.pending_capture_target_language or self.window.current_target_language()
-        prompt_preset = self.window.pending_capture_prompt_preset or self.window.build_prompt_preset_from_form()
+        prompt_preset = self.window.pending_capture_prompt_preset or self.window.build_prompt_preset_from_form(validate_name=False)
         prompt = build_image_request_prompt(prompt_preset.image_prompt, target_language=target_language)
         self.window.run_worker(
             lambda request_context: self.window.api_client.request_image(image, profile, prompt, self.window.current_temperature(), request_context=request_context),

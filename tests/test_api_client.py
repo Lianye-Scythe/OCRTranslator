@@ -110,7 +110,7 @@ class ApiClientTests(unittest.TestCase):
 
         with patch.object(self.client, "_image_to_base64", return_value="base64"), patch.object(self.client, "_translate_openai", side_effect=fake_translate):
             for _ in range(4):
-                self.client.translate_image(Mock(), profile, "繁體中文", 0.2)
+                self.client.request_image(Mock(), profile, "Translate into 繁體中文", 0.2)
 
         self.assertEqual(used_keys, ["key-1", "key-2", "key-3", "key-1"])
 
@@ -200,7 +200,7 @@ class ApiClientTests(unittest.TestCase):
 
         with patch.object(self.client, "_translate_openai", side_effect=RuntimeError("boom")) as mock_translate:
             with self.assertRaisesRegex(RuntimeError, "boom"):
-                self.client.translate_image(Mock(), profile, "繁體中文", 0.2)
+                self.client.request_image(Mock(), profile, "Translate into 繁體中文", 0.2)
 
         self.assertEqual(mock_translate.call_count, 2)
         mock_sleep.assert_not_called()
@@ -218,7 +218,7 @@ class ApiClientTests(unittest.TestCase):
 
         with patch.object(self.client, "_image_to_base64", return_value="base64"), patch.object(self.client, "_translate_gemini", side_effect=ApiClientError("Gemini finished without text (finishReason=PROHIBITED_CONTENT)", user_message="blocked", retryable=False)) as mock_translate:
             with self.assertRaisesRegex(ApiClientError, "PROHIBITED_CONTENT"):
-                self.client.translate_image(Mock(), profile, "繁體中文", 0.2)
+                self.client.request_image(Mock(), profile, "Translate into 繁體中文", 0.2)
 
         self.assertEqual(mock_translate.call_count, 1)
 

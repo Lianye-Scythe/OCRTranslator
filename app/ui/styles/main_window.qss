@@ -1,7 +1,7 @@
 QMainWindow, QWidget#AppRoot {
-    background:#0b1017;
-    color:#e7edf7;
-    font-family:'Segoe UI Variable Text','Segoe UI','Microsoft JhengHei UI';
+    background:{{surface_app}};
+    color:{{text_base}};
+    font-family:{{font_ui}};
     font-size:13px;
 }
 QWidget {
@@ -19,7 +19,7 @@ QScrollArea#SidebarScrollArea > QWidget > QWidget {
     border-radius:26px;
 }
 #BrandTitle {
-    color:#f4efe6;
+    color:{{text_emphasis}};
     font-size:24px;
     font-weight:800;
     padding-bottom:2px;
@@ -47,26 +47,26 @@ QScrollArea#SidebarScrollArea > QWidget > QWidget {
     font-weight:700;
 }
 #NavButton:hover {
-    background:#141d29;
+    background:{{surface_hover}};
     border-color:#243244;
-    color:#eef3fb;
+    color:{{text_primary}};
 }
 #NavButton:checked {
     background:qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 #1a2435, stop:1 #162030);
-    border:1px solid #7085ff;
+    border:1px solid {{accent_border}};
     color:#f7f9fe;
 }
 #NavButton:focus {
-    border:1px solid #90a4ff;
+    border:1px solid {{accent_focus}};
     color:#f7f9fe;
 }
 #HintCard {
-    background:#101722;
+    background:{{surface_alt}};
     border:1px solid #202c3b;
     border-radius:20px;
 }
 #HintTitleLabel {
-    color:#d7bf88;
+    color:{{warning}};
     font-size:13px;
     font-weight:700;
     padding-bottom:3px;
@@ -81,7 +81,7 @@ QScrollArea#SidebarScrollArea > QWidget > QWidget {
     border-radius:20px;
 }
 QCheckBox {
-    color:#d9e3f8;
+    color:{{text_chip}};
     spacing:10px;
     font-size:13px;
     font-weight:600;
@@ -90,22 +90,22 @@ QCheckBox::indicator {
     width:18px;
     height:18px;
     border-radius:6px;
-    border:1px solid #31425a;
-    background:#0c131c;
+    border:1px solid {{border_soft}};
+    background:{{surface_input}};
 }
 QCheckBox::indicator:checked {
-    background:#7489ff;
-    border:1px solid #93a3ff;
+    background:{{accent}};
+    border:1px solid {{accent_soft}};
 }
 #AboutTitleLabel {
-    color:#d9e3f8;
+    color:{{text_chip}};
     font-size:13px;
     font-weight:700;
     padding-bottom:3px;
     min-height:18px;
 }
 #AboutMetaLabel {
-    color:#90a0b6;
+    color:{{text_secondary}};
 }
 #HeaderCard {
     background:qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #161f2d, stop:0.55 #131b28, stop:1 #0f1621);
@@ -113,7 +113,7 @@ QCheckBox::indicator:checked {
     border-radius:26px;
 }
 #PageTitleLabel {
-    color:#f4efe6;
+    color:{{text_emphasis}};
     font-size:27px;
     font-weight:800;
     padding-bottom:2px;
@@ -122,11 +122,11 @@ QCheckBox::indicator:checked {
     color:#94a1b4;
 }
 #InfoChip {
-    background:#121a26;
+    background:{{surface_panel}};
     border:1px solid #243143;
     border-radius:14px;
     padding:7px 10px;
-    color:#d9e3f8;
+    color:{{text_chip}};
     font-size:12px;
     font-weight:600;
 }
@@ -135,7 +135,7 @@ QCheckBox::indicator:checked {
     border:1px solid #2d3b50;
     border-radius:16px;
     padding:10px 14px;
-    color:#d9e3f8;
+    color:{{text_chip}};
     font-weight:700;
 }
 #PageStack, #SettingsScrollArea, #SettingsScrollContent, #SettingsTab, #MonitorTab {
@@ -143,12 +143,12 @@ QCheckBox::indicator:checked {
     border:none;
 }
 #SectionCard {
-    background:qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #121a26, stop:1 #0f1620);
+    background:qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 {{surface_panel}}, stop:1 #0f1620);
     border:1px solid #223042;
     border-radius:24px;
 }
 #SectionTitleLabel {
-    color:#f4efe6;
+    color:{{text_emphasis}};
     font-size:16px;
     font-weight:700;
 }
@@ -158,7 +158,7 @@ QCheckBox::indicator:checked {
     border-radius:18px;
 }
 QLabel {
-    color:#e7edf7;
+    color:{{text_base}};
 }
 QLineEdit,
 QPlainTextEdit,
@@ -166,8 +166,8 @@ QComboBox,
 QFontComboBox,
 QSpinBox,
 QDoubleSpinBox {
-    background:#0c131c;
-    border:1px solid #273345;
+    background:{{surface_input}};
+    border:1px solid {{border_focus}};
     border-radius:16px;
     padding:12px 14px;
     color:#f3f7fd;
@@ -251,7 +251,7 @@ QDoubleSpinBox::down-arrow {
 }
 QAbstractItemView {
     background:#121a25;
-    color:#eef3fb;
+    color:{{text_primary}};
     border:1px solid #293548;
     selection-background-color:#243452;
     selection-color:#ffffff;
@@ -269,7 +269,7 @@ QPushButton:hover {
     border-color:#4b607f;
 }
 QPushButton:focus {
-    border-color:#90a4ff;
+    border-color:{{accent_focus}};
 }
 QPushButton:pressed {
     padding-top:13px;
@@ -282,14 +282,14 @@ QPushButton[compact="true"] {
     font-size:12px;
 }
 QPushButton[variant="primary"] {
-    background:#7489ff;
+    background:{{accent}};
     color:#0e1320;
 }
 QPushButton[variant="primary"]:hover {
-    background:#899cff;
+    background:{{accent_hover}};
 }
 QPushButton[variant="secondary"] {
-    background:#202d41;
+    background:{{surface_button_secondary}};
     color:#dce6fa;
     border:1px solid #32455f;
 }
@@ -297,7 +297,7 @@ QPushButton[variant="secondary"]:hover {
     background:#26344a;
 }
 QPushButton[variant="neutral"] {
-    background:#161f2b;
+    background:{{surface_button_neutral}};
     color:#edf2fa;
     border:1px solid #283447;
 }
@@ -305,7 +305,7 @@ QPushButton[variant="neutral"]:hover {
     background:#1b2533;
 }
 QPushButton[variant="success"] {
-    background:#1f6a49;
+    background:{{surface_button_success}};
     color:#ecfff5;
     border:1px solid #2a8b60;
 }
@@ -313,7 +313,7 @@ QPushButton[variant="success"]:hover {
     background:#267a54;
 }
 QPushButton[variant="danger"] {
-    background:#402029;
+    background:{{surface_button_danger}};
     color:#ffe2e5;
     border:1px solid #70434d;
 }
@@ -328,12 +328,12 @@ QPushButton[variant="danger"]:hover {
     padding:16px;
 }
 #LogText {
-    background:#0c131c;
-    border:1px solid #273345;
+    background:{{surface_input}};
+    border:1px solid {{border_focus}};
     border-radius:18px;
     padding:14px;
     color:#d8e2f2;
-    font-family:'Cascadia Code','Consolas';
+    font-family:{{font_code}};
     font-size:12px;
 }
 #StatusLabel {
@@ -345,9 +345,9 @@ QPushButton[variant="danger"]:hover {
     font-weight:600;
 }
 #ValidationLabel {
-    color:#ffb4c1;
-    background:#24131a;
-    border:1px solid #5c2b39;
+    color:{{danger_text}};
+    background:{{danger_surface}};
+    border:1px solid {{danger_border}};
     border-radius:14px;
     padding:10px 12px;
 }
@@ -357,7 +357,7 @@ QScrollBar:vertical {
     background:transparent;
 }
 QScrollBar::handle:vertical {
-    background:#2d3a4c;
+    background:{{scroll_handle}};
     border-radius:6px;
     min-height:32px;
 }

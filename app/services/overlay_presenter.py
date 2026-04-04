@@ -82,7 +82,7 @@ class OverlayPresenter:
             self.window.restore_pinned_overlay_after_capture = False
         if not reflow_only:
             self.window.set_status("translated")
-            self.window.log(f"Request finished | preset={preset_name or 'default'}")
+            self.window.log_tr("log_request_finished", preset=preset_name or "default")
 
     def show_translation(self, bbox, text: str, *, preset_name: str = "", preserve_manual_position: bool = False, reflow_only: bool = False):
         self.show_response(

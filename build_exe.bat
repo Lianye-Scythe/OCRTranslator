@@ -16,7 +16,7 @@ if not exist "%PYTHON_EXE%" (
 )
 
 echo [OCRTranslator] Installing build dependencies...
-"%PYTHON_EXE%" -m pip install -r requirements.txt pyinstaller
+"%PYTHON_EXE%" -m pip install -r requirements-dev.txt
 if errorlevel 1 goto :install_failed
 
 if exist "build" rmdir /s /q "build"
@@ -70,7 +70,7 @@ exit /b 1
 echo.
 echo [ERROR] Failed to install build dependencies.
 echo You can try this command manually:
-echo   .venv\Scripts\python -m pip install -r requirements.txt pyinstaller
+echo   .venv\Scripts\python -m pip install -r requirements-dev.txt
 pause
 exit /b 1
 

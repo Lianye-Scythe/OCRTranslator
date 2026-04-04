@@ -55,6 +55,49 @@ class SettingsServiceTests(unittest.TestCase):
         self.assertTrue(any(issue.field_key == "selection" for issue in result.issues))
         self.assertTrue(any(issue.field_key == "input" for issue in result.issues))
 
+    def test_validate_fetch_models_scope_skips_unrelated_prompt_target_and_hotkey_rules(self):
+        snapshot = self._snapshot(
+            model_text="",
+            target_language="",
+            image_prompt="",
+            text_prompt="",
+            hotkey="",
+            selection_hotkey="",
+            input_hotkey="",
+        )
+
+        result = validate_settings_snapshot(
+            snapshot,
+            existing_profile_names={"Demo"},
+            current_profile_name="Demo",
+            existing_prompt_preset_names={"Translate"},
+            current_prompt_preset_name="Translate",
+            normalize_hotkey=lambda hotkey: hotkey.lower(),
+            hotkey_has_modifier=lambda hotkey: hotkey.lower().startswith("ctrl"),
+            tr=lambda key, **kwargs: key if not kwargs else f"{key}:{kwargs}",
+            scope="fetch_models",
+        )
+
+        self.assertTrue(result.is_valid)
+
+    def test_validate_text_request_scope_requires_only_text_prompt_and_target_language(self):
+        snapshot = self._snapshot(image_prompt="", text_prompt="", target_language="")
+
+        result = validate_settings_snapshot(
+            snapshot,
+            existing_profile_names={"Demo"},
+            current_profile_name="Demo",
+            existing_prompt_preset_names={"Translate"},
+            current_prompt_preset_name="Translate",
+            normalize_hotkey=lambda hotkey: hotkey.lower(),
+            hotkey_has_modifier=lambda hotkey: hotkey.lower().startswith("ctrl"),
+            tr=lambda key, **kwargs: key if not kwargs else f"{key}:{kwargs}",
+            scope="text_request",
+        )
+
+        self.assertFalse(result.is_valid)
+        self.assertEqual({issue.field_key for issue in result.issues}, {"text_prompt", "target_language"})
+
     def test_build_candidate_config_returns_new_config_and_keeps_original(self):
         base_config = AppConfig(
             target_language="繁體中文",

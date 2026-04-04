@@ -37,6 +37,21 @@ class MainWindowPromptPresetsMixin:
     def get_active_prompt_preset(self) -> PromptPreset:
         return self.get_prompt_preset_by_name(self.config.active_prompt_preset_name)
 
+    def active_prompt_preset_is_builtin(self) -> bool:
+        return bool(getattr(self.get_active_prompt_preset(), "builtin_id", ""))
+
+    def refresh_prompt_preset_actions(self):
+        if not hasattr(self, "delete_prompt_preset_button"):
+            return
+        if not getattr(self, "config", None) or not getattr(self.config, "prompt_presets", None):
+            return
+        deletable = not self.active_prompt_preset_is_builtin()
+        busy = bool(getattr(self, "background_busy", lambda: False)())
+        self.delete_prompt_preset_button.setEnabled(deletable and not busy)
+        self.delete_prompt_preset_button.setToolTip(
+            self.tr("builtin_prompt_preset_locked") if not deletable else self.tr("delete_prompt_preset")
+        )
+
     def on_prompt_preset_selected(self, name: str):
         if not name:
             return
@@ -81,14 +96,16 @@ class MainWindowPromptPresetsMixin:
         self.apply_language()
         self.validate_form_inputs()
         self.set_unsaved_changes(False)
+        self.refresh_prompt_preset_actions()
         if hasattr(self, "refresh_shell_state"):
             self.refresh_shell_state()
 
-    def build_prompt_preset_from_form(self) -> PromptPreset:
+    def build_prompt_preset_from_form(self, *, validate_name: bool = True) -> PromptPreset:
         snapshot = self.capture_settings_snapshot()
         current_preset = self.get_active_prompt_preset()
         prompt_preset = build_prompt_preset_from_snapshot(snapshot, current_prompt_preset=current_preset)
-        prompt_preset.name = self.validate_prompt_preset_name(prompt_preset.name, current_preset.name)
+        if validate_name:
+            prompt_preset.name = self.validate_prompt_preset_name(prompt_preset.name, current_preset.name)
         return prompt_preset
 
 
@@ -110,11 +127,14 @@ class MainWindowPromptPresetsMixin:
     def delete_current_prompt_preset(self):
         if not self.resolve_unsaved_changes():
             return
+        if self.active_prompt_preset_is_builtin():
+            QMessageBox.information(self, self.tr("warning_title"), self.tr("builtin_prompt_preset_locked"))
+            return
         if len(self.config.prompt_presets) <= 1:
-            QMessageBox.warning(self, self.tr("error_title"), self.tr("at_least_one_prompt_preset"))
+            QMessageBox.warning(self, self.tr("warning_title"), self.tr("at_least_one_prompt_preset"))
             return
         name = self.config.active_prompt_preset_name
-        if QMessageBox.question(self, self.tr("error_title"), self.tr("confirm_delete_prompt_preset", name=name)) != QMessageBox.Yes:
+        if QMessageBox.question(self, self.tr("confirm_title"), self.tr("confirm_delete_prompt_preset", name=name)) != QMessageBox.Yes:
             return
         self.config.prompt_presets = [preset for preset in self.config.prompt_presets if preset.name != name]
         self.config.active_prompt_preset_name = self.config.prompt_presets[0].name

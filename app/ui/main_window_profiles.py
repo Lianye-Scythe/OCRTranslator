@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QMessageBox
 
 from ..config_store import load_config, save_config
 from ..app_defaults import PROVIDER_LABELS
+from ..hotkey_utils import hotkey_has_modifier as hotkey_has_modifier_rule
 from ..i18n import I18N
 from ..models import ApiProfile, AppConfig
 from ..profile_utils import (
@@ -287,8 +288,7 @@ class MainWindowProfilesMixin:
         return label_map.get(field_key, self.tr("hotkey"))
 
     def hotkey_has_modifier(self, hotkey_text: str) -> bool:
-        parts = {part.strip().lower() for part in hotkey_text.replace("-", "+").split("+") if part.strip()}
-        return any(part in {"ctrl", "control", "alt", "shift", "cmd", "win", "windows", "meta"} for part in parts)
+        return hotkey_has_modifier_rule(hotkey_text)
 
     def _refresh_widget_style(self, widget):
         widget.style().unpolish(widget)
@@ -313,7 +313,7 @@ class MainWindowProfilesMixin:
             label.clear()
             label.hide()
 
-    def validate_form_inputs(self, *, focus_first_invalid: bool = False) -> tuple[bool, str]:
+    def validate_form_inputs(self, *, focus_first_invalid: bool = False, scope: str = "save") -> tuple[bool, str]:
         tracked_widgets = [
             self.profile_name_edit,
             self.base_url_edit,
@@ -339,6 +339,7 @@ class MainWindowProfilesMixin:
             normalize_hotkey=self.normalize_hotkey,
             hotkey_has_modifier=self.hotkey_has_modifier,
             tr=self.tr,
+            scope=scope,
         )
         invalid_widgets = []
         for field_key in validation.field_keys():
@@ -586,11 +587,12 @@ class MainWindowProfilesMixin:
         except ValueError as exc:
             raise ValueError(self.tr("profile_name_exists", name=str(exc))) from exc
 
-    def build_profile_from_form(self) -> ApiProfile:
+    def build_profile_from_form(self, *, validate_name: bool = True) -> ApiProfile:
         snapshot = self.capture_settings_snapshot()
         current_profile = self.get_active_profile()
         profile = build_profile_from_snapshot(snapshot, current_profile=current_profile)
-        profile.name = self.validate_profile_name(profile.name, current_profile.name)
+        if validate_name:
+            profile.name = self.validate_profile_name(profile.name, current_profile.name)
         return profile
 
 
@@ -607,10 +609,10 @@ class MainWindowProfilesMixin:
         if not self.resolve_unsaved_changes():
             return
         if len(self.config.api_profiles) <= 1:
-            QMessageBox.warning(self, self.tr("error_title"), self.tr("at_least_one_profile"))
+            QMessageBox.warning(self, self.tr("warning_title"), self.tr("at_least_one_profile"))
             return
         name = self.config.active_profile_name
-        if QMessageBox.question(self, self.tr("error_title"), self.tr("confirm_delete_profile", name=name)) != QMessageBox.Yes:
+        if QMessageBox.question(self, self.tr("confirm_title"), self.tr("confirm_delete_profile", name=name)) != QMessageBox.Yes:
             return
         self.config.api_profiles = [profile for profile in self.config.api_profiles if profile.name != name]
         self.config.active_profile_name = self.config.api_profiles[0].name
@@ -620,7 +622,7 @@ class MainWindowProfilesMixin:
         self.log(f"Deleted profile (pending save): {name}")
 
     def sync_form_to_config(self) -> tuple[str, AppConfig, ApiProfile]:
-        valid, first_error = self.validate_form_inputs(focus_first_invalid=True)
+        valid, first_error = self.validate_form_inputs(focus_first_invalid=True, scope="save")
         if not valid:
             raise ValueError(first_error)
         snapshot = self.capture_settings_snapshot()
@@ -635,7 +637,7 @@ class MainWindowProfilesMixin:
 
     def save_settings(self):
         try:
-            valid, _ = self.validate_form_inputs(focus_first_invalid=True)
+            valid, _ = self.validate_form_inputs(focus_first_invalid=True, scope="save")
             if not valid:
                 self.set_status("validation_failed")
                 return False

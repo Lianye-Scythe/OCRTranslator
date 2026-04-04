@@ -20,8 +20,6 @@ DEFAULT_RAW_OCR_IMAGE_PROMPT = """You will receive a screenshot that may contain
 
 DEFAULT_RAW_OCR_TEXT_PROMPT = """Return the provided text exactly as it was given. Do not translate, explain, summarize, correct, reformat, or add any extra commentary."""
 
-DEFAULT_PROMPT = DEFAULT_TRANSLATION_IMAGE_PROMPT
-
 DEFAULT_PROMPT_PRESET_NAME_ALIASES = {
     "翻譯": "翻譯 (Translate)",
     "解答": "解答 (Answer)",

@@ -123,7 +123,7 @@ class MainWindowRuntimeTests(unittest.TestCase):
     def test_save_settings_aborts_when_hotkey_registration_fails(self):
         window = MainWindow.__new__(MainWindow)
         window.tr = lambda key, **kwargs: f"{key}: {kwargs.get('error')}" if kwargs else key
-        window.validate_form_inputs = lambda focus_first_invalid=True: (True, "")
+        window.validate_form_inputs = lambda focus_first_invalid=True, scope="save": (True, "")
         window.set_status = Mock()
         window.log = Mock()
         window.config = SimpleNamespace(ui_language="en", hotkey="Ctrl+X", selection_hotkey="Ctrl+C", input_hotkey="Ctrl+Z")

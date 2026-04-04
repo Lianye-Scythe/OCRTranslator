@@ -9,6 +9,7 @@ from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QMessageBo
 from ..api_client import ApiClient
 from ..app_defaults import DEFAULT_UI_LANGUAGE
 from ..config_store import load_config, save_config
+from ..hotkey_utils import normalize_hotkey_text
 from ..hotkey_listener import HotkeyListener, find_hotkey_conflicts
 from ..i18n import I18N, normalize_ui_language
 from ..operation_control import RequestCancelledError
@@ -95,12 +96,15 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self.load_prompt_preset_to_form(self.config.active_prompt_preset_name)
         self.instance_server_service.setup()
         self.setup_hotkey_listener(initial=True)
-        self.log("Application started")
+        self.log_tr("log_application_started")
 
     def tr(self, key: str, **kwargs) -> str:
         lang = self.current_ui_language()
         text = I18N[lang].get(key, key)
         return text.format(**kwargs) if kwargs else text
+
+    def log_tr(self, key: str, **kwargs):
+        self.log(self.tr(key, **kwargs))
 
     def current_ui_language(self) -> str:
         if hasattr(self, "ui_language_combo"):
@@ -246,6 +250,8 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self.cancel_button.setEnabled(cancel_available)
         self.hero_tray_button.setEnabled(bool(self.tray))
         self.hero_capture_button.setEnabled(not capture_busy)
+        if hasattr(self, "hero_manual_input_button"):
+            self.hero_manual_input_button.setEnabled(not capture_busy)
         self.preview_capture_button.setEnabled(not capture_busy)
         self.profile_combo.setEnabled(not any_background_busy)
         self.new_profile_button.setEnabled(not any_background_busy)
@@ -255,7 +261,11 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             self.close_to_tray_on_close_checkbox.setToolTip("" if self.tray else self.tr("tray_unavailable"))
         if getattr(self, "tray", None):
             self.tray_capture_action.setEnabled(not capture_busy)
+            if hasattr(self, "tray_manual_input_action"):
+                self.tray_manual_input_action.setEnabled(not capture_busy)
             self.tray_cancel_action.setEnabled(cancel_available)
+        if hasattr(self, "refresh_prompt_preset_actions"):
+            self.refresh_prompt_preset_actions()
 
     def update_tray_texts(self):
         self.tray_service.update_texts()
@@ -304,7 +314,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             if not target_path:
                 return
             self.log_store.export(target_path)
-            self.log(f"Runtime log exported: {target_path}")
+            self.log_tr("log_runtime_log_exported", path=Path(target_path).name)
             self.set_status("logs_exported", path=Path(target_path).name)
         except Exception as exc:  # noqa: BLE001
             self.handle_error(exc)
@@ -337,38 +347,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             self.refresh_shell_state()
 
     def normalize_hotkey(self, hotkey_text: str) -> str:
-        parts = [part.strip().lower() for part in hotkey_text.replace("-", "+").split("+") if part.strip()]
-        key_map = {
-            "ctrl": "<ctrl>",
-            "control": "<ctrl>",
-            "alt": "<alt>",
-            "shift": "<shift>",
-            "cmd": "<cmd>",
-            "win": "<cmd>",
-            "windows": "<cmd>",
-            "enter": "<enter>",
-            "return": "<enter>",
-            "tab": "<tab>",
-            "space": "<space>",
-            "backspace": "<backspace>",
-            "delete": "<delete>",
-            "insert": "<insert>",
-            "home": "<home>",
-            "end": "<end>",
-            "pageup": "<page_up>",
-            "page_up": "<page_up>",
-            "pagedown": "<page_down>",
-            "page_down": "<page_down>",
-            "left": "<left>",
-            "right": "<right>",
-            "up": "<up>",
-            "down": "<down>",
-        }
-        mapped = [key_map.get(part, part) for part in parts]
-        if not mapped:
-            raise ValueError("Empty hotkey")
-        mapped = [f"<{part}>" if part.startswith("f") and part[1:].isdigit() else part for part in mapped]
-        return "+".join(mapped)
+        return normalize_hotkey_text(hotkey_text)
 
     def build_hotkey_actions(self, config=None) -> dict[str, str]:
         target_config = config or self.config
@@ -619,7 +598,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
 
     def closeEvent(self, event):
         if not self.is_quitting and getattr(self.config, "close_to_tray_on_close", False) and self.tray:
-            self.log("Close button redirected to minimize-to-tray behavior")
+            self.log_tr("log_close_redirected_to_tray")
             self.minimize_to_tray()
             event.ignore()
             return
@@ -634,7 +613,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         if not self.resolve_unsaved_changes(for_exit=True):
             return False
         self.is_quitting = True
-        self.log("Application exiting")
+        self.log_tr("log_application_exiting")
         self.operation_manager.cancel_all()
         try:
             self.selection_overlay.hide()

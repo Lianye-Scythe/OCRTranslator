@@ -5,7 +5,6 @@ import time
 import requests
 from PIL import Image
 
-from .default_prompts import DEFAULT_TRANSLATION_IMAGE_PROMPT
 from .models import ApiProfile
 from .operation_control import RequestCancelledError, RequestContext
 from .providers import GeminiCompatibleAdapter, OpenAICompatibleAdapter
@@ -292,10 +291,6 @@ class ApiClient:
             failure_user_message="請求失敗。",
             request_context=request_context,
         )
-
-    def translate_image(self, image: Image.Image, profile: ApiProfile, target_language: str, temperature: float, *, request_context: RequestContext | None = None) -> str:
-        prompt = f"{DEFAULT_TRANSLATION_IMAGE_PROMPT}\n\nTarget language: {target_language}"
-        return self.request_image(image, profile, prompt, temperature, request_context=request_context)
 
     def _request_openai_prompt(
         self,

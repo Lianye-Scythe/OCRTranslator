@@ -4,6 +4,8 @@ import time
 from PySide6.QtCore import QMimeData
 from PySide6.QtWidgets import QApplication
 
+from ...hotkey_utils import canonical_hotkey_parts
+
 
 COPY_TRIGGER_SETTLE_SECONDS = 0.08
 COPY_TRIGGER_TIMEOUT_SECONDS = 0.65
@@ -34,15 +36,10 @@ VK_ESCAPE = 0x1B
 
 SPECIAL_VIRTUAL_KEYS = {
     "ctrl": [VK_CONTROL],
-    "control": [VK_CONTROL],
     "alt": [VK_MENU],
     "shift": [VK_SHIFT],
     "win": [VK_LWIN, VK_RWIN],
-    "windows": [VK_LWIN, VK_RWIN],
-    "cmd": [VK_LWIN, VK_RWIN],
-    "meta": [VK_LWIN, VK_RWIN],
     "enter": [VK_RETURN],
-    "return": [VK_RETURN],
     "tab": [VK_TAB],
     "space": [VK_SPACE],
     "backspace": [VK_BACK],
@@ -50,15 +47,12 @@ SPECIAL_VIRTUAL_KEYS = {
     "insert": [VK_INSERT],
     "home": [VK_HOME],
     "end": [VK_END],
-    "pageup": [VK_PRIOR],
     "page_up": [VK_PRIOR],
-    "pagedown": [VK_NEXT],
     "page_down": [VK_NEXT],
     "left": [VK_LEFT],
     "right": [VK_RIGHT],
     "up": [VK_UP],
     "down": [VK_DOWN],
-    "esc": [VK_ESCAPE],
     "escape": [VK_ESCAPE],
 }
 
@@ -112,9 +106,8 @@ def _restore_clipboard_if_unchanged(clipboard, mime_data: QMimeData, had_payload
 
 
 def _virtual_key_codes_for_hotkey(hotkey_text: str) -> list[int]:
-    parts = [part.strip().lower() for part in str(hotkey_text or "").replace("-", "+").split("+") if part.strip()]
     codes: list[int] = []
-    for part in parts:
+    for part in canonical_hotkey_parts(hotkey_text):
         if part in SPECIAL_VIRTUAL_KEYS:
             codes.extend(SPECIAL_VIRTUAL_KEYS[part])
             continue

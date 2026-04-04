@@ -1,6 +1,10 @@
 from pathlib import Path
 import sys
 
+from .crash_handling import install_crash_hooks
+
+install_crash_hooks()
+
 from PySide6.QtCore import QLockFile, Qt
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtNetwork import QLocalSocket

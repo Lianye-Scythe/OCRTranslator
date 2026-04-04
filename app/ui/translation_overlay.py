@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 )
 
 from .style_utils import load_style_sheet
+from .theme_tokens import qcolor
 
 
 class TranslationOverlay(QWidget):
@@ -58,7 +59,7 @@ class TranslationOverlay(QWidget):
         shadow = QGraphicsDropShadowEffect(self)
         shadow.setBlurRadius(48)
         shadow.setOffset(0, 18)
-        shadow.setColor(QColor(3, 8, 18, 190))
+        shadow.setColor(qcolor("shadow", alpha=190))
         self.card.setGraphicsEffect(shadow)
 
         card_layout = QVBoxLayout(self.card)

@@ -1,5 +1,7 @@
 from pynput import keyboard
 
+from ...hotkey_utils import canonical_hotkey_parts
+
 
 WM_KEYDOWN = 0x0100
 WM_KEYUP = 0x0101
@@ -35,15 +37,10 @@ VK_ESCAPE = 0x1B
 
 SPECIAL_VIRTUAL_KEYS = {
     "ctrl": VK_CONTROL,
-    "control": VK_CONTROL,
     "alt": VK_MENU,
     "shift": VK_SHIFT,
     "win": VK_LWIN,
-    "windows": VK_LWIN,
-    "cmd": VK_LWIN,
-    "meta": VK_LWIN,
     "enter": VK_RETURN,
-    "return": VK_RETURN,
     "tab": VK_TAB,
     "space": VK_SPACE,
     "backspace": VK_BACK,
@@ -51,15 +48,12 @@ SPECIAL_VIRTUAL_KEYS = {
     "insert": VK_INSERT,
     "home": VK_HOME,
     "end": VK_END,
-    "pageup": VK_PRIOR,
     "page_up": VK_PRIOR,
-    "pagedown": VK_NEXT,
     "page_down": VK_NEXT,
     "left": VK_LEFT,
     "right": VK_RIGHT,
     "up": VK_UP,
     "down": VK_DOWN,
-    "esc": VK_ESCAPE,
     "escape": VK_ESCAPE,
 }
 
@@ -75,12 +69,12 @@ VK_NORMALIZATION_MAP = {
 
 
 def _hotkey_parts(hotkey_text: str) -> list[str]:
-    return [part.strip().lower() for part in str(hotkey_text or "").replace("-", "+").split("+") if part.strip()]
+    return canonical_hotkey_parts(hotkey_text)
 
 
 def hotkey_to_virtual_keys(hotkey_text: str) -> set[int]:
     result: set[int] = set()
-    for part in _hotkey_parts(hotkey_text):
+    for part in canonical_hotkey_parts(hotkey_text):
         if part in SPECIAL_VIRTUAL_KEYS:
             result.add(SPECIAL_VIRTUAL_KEYS[part])
             continue
