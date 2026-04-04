@@ -28,6 +28,42 @@ release\OCRTranslator-v<version>-windows-x64.zip
 
 If you also want users to download a standalone binary, you can upload `release\OCRTranslator.exe` as an extra asset.
 
+## Optional code signing
+
+`build_exe.bat` now supports an optional Windows code-signing flow. If no signing parameters are provided, signing is skipped. If signing parameters are provided, the script signs and verifies `release\OCRTranslator.exe` before creating the archive.
+
+Available environment variables:
+
+```text
+SIGNTOOL_PATH        optional, explicit path to signtool.exe
+SIGN_PFX_PATH        optional, path to a PFX certificate
+SIGN_PFX_PASSWORD    optional, password for the PFX certificate
+SIGN_CERT_SHA1       optional, SHA1 thumbprint for a cert in the Windows certificate store
+SIGN_SUBJECT_NAME    optional, subject name used to find a cert in the Windows certificate store
+SIGN_TIMESTAMP_URL   optional, timestamp service URL, defaults to http://timestamp.digicert.com
+```
+
+Provide at least one of the following to enable signing:
+
+- `SIGN_PFX_PATH` (optionally with `SIGN_PFX_PASSWORD`)
+- `SIGN_CERT_SHA1`
+- `SIGN_SUBJECT_NAME`
+
+Example (PFX):
+
+```bat
+set SIGN_PFX_PATH=C:\certs\ocrtranslator.pfx
+set SIGN_PFX_PASSWORD=your-password
+build_exe.bat
+```
+
+Example (certificate store):
+
+```bat
+set SIGN_CERT_SHA1=0123456789ABCDEF0123456789ABCDEF01234567
+build_exe.bat
+```
+
 ## Not recommended for distribution
 
 ```text
