@@ -8,12 +8,16 @@ This file records important OCRTranslator changes.
 
 ### Added
 - Added image-request timing logs that report `capture / request / total / png`, making it easier to see whether latency comes from local capture, upload time, or model response time
+- Added a Windows version-resource generator so packaged executables now include Product / File Version / Company metadata
+- Added versioned release-archive output; `build_exe.bat` now creates `OCRTranslator-v<version>-windows-x64.zip` automatically
+- Added an optional code-signing packaging flow with support for PFX certificates, Windows certificate-store thumbprints / subject names, and signature verification
 
 ### Changed
 - Screen capture now sends the original PNG bytes directly into the image-request pipeline as soon as capture finishes, without extra resizing or additional image preprocessing first
 - Capture preview refresh now runs after the image request starts, so translation requests leave the gate earlier
 - Startup now reactivates the main window on the next event-loop tick, and the single-instance forwarding protocol now uses newline-delimited messages plus ACK replies to reduce "only tray icon appeared" activation failures
 - Translation overlay display now includes a Windows-native topmost fallback so result popups are less likely to be covered by normal desktop windows
+- Packaging documentation now covers version resources, signing parameters, timestamping, and the recommended release-asset layout
 
 ### Fixed
 - Fixed the imbalance between suppressed modifier keydown and keyup handling in the global hotkey hook, reducing the risk of `Shift / Ctrl / Win` appearing to stay stuck

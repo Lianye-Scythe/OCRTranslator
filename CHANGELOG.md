@@ -8,12 +8,16 @@
 
 ### Added
 - 新增圖片請求鏈路耗時日誌，會記錄 `capture / request / total / png`，方便定位本地截圖、上傳或模型回應哪一段偏慢
+- 新增 Windows 可執行檔版本資源產生腳本，打包後的 exe 現在會帶有 Product / File Version / Company 等中繼資料
+- 新增版本化發佈壓縮包輸出，`build_exe.bat` 會自動建立 `OCRTranslator-v<version>-windows-x64.zip`
+- 新增可選代碼簽名打包流程，支援 PFX 憑證、憑證存放區 Thumbprint / Subject Name 與簽名驗證
 
 ### Changed
 - 螢幕框選現在會在完成截圖後直接把原始 PNG bytes 送往圖片請求鏈路，不再先做縮圖或額外圖像預處理
 - 截圖預覽改為在圖片請求啟動後非阻塞更新，讓翻譯請求更早起跑
 - 啟動流程改為下一拍主動喚醒主視窗；單實例轉發協議增加換行分隔與 ACK，降低啟動後只剩托盤或主視窗未被帶到前景的機率
 - 翻譯浮窗顯示時新增 Windows 原生 topmost 兜底，提升結果浮窗被其他一般視窗蓋住的機率控制
+- 打包文檔同步補齊版本資源、簽名參數、時間戳與建議發佈附件格式
 
 ### Fixed
 - 修正全域快捷鍵對修飾鍵釋放事件的抑制不平衡問題，降低 `Shift / Ctrl / Win` 看起來被卡住的風險
