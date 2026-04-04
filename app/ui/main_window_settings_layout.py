@@ -105,7 +105,7 @@ class MainWindowSettingsLayoutMixin:
         self.fetch_models_button = self.create_button(self.fetch_models, accent=False)
         self.test_button = self.create_button(self.test_profile, accent=False)
         self.cancel_button = self.create_button(self.cancel_background_operation, accent=False, warning=True, compact=True)
-        self.save_button = self.create_button(self.save_settings, secondary=True)
+        self.save_button = self.create_button(self.save_settings, accent=True)
 
         for button in [self.fetch_models_button, self.test_button, self.cancel_button]:
             runtime_actions_layout.addWidget(button)

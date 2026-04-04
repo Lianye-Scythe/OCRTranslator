@@ -51,15 +51,15 @@ QScrollArea#SidebarScrollArea > QWidget > QWidget,
 }
 
 #BrandSubtitle {
-    color:{{muted_fg}};
-    line-height:1.45;
+    color:{{subtle_fg}};
+    line-height:1.5;
 }
 
 #SidebarCaption,
 #FieldLabel {
     color:{{muted_fg}};
-    font-size:11px;
-    font-weight:600;
+    font-size:12px;
+    font-weight:700;
     padding-bottom:2px;
 }
 
@@ -73,21 +73,20 @@ QScrollArea#SidebarScrollArea > QWidget > QWidget,
     border-radius:14px;
     padding:11px 14px;
     text-align:left;
-    color:{{nav_fg}};
+    color:{{text_secondary}};
     font-size:13px;
     font-weight:600;
 }
 
 #NavButton:hover {
     background:{{nav_hover_bg}};
-    border-color:{{nav_hover_border}};
     color:{{text_primary}};
 }
 
 #NavButton:checked {
     background:{{nav_selected_bg}};
-    border:1px solid {{nav_selected_border}};
-    color:{{nav_selected_fg}};
+    border:1px solid transparent;
+    color:{{text_primary}};
     font-weight:700;
 }
 
@@ -104,7 +103,7 @@ QScrollArea#SidebarScrollArea > QWidget > QWidget,
 }
 
 #HintTitleLabel {
-    color:{{hint_title_fg}};
+    color:{{text_emphasis}};
     font-size:13px;
     font-weight:700;
     padding-bottom:2px;
@@ -127,13 +126,13 @@ QCheckBox::indicator {
     width:18px;
     height:18px;
     border-radius:6px;
-    border:1px solid {{field_border}};
-    background:{{field_bg}};
+    border:1px solid {{outline}};
+    background:{{surface_input}};
 }
 
 QCheckBox::indicator:checked {
-    background:{{button_primary_bg}};
-    border:1px solid {{button_primary_bg}};
+    background:{{accent}};
+    border:1px solid {{accent}};
 }
 
 #AboutTitleLabel {
@@ -205,7 +204,7 @@ QCheckBox::indicator:checked {
 
 #InlinePanel {
     background:{{panel_bg}};
-    border:1px solid {{panel_border}};
+    border:1px solid transparent;
     border-radius:14px;
 }
 
@@ -219,12 +218,12 @@ QComboBox,
 QFontComboBox,
 QSpinBox,
 QDoubleSpinBox {
-    background:{{field_bg}};
-    border:1px solid {{field_border}};
+    background:{{surface_input}};
+    border:1px solid {{outline}};
     border-radius:12px;
     padding:10px 12px;
     color:{{field_fg}};
-    selection-background-color:{{selection_bg}};
+    selection-background-color:{{accent_soft}};
     min-height:18px;
 }
 
@@ -234,8 +233,8 @@ QComboBox:focus,
 QFontComboBox:focus,
 QSpinBox:focus,
 QDoubleSpinBox:focus {
-    border:1px solid {{field_focus_border}};
-    background:{{field_focus_bg}};
+    border:1px solid {{accent_focus}};
+    background:{{surface_input}};
 }
 
 QComboBox,
@@ -267,12 +266,9 @@ QFontComboBox::drop-down {
 
 QComboBox::down-arrow,
 QFontComboBox::down-arrow {
-    image:none;
-    width:0px;
-    height:0px;
-    border-left:5px solid transparent;
-    border-right:5px solid transparent;
-    border-top:6px solid {{muted_fg}};
+    image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' viewBox='0 0 24 24'><path d='M7 10l5 5 5-5z' fill='{{muted_fg_url}}'/></svg>");
+    width:16px;
+    height:16px;
     margin-top:2px;
 }
 
@@ -324,7 +320,7 @@ QAbstractItemView {
 QPushButton {
     border:1px solid transparent;
     border-radius:12px;
-    padding:10px 16px;
+    padding:12px 20px;
     font-size:13px;
     font-weight:600;
     min-height:18px;
@@ -347,40 +343,39 @@ QPushButton:disabled {
 QPushButton[compact="true"] {
     min-height:12px;
     border-radius:10px;
-    padding:8px 12px;
+    padding:9px 14px;
     font-size:12px;
 }
 
 QPushButton[variant="primary"] {
-    background:{{button_primary_bg}};
+    background:{{accent}};
     color:{{button_primary_fg}};
     border:1px solid transparent;
 }
 
 QPushButton[variant="primary"]:hover {
-    background:{{button_primary_hover_bg}};
+    background:{{accent_hover}};
 }
 
 QPushButton[variant="secondary"] {
-    background:{{button_tonal_bg}};
-    color:{{button_tonal_fg}};
-    border:1px solid {{button_tonal_border}};
+    background:{{accent_soft}};
+    color:{{accent_text}};
+    border:1px solid transparent;
 }
 
 QPushButton[variant="secondary"]:hover {
-    background:{{button_tonal_hover_bg}};
-    color:{{button_tonal_fg}};
-    border-color:{{button_tonal_border}};
+    background:{{surface_selected}};
+    color:{{accent_text}};
 }
 
 QPushButton[variant="neutral"] {
     background:transparent;
-    color:{{button_outline_fg}};
-    border:1px solid {{button_outline_border}};
+    color:{{text_primary}};
+    border:1px solid {{border_soft}};
 }
 
 QPushButton[variant="neutral"]:hover {
-    background:{{button_outline_hover_bg}};
+    background:{{surface_hover}};
 }
 
 QPushButton[variant="success"] {
@@ -433,26 +428,25 @@ QPushButton[variant="danger"]:hover {
     border:1px solid {{field_border}};
     border-radius:14px;
     padding:14px;
-    color:{{text_primary}};
+    color:{{muted_fg}};
     font-family:{{font_code}};
     font-size:12px;
 }
 
 #StatusLabel {
-    background:{{status_bg}};
-    border:1px solid {{status_border}};
-    border-radius:12px;
-    padding:12px 14px;
-    color:{{text_primary}};
+    background:transparent;
+    border:none;
+    padding:4px 4px;
+    color:{{muted_fg}};
     font-weight:600;
+    font-size:12px;
 }
 
 #ValidationLabel {
-    color:{{validation_fg}};
-    background:{{validation_bg}};
-    border:1px solid {{validation_border}};
-    border-radius:12px;
-    padding:10px 12px;
+    color:{{danger_text}};
+    font-size:12px;
+    font-weight:600;
+    padding:0px 4px;
 }
 
 QScrollBar:vertical {

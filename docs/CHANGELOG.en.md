@@ -24,6 +24,12 @@ This file records important OCRTranslator changes.
 - README now defaults to Traditional Chinese and includes Simplified Chinese and English variants
 - The architecture, development, and packaging docs under `docs/` are now available in three languages
 - Non-QSS UI color constants have started moving into `app/ui/theme_tokens.py`
+- Overhauled light and dark theme colors, introducing a high-quality "Slate / Graphite" monochrome system based on Material Design 3
+- Removed excessive borders (box-in-box) in settings UI, using whitespace and surface tones to establish visual hierarchy
+- Replaced custom square/minus dropdown icons with standard SVG caretsfor better affordance
+- Enhanced button visual hierarchy, dynamically emphasizing the "Save Settings" primary action when unsaved changes exist
+- Refined form error states by replacing aggressive red blocks with subtle text and input border highlights
+- Upgraded dark mode with recessed inputs and a soft off-white primary accent to improve comfort during extended use
 
 ### Fixed
 - Split warning-style interruption actions from destructive delete actions instead of reusing the same danger color treatment

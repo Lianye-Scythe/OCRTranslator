@@ -544,7 +544,7 @@ class MainWindowLayoutMixin:
 
     def refresh_save_button_emphasis(self):
         if hasattr(self, "save_button"):
-            self.set_button_variant(self.save_button, "secondary" if getattr(self, "has_unsaved_changes", False) else "neutral")
+            self.set_button_variant(self.save_button, "primary" if getattr(self, "has_unsaved_changes", False) else "neutral")
 
     def add_shadow(self, widget, blur=32, y_offset=10, alpha=90):
         shadow = QGraphicsDropShadowEffect(self)
