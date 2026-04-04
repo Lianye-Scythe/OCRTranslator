@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 )
 
 from .style_utils import load_style_sheet
+from .overlay_positioning import clamp_rect_to_visible_screen
 from .theme_tokens import qcolor
 
 
@@ -234,7 +235,8 @@ class TranslationOverlay(QWidget):
         if not self.last_text.strip() or self.last_geometry is None:
             return
         self.refresh_language()
-        self.setGeometry(self.last_geometry)
+        self.setGeometry(clamp_rect_to_visible_screen(self.last_geometry))
+        self.last_geometry = self.geometry()
         self.body.setPlainText(self.last_text)
         self.show()
         self.raise_()

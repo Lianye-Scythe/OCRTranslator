@@ -252,25 +252,40 @@ def _migrate_legacy_config(data: dict) -> AppConfig:
     )
 
 
+def _recover_broken_config_file() -> None:
+    backup_path = CONFIG_PATH.with_suffix(f".broken-{time.strftime('%Y%m%d-%H%M%S')}.json")
+    try:
+        shutil.copy2(CONFIG_PATH, backup_path)
+    except Exception:  # noqa: BLE001
+        backup_path = None
+    message = "Failed to load config.json. A fresh config will be created."
+    if backup_path:
+        message += f" Backup: {backup_path.name}"
+    try:
+        show_startup_warning(message)
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def load_config() -> AppConfig:
     config = _default_app_config()
 
     if CONFIG_PATH.exists():
         try:
-            return _migrate_legacy_config(json.loads(CONFIG_PATH.read_text(encoding="utf-8")))
-        except Exception:  # noqa: BLE001
-            backup_path = CONFIG_PATH.with_suffix(f".broken-{time.strftime('%Y%m%d-%H%M%S')}.json")
-            try:
-                shutil.copy2(CONFIG_PATH, backup_path)
-            except Exception:  # noqa: BLE001
-                backup_path = None
-            message = "Failed to load config.json. A fresh config will be created."
-            if backup_path:
-                message += f" Backup: {backup_path.name}"
-            try:
-                show_startup_warning(message)
-            except Exception:  # noqa: BLE001
-                pass
+            raw_payload = CONFIG_PATH.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            _recover_broken_config_file()
+            save_config(config)
+            return config
+
+        try:
+            payload = json.loads(raw_payload)
+        except json.JSONDecodeError:
+            _recover_broken_config_file()
+            save_config(config)
+            return config
+
+        return _migrate_legacy_config(payload)
 
     save_config(config)
     return config

@@ -4,6 +4,7 @@ from unittest.mock import patch
 from PySide6.QtCore import QPoint, QRect
 
 from app.ui.overlay_positioning import (
+    clamp_rect_to_visible_screen,
     clamp_overlay_size_to_screen,
     compute_overlay_position,
     compute_overlay_position_for_point,
@@ -63,6 +64,14 @@ class OverlayPositioningTests(unittest.TestCase):
 
         self.assertEqual(x, 810)
         self.assertEqual(y, 832)
+
+    @patch("app.ui.overlay_positioning.get_screen_rect_for_point", return_value=QRect(0, 0, 1920, 1080))
+    def test_clamp_rect_to_visible_screen_moves_offscreen_overlay_back_into_view(self, _mock_screen_rect):
+        rect = QRect(2500, 1200, 600, 400)
+
+        clamped = clamp_rect_to_visible_screen(rect)
+
+        self.assertEqual(clamped, QRect(1320, 680, 600, 400))
 
 
 if __name__ == "__main__":

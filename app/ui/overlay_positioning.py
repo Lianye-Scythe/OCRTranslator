@@ -13,6 +13,17 @@ def get_target_screen_rect(bbox) -> QRect:
     return get_screen_rect_for_point(center)
 
 
+def clamp_rect_to_visible_screen(rect: QRect) -> QRect:
+    if rect.width() <= 0 or rect.height() <= 0:
+        return QRect(rect)
+    screen_rect = get_screen_rect_for_point(rect.center())
+    width = min(rect.width(), screen_rect.width())
+    height = min(rect.height(), screen_rect.height())
+    x = max(screen_rect.left(), min(rect.x(), screen_rect.right() - width + 1))
+    y = max(screen_rect.top(), min(rect.y(), screen_rect.bottom() - height + 1))
+    return QRect(int(x), int(y), int(width), int(height))
+
+
 def clamp_overlay_size_to_screen(config, translation_overlay, screen_rect: QRect, text: str, width: int, height: int) -> tuple[int, int]:
     margin = config.margin
     vertical_comfort_margin = max(42, margin * 2)

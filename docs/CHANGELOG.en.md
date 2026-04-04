@@ -13,11 +13,14 @@ This file records important OCRTranslator changes.
 - Added `app/crash_handling.py` to share crash-hook initialization across startup paths
 - Added `requirements-dev.txt` and multilingual documentation variants
 - Added `light / dark / follow system` theme modes and the `theme_mode` config field
+- Added `SelectedTextCaptureSession` to drive selected-text capture as a non-blocking event-loop workflow with cancellation support during the capture phase
 
 ### Changed
 - Split settings validation by operation scope so unrelated fields no longer block Fetch Models / Test API / text requests
 - API test stale-result detection now includes the selected model
 - Built-in prompt presets are no longer deletable, avoiding restart-time reappearance confusion
+- Reworked selected-text capture into a non-blocking flow: hotkey release waiting, clipboard settle time, and clipboard polling now advance in Qt timer phases instead of synchronously stalling the main window
+- `Cancel Action` can now stop the selected-text capture stage, and API retry backoff waits respond to cancellation more quickly
 - Reorganized the settings page into a workflow-first structure: `Connection and model → Translation workflow → Appearance and advanced`
 - Rebuilt the UI theme tokens into a Material-inspired semantic color system so primary actions, tonal actions, selected navigation, badges, and warning / danger states no longer compete for the same accent role
 - Main window, result overlay, and selection overlay now share the same semantic theme roles, with light / dark styling and runtime switching wired together
@@ -34,3 +37,7 @@ This file records important OCRTranslator changes.
 ### Fixed
 - Split warning-style interruption actions from destructive delete actions instead of reusing the same danger color treatment
 - Reduced ambiguity between `Save Settings`, `Open Input Box`, disabled buttons, and validation states in the light theme
+- Fixed the selected-text translation flow showing two tray bubbles; it now emits a single processing notification only when the request is actually submitted
+- Fixed pinned result overlays sometimes restoring outside the visible screen after monitor layout or resolution changes
+- Fixed `load_config()` incorrectly treating config-migration errors as broken config files and silently recreating the config
+- Added regression tests for the async selected-text flow, cancellation path, and overlay clamping behavior

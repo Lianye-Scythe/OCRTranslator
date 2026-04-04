@@ -1,7 +1,7 @@
 import ctypes
 import time
 
-from PySide6.QtCore import QMimeData
+from PySide6.QtCore import QObject, QMimeData, QTimer, Signal
 from PySide6.QtWidgets import QApplication
 
 from ...hotkey_utils import canonical_hotkey_parts
@@ -55,6 +55,177 @@ SPECIAL_VIRTUAL_KEYS = {
     "down": [VK_DOWN],
     "escape": [VK_ESCAPE],
 }
+
+
+class SelectedTextCaptureSession(QObject):
+    finished = Signal(str)
+    failed = Signal(object)
+    cancelled = Signal()
+
+    def __init__(
+        self,
+        *,
+        hotkey_text: str = "",
+        settle_seconds: float = COPY_TRIGGER_SETTLE_SECONDS,
+        timeout_seconds: float = COPY_TRIGGER_TIMEOUT_SECONDS,
+        poll_seconds: float = COPY_TRIGGER_POLL_SECONDS,
+        release_timeout_seconds: float = HOTKEY_RELEASE_TIMEOUT_SECONDS,
+        copy_sender=None,
+        monotonic_func=None,
+        parent=None,
+    ):
+        super().__init__(parent)
+        self.hotkey_text = hotkey_text
+        self.settle_seconds = max(0.0, float(settle_seconds or 0.0))
+        self.timeout_seconds = max(0.0, float(timeout_seconds or 0.0))
+        self.poll_seconds = max(0.01, float(poll_seconds or 0.0))
+        self.release_timeout_seconds = max(0.0, float(release_timeout_seconds or 0.0))
+        self._copy_sender = copy_sender or _send_copy_shortcut
+        self._monotonic = monotonic_func or time.monotonic
+        self._timer = QTimer(self)
+        self._timer.setSingleShot(True)
+        self._timer.timeout.connect(self._advance)
+        self._phase = "idle"
+        self._phase_deadline = 0.0
+        self._clipboard = None
+        self._backup_mime = QMimeData()
+        self._had_backup_payload = False
+        self._backup_text = ""
+        self._initial_sequence = None
+        self._captured_sequence = None
+        self._captured_text = None
+        self._virtual_keys: list[int] = []
+
+    def start(self) -> None:
+        if self._phase != "idle":
+            return
+        app = QApplication.instance()
+        if app is None:
+            raise RuntimeError("A QApplication instance is required to capture selected text.")
+        self._clipboard = app.clipboard()
+        self._backup_mime, self._had_backup_payload = _clone_mime_data(self._clipboard.mimeData())
+        self._backup_text = self._clipboard.text()
+        self._initial_sequence = _clipboard_sequence_number()
+        self._captured_sequence = None
+        self._captured_text = None
+        self._virtual_keys = _virtual_key_codes_for_hotkey(self.hotkey_text)
+        if self._virtual_keys:
+            self._phase = "wait_release"
+            self._phase_deadline = self._monotonic() + self.release_timeout_seconds
+        else:
+            self._phase = "settle"
+            self._phase_deadline = self._monotonic() + self.settle_seconds
+        self._schedule_next(0.0)
+
+    def cancel(self) -> bool:
+        if self._phase in {"idle", "done"}:
+            return False
+        self._restore_clipboard_state()
+        self._finish(signal_name="cancelled")
+        return True
+
+    def _advance(self) -> None:
+        if self._phase == "wait_release":
+            self._advance_wait_release()
+            return
+        if self._phase == "settle":
+            self._advance_settle()
+            return
+        if self._phase == "wait_clipboard":
+            self._advance_wait_clipboard()
+
+    def _advance_wait_release(self) -> None:
+        try:
+            if not any(_is_virtual_key_pressed(virtual_key) for virtual_key in self._virtual_keys) or self._monotonic() >= self._phase_deadline:
+                self._phase = "settle"
+                self._phase_deadline = self._monotonic() + self.settle_seconds
+                self._schedule_until_deadline()
+                return
+            self._schedule_until_deadline()
+        except Exception as exc:  # noqa: BLE001
+            self._finish_failed(exc)
+
+    def _advance_settle(self) -> None:
+        if self._monotonic() < self._phase_deadline:
+            self._schedule_until_deadline()
+            return
+        try:
+            self._copy_sender()
+        except Exception as exc:  # noqa: BLE001
+            self._finish_failed(exc)
+            return
+        self._phase = "wait_clipboard"
+        self._phase_deadline = self._monotonic() + self.timeout_seconds
+        self._schedule_until_deadline()
+
+    def _advance_wait_clipboard(self) -> None:
+        try:
+            current_sequence = _clipboard_sequence_number()
+            current_text = self._clipboard.text() if self._clipboard else ""
+            changed = False
+            if self._initial_sequence is not None and current_sequence is not None:
+                changed = current_sequence != self._initial_sequence
+            elif current_text != self._backup_text:
+                changed = True
+            if changed:
+                self._captured_sequence = current_sequence
+                self._captured_text = current_text
+                self._finish_success(current_text.strip())
+                return
+            if self._monotonic() >= self._phase_deadline:
+                self._finish_success("")
+                return
+            self._schedule_until_deadline()
+        except Exception as exc:  # noqa: BLE001
+            self._finish_failed(exc)
+
+    def _schedule_next(self, seconds: float) -> None:
+        if self._phase == "done":
+            return
+        self._timer.start(max(0, int(max(0.0, seconds) * 1000)))
+
+    def _schedule_until_deadline(self) -> None:
+        remaining = max(0.0, self._phase_deadline - self._monotonic())
+        self._schedule_next(min(self.poll_seconds, remaining))
+
+    def _finish_success(self, text: str) -> None:
+        self._restore_clipboard_state()
+        self._finish(signal_name="finished", payload=text)
+
+    def _finish_failed(self, exc: Exception) -> None:
+        self._restore_clipboard_state()
+        self._finish(signal_name="failed", payload=exc)
+
+    def _restore_clipboard_state(self) -> None:
+        if self._clipboard is None:
+            return
+        try:
+            if self._captured_sequence is None and self._captured_text is None:
+                _restore_clipboard(self._clipboard, self._backup_mime, self._had_backup_payload)
+            else:
+                _restore_clipboard_if_unchanged(
+                    self._clipboard,
+                    self._backup_mime,
+                    self._had_backup_payload,
+                    expected_sequence=self._captured_sequence,
+                    expected_text=self._captured_text,
+                )
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _finish(self, *, signal_name: str, payload=None) -> None:
+        if self._phase == "done":
+            return
+        self._timer.stop()
+        self._phase = "done"
+        if signal_name == "finished":
+            self.finished.emit(str(payload or ""))
+            return
+        if signal_name == "failed":
+            self.failed.emit(payload)
+            return
+        self.cancelled.emit()
+
 
 
 def _clone_mime_data(mime_data) -> tuple[QMimeData, bool]:
@@ -140,6 +311,15 @@ def _wait_for_hotkey_release(hotkey_text: str, *, timeout_seconds: float, poll_s
         time.sleep(poll_seconds)
 
 
+def _send_copy_shortcut() -> None:
+    from pynput.keyboard import Controller, Key
+
+    controller = Controller()
+    with controller.pressed(Key.ctrl):
+        controller.press("c")
+        controller.release("c")
+
+
 def capture_selected_text(
     *,
     hotkey_text: str = "",
@@ -170,12 +350,7 @@ def capture_selected_text(
             QApplication.processEvents()
             time.sleep(min(poll_seconds, max(0.0, deadline - time.monotonic())))
 
-        from pynput.keyboard import Controller, Key
-
-        controller = Controller()
-        with controller.pressed(Key.ctrl):
-            controller.press("c")
-            controller.release("c")
+        _send_copy_shortcut()
 
         changed = False
         deadline = time.monotonic() + max(0.0, timeout_seconds)

@@ -178,6 +178,20 @@ class ConfigStoreMigrationTests(unittest.TestCase):
             self.assertIn('"ui_language": "zh-CN"', saved)
             self.assertIn('"target_language": "简体中文"', saved)
 
+    def test_load_config_propagates_migration_errors_instead_of_recreating_config(self):
+        with TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.json"
+            config_path.write_text('{"target_language": "English"}', encoding="utf-8")
+
+            with patch("app.config_store.CONFIG_PATH", config_path), patch(
+                "app.config_store._migrate_legacy_config", side_effect=RuntimeError("migration boom")
+            ), patch("app.config_store.show_startup_warning") as mock_warning:
+                with self.assertRaisesRegex(RuntimeError, "migration boom"):
+                    load_config()
+
+            self.assertFalse(any(config_path.parent.glob("config.broken-*.json")))
+            mock_warning.assert_not_called()
+
     def test_migrate_missing_target_language_follows_resolved_ui_language(self):
         with patch("app.config_store.detect_system_ui_language", return_value="zh-CN"):
             config = _migrate_legacy_config(

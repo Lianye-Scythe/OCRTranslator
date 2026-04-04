@@ -122,6 +122,27 @@ class MainWindowRuntimeTests(unittest.TestCase):
         self.assertEqual(window.hero_capture_button.text, "start_capture_busy")
         self.assertEqual(window.preview_capture_button.text, "start_capture_busy")
 
+    def test_background_busy_includes_selected_text_capture(self):
+        window = MainWindow.__new__(MainWindow)
+        window.fetch_models_in_progress = False
+        window.test_profile_in_progress = False
+        window.translation_in_progress = False
+        window.selected_text_capture_in_progress = True
+
+        self.assertTrue(window.background_busy())
+
+    def test_cancel_background_operation_cancels_selected_text_capture_session(self):
+        window = MainWindow.__new__(MainWindow)
+        window.operation_manager = SimpleNamespace(current_active=lambda order: None)
+        window.selected_text_capture_in_progress = True
+        window.selected_text_capture_session = object()
+        window.request_workflow = SimpleNamespace(cancel_selected_text_capture=Mock(return_value=True))
+
+        result = window.cancel_background_operation()
+
+        self.assertTrue(result)
+        window.request_workflow.cancel_selected_text_capture.assert_called_once_with()
+
     def test_save_settings_aborts_when_hotkey_registration_fails(self):
         window = MainWindow.__new__(MainWindow)
         window.tr = lambda key, **kwargs: f"{key}: {kwargs.get('error')}" if kwargs else key

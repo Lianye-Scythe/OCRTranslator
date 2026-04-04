@@ -1,3 +1,4 @@
+import threading
 import unittest
 from unittest.mock import Mock, patch
 
@@ -292,6 +293,17 @@ class ApiClientTests(unittest.TestCase):
                 self.client.list_models(self.profile, request_context=request_context)
 
         self.assertEqual(mock_request_models.call_count, 1)
+
+    def test_sleep_with_cancellation_stops_mid_backoff_when_request_is_cancelled(self):
+        request_context = RequestContext()
+        timer = threading.Timer(0.02, request_context.cancel)
+        timer.start()
+
+        try:
+            with self.assertRaises(RequestCancelledError):
+                self.client._sleep_with_cancellation(0.3, request_context=request_context, poll_interval=0.01)
+        finally:
+            timer.cancel()
 
 
 if __name__ == "__main__":

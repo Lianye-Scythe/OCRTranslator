@@ -13,11 +13,14 @@
 - 新增 `app/crash_handling.py`，把 crash hook 安裝邏輯抽成共用入口
 - 新增 `requirements-dev.txt` 與多語系文檔版本
 - 新增 `淺色 / 深色 / 跟隨系統` 三態主題設定與 `theme_mode` 設定欄位
+- 新增 `SelectedTextCaptureSession`，以事件循環驅動非阻塞的選取文字擷取流程，並支援擷取階段取消
 
 ### Changed
 - 設定表單校驗改為依操作場景拆分，避免 Fetch Models / Test API / 文字請求被無關欄位阻塞
 - API Test 的 stale result 判斷現在會納入模型名稱
 - 內建提示詞方案改為不可刪除，避免重啟後被自動補回造成語義不一致
+- 選取文字流程改為非阻塞擷取：等待熱鍵釋放、剪貼簿 settle 與剪貼簿輪詢都改由 Qt 計時器分階段推進，不再同步卡住主視窗
+- `取消目前操作` 現在可中止選取文字擷取階段，API 重試退避等待期間也會更快響應取消
 - 設定頁資訊架構改為「連線與模型 → 翻譯方式與快捷鍵 → 介面與進階」，強化先完成連線再開始使用的主路徑
 - UI 主題 token 重構為偏 Material Design 方法論的語義色彩系統，讓主按鈕、次按鈕、導航 selected、badge、warning / danger 狀態各自有明確角色
 - 主視窗、結果浮窗與框選遮罩共用同一套主題角色，深色 / 淺色樣式與執行期切換邏輯一併收斂
@@ -36,6 +39,10 @@
 - 清理未使用的 `app/constants.py` 與未被呼叫的 `ApiClient.translate_image()`
 - 修正 `取消目前操作` 與 `刪除` 動作共用危險色的語義錯置，改以 warning / danger 分離處理
 - 修正 `儲存設定`、`開啟輸入框`、disabled 與 validation 狀態在淺色主題下容易混淆的問題
+- 修正選取文字翻譯會連發兩個 tray 氣泡的問題，現在只會在真正送出請求時顯示一次 processing 通知
+- 修正 pinned 結果浮窗在換螢幕、拔除副螢幕或解析度變更後可能恢復到可視區域外的問題
+- 修正 `load_config()` 會把設定遷移錯誤誤判成壞設定檔並重建 config 的問題
+- 補上選取文字 async 流程、取消與浮窗位置夾回邏輯的回歸測試
 
 ## Earlier work
 

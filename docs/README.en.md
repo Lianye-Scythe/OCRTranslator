@@ -22,6 +22,7 @@ It is not just a screenshot translator. It is a desktop AI workspace organized a
 - API key rotation and retry support
 - Light / dark / follow-system theme modes
 - A workflow-first settings page organized as `Connection and model → Translation workflow → Appearance and advanced`
+- Selected-text capture now runs as a non-blocking flow, shows a single processing toast only when the request is submitted, and supports cancellation during capture
 - Result overlay supports copy, pin / unpin, opacity adjustment, drag to move, corner resize, and `Ctrl + mouse wheel` font zoom
 - Global hotkeys, system tray, and single-instance protection
 - Portable config stored next to the project root or packaged exe
@@ -105,6 +106,7 @@ You can start requests from:
 - the selected-text hotkey
 - the capture / input-box tray entries
 - the corresponding global hotkeys
+- the selected-text hotkey no longer blocks the main window while capture is in progress, and `Cancel Action` can stop it before request submission completes
 - the `--capture` startup argument
 
 ### 3. Review the result

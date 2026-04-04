@@ -69,6 +69,8 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self.fetch_models_in_progress = False
         self.test_profile_in_progress = False
         self.translation_in_progress = False
+        self.selected_text_capture_in_progress = False
+        self.selected_text_capture_session = None
         self._fetch_models_request_id = 0
         self._test_profile_request_id = 0
         self.pending_capture_profile = None
@@ -210,7 +212,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self.set_status("overlay_resized", width=int(width), height=int(height))
 
     def background_busy(self) -> bool:
-        return self.fetch_models_in_progress or self.test_profile_in_progress or self.translation_in_progress
+        return self.fetch_models_in_progress or self.test_profile_in_progress or self.translation_in_progress or self.selected_text_capture_in_progress
 
     def set_operation_state(self, operation: str, active: bool):
         setattr(self, f"{operation}_in_progress", active)
@@ -219,9 +221,9 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
     def update_action_states(self):
         if not hasattr(self, "fetch_models_button"):
             return
-        any_background_busy = self.fetch_models_in_progress or self.test_profile_in_progress or self.translation_in_progress
-        capture_busy = self.capture_workflow_active or self.translation_in_progress or self.fetch_models_in_progress or self.test_profile_in_progress
-        cancel_available = bool(self.operation_manager.current_active(("translation", "test_profile", "fetch_models")) or (self.capture_workflow_active and self.selection_overlay.isVisible()))
+        any_background_busy = self.background_busy()
+        capture_busy = self.capture_workflow_active or any_background_busy
+        cancel_available = bool(self.operation_manager.current_active(("translation", "test_profile", "fetch_models")) or self.selected_text_capture_in_progress or (self.capture_workflow_active and self.selection_overlay.isVisible()))
         for widget_name in (
             "profile_name_edit",
             "provider_combo",
@@ -340,6 +342,10 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
     def cancel_background_operation(self):
         active_operation = self.operation_manager.current_active(("translation", "test_profile", "fetch_models"))
         if active_operation is None:
+            if self.selected_text_capture_in_progress and getattr(self, "selected_text_capture_session", None):
+                if hasattr(self, "request_workflow"):
+                    return self.request_workflow.cancel_selected_text_capture()
+                return False
             if self.capture_workflow_active and self.selection_overlay.isVisible():
                 self.selection_overlay.hide()
                 self.handle_capture_cancelled()
@@ -632,6 +638,11 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             return False
         self.is_quitting = True
         self.log_tr("log_application_exiting")
+        if self.selected_text_capture_in_progress and getattr(self, "selected_text_capture_session", None):
+            try:
+                self.selected_text_capture_session.cancel()
+            except Exception:  # noqa: BLE001
+                pass
         self.operation_manager.cancel_all()
         try:
             self.selection_overlay.hide()

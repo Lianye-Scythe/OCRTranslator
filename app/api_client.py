@@ -126,6 +126,19 @@ class ApiClient:
     def _profile_rotation_key(profile: ApiProfile) -> str:
         return f"{profile.provider}|{profile.base_url}|{profile.name}"
 
+    def _sleep_with_cancellation(
+        self,
+        seconds: float,
+        *,
+        request_context: RequestContext | None = None,
+        poll_interval: float = 0.1,
+    ) -> None:
+        deadline = time.monotonic() + max(0.0, float(seconds or 0.0))
+        while time.monotonic() < deadline:
+            self._check_cancelled(request_context)
+            remaining = deadline - time.monotonic()
+            time.sleep(min(max(0.01, poll_interval), max(0.0, remaining)))
+
     def _rotation_start_index(self, profile: ApiProfile, keys: list[str]) -> tuple[str, int]:
         profile_key = self._profile_rotation_key(profile)
         return profile_key, self.profile_key_index.get(profile_key, 0) % len(keys)
@@ -208,8 +221,8 @@ class ApiClient:
                     self.log(f"{request_label} retries stopped because same-key retry is not allowed")
                     break
                 if profile.retry_interval > 0:
-                    self._check_cancelled(request_context)
-                    time.sleep(profile.retry_interval)
+                    self._sleep_with_cancellation(profile.retry_interval, request_context=request_context)
+        self._check_cancelled(request_context)
 
         self._raise_last_error(last_error, default_message=failure_message, user_message=failure_user_message)
 

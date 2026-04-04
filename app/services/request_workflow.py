@@ -4,7 +4,7 @@ from PySide6.QtWidgets import QApplication
 
 from ..prompt_utils import build_image_request_prompt, build_text_request_prompt
 from ..profile_utils import normalize_model_value, unique_non_empty
-from ..selected_text_capture import capture_selected_text
+from ..selected_text_capture import SelectedTextCaptureSession
 from ..ui.prompt_input_dialog import PromptInputDialog
 
 
@@ -137,18 +137,27 @@ class RequestWorkflowController:
             cancellable=True,
         )
 
-    def translate_selected_text(self):
-        request_context = self.prepare_request_context(focus_first_invalid=True, validation_scope="text_request")
-        if not request_context:
-            return
-        self.window.log_tr("log_selected_text_capture_started")
-        self.window.set_status("selected_text_capturing")
-        self.window.show_tray_toast(self.window.tr("selected_text_capturing"))
-        QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
-        try:
-            selected_text = capture_selected_text(hotkey_text=self.window.current_selection_hotkey())
-        finally:
+    @staticmethod
+    def _restore_override_cursor():
+        if QApplication.overrideCursor() is not None:
             QApplication.restoreOverrideCursor()
+
+    def _cleanup_selected_text_capture(self, session) -> bool:
+        if session is not self.window.selected_text_capture_session:
+            return False
+        self.window.selected_text_capture_session = None
+        self.window.selected_text_capture_in_progress = False
+        self._restore_override_cursor()
+        self.window.update_action_states()
+        try:
+            session.deleteLater()
+        except Exception:  # noqa: BLE001
+            pass
+        return True
+
+    def _handle_selected_text_capture_finished(self, session, request_context, anchor_point, selected_text: str):
+        if not self._cleanup_selected_text_capture(session):
+            return
         if not selected_text:
             self.window.set_status("selected_text_empty")
             self.window.log_tr("log_selected_text_empty")
@@ -159,9 +168,48 @@ class RequestWorkflowController:
             profile=request_context["profile"],
             target_language=request_context["target_language"],
             prompt_preset=request_context["prompt_preset"],
-            anchor_point=QCursor.pos(),
+            anchor_point=anchor_point,
             source_key="selected_text_processing",
         )
+
+    def _handle_selected_text_capture_failed(self, session, exc: Exception):
+        if not self._cleanup_selected_text_capture(session):
+            return
+        self.window.handle_error(exc)
+
+    def _handle_selected_text_capture_cancelled(self, session):
+        if not self._cleanup_selected_text_capture(session):
+            return
+        self.window.log("Selected text capture cancelled")
+        self.window.set_status("request_cancelled")
+        self.window.show_tray_toast(self.window.tr("request_cancelled"))
+
+    def cancel_selected_text_capture(self) -> bool:
+        session = getattr(self.window, "selected_text_capture_session", None)
+        if not session:
+            return False
+        return bool(session.cancel())
+
+    def translate_selected_text(self):
+        request_context = self.prepare_request_context(focus_first_invalid=True, validation_scope="text_request")
+        if not request_context:
+            return
+        anchor_point = QCursor.pos()
+        self.window.log_tr("log_selected_text_capture_started")
+        self.window.set_status("selected_text_capturing")
+        session = SelectedTextCaptureSession(hotkey_text=self.window.current_selection_hotkey(), parent=self.window)
+        self.window.selected_text_capture_session = session
+        self.window.selected_text_capture_in_progress = True
+        self.window.update_action_states()
+        session.finished.connect(lambda selected_text, session=session, request_context=request_context, anchor_point=anchor_point: self._handle_selected_text_capture_finished(session, request_context, anchor_point, selected_text))
+        session.failed.connect(lambda exc, session=session: self._handle_selected_text_capture_failed(session, exc))
+        session.cancelled.connect(lambda session=session: self._handle_selected_text_capture_cancelled(session))
+        QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
+        try:
+            session.start()
+        except Exception:
+            self._cleanup_selected_text_capture(session)
+            raise
 
     def open_prompt_input_dialog(self):
         request_context = self.prepare_request_context(focus_first_invalid=True, validation_scope="text_request")
