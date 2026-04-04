@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
 from ..app_metadata import AUTHOR_NAME_EN, AUTHOR_NAME_ZH, REPOSITORY_NAME, REPOSITORY_URL
 from ..profile_utils import normalize_provider_name
 from .style_utils import load_style_sheet
-from .theme_tokens import color, qcolor
+from .theme_tokens import color, qcolor, set_theme_mode
 
 
 class ScrollSafeComboBox(QComboBox):
@@ -97,7 +97,6 @@ class MainWindowLayoutMixin:
         self.sidebar_scroll.setFrameShape(QFrame.NoFrame)
         self.sidebar_scroll.setMinimumWidth(228)
         self.sidebar_scroll.setMaximumWidth(286)
-        self.add_shadow(self.sidebar_scroll, blur=42, y_offset=16, alpha=90)
 
         self.sidebar = QFrame()
         self.sidebar.setObjectName("Sidebar")
@@ -144,7 +143,7 @@ class MainWindowLayoutMixin:
         sidebar_layout.addWidget(self.quick_actions_label)
 
         self.hero_capture_button = self.create_button(self.start_selection)
-        self.hero_manual_input_button = self.create_button(self.open_prompt_input_dialog, accent=False)
+        self.hero_manual_input_button = self.create_button(self.open_prompt_input_dialog, secondary=True)
         self.hero_tray_button = self.create_button(self.minimize_to_tray, accent=False, compact=True)
         sidebar_layout.addWidget(self.hero_capture_button)
         sidebar_layout.addWidget(self.hero_manual_input_button)
@@ -187,13 +186,20 @@ class MainWindowLayoutMixin:
 
         shell.addWidget(self.sidebar_scroll)
 
-        content_layout = QVBoxLayout()
-        content_layout.setSpacing(14)
-        shell.addLayout(content_layout, 1)
+        content_shell_layout = QVBoxLayout()
+        content_shell_layout.setContentsMargins(0, 0, 0, 0)
+        content_shell_layout.setSpacing(0)
+        shell.addLayout(content_shell_layout, 1)
+
+        self.workspace_surface = QFrame()
+        self.workspace_surface.setObjectName("WorkspaceSurface")
+        workspace_layout = QVBoxLayout(self.workspace_surface)
+        workspace_layout.setContentsMargins(18, 14, 18, 14)
+        workspace_layout.setSpacing(18)
+        content_shell_layout.addWidget(self.workspace_surface, 1)
 
         self.header_card = QFrame()
         self.header_card.setObjectName("HeaderCard")
-        self.add_shadow(self.header_card, blur=48, y_offset=18, alpha=92)
         header_layout = QHBoxLayout(self.header_card)
         header_layout.setContentsMargins(22, 20, 22, 20)
         header_layout.setSpacing(16)
@@ -207,21 +213,10 @@ class MainWindowLayoutMixin:
         self.page_subtitle_label.setWordWrap(True)
         header_text_layout.addWidget(self.page_title_label)
         header_text_layout.addWidget(self.page_subtitle_label)
-
-        meta_row = QHBoxLayout()
-        meta_row.setSpacing(8)
-        self.hotkey_chip = QLabel()
-        self.hotkey_chip.setObjectName("InfoChip")
-        self.target_chip = QLabel()
-        self.target_chip.setObjectName("InfoChip")
-        self.prompt_chip = QLabel()
-        self.prompt_chip.setObjectName("InfoChip")
-        self.mode_chip = QLabel()
-        self.mode_chip.setObjectName("InfoChip")
-        for chip in (self.hotkey_chip, self.target_chip, self.prompt_chip, self.mode_chip):
-            meta_row.addWidget(chip)
-        meta_row.addStretch(1)
-        header_text_layout.addLayout(meta_row)
+        self.page_context_label = QLabel()
+        self.page_context_label.setObjectName("PageContextLabel")
+        self.page_context_label.setWordWrap(True)
+        header_text_layout.addWidget(self.page_context_label)
         header_layout.addLayout(header_text_layout, 1)
 
         self.active_profile_badge = QLabel()
@@ -230,11 +225,11 @@ class MainWindowLayoutMixin:
         self.active_profile_badge.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Fixed)
         header_layout.addWidget(self.active_profile_badge, alignment=Qt.AlignTop)
 
-        content_layout.addWidget(self.header_card)
+        workspace_layout.addWidget(self.header_card)
 
         self.page_stack = QStackedWidget()
         self.page_stack.setObjectName("PageStack")
-        content_layout.addWidget(self.page_stack, 1)
+        workspace_layout.addWidget(self.page_stack, 1)
 
         self.settings_tab = QWidget()
         self.settings_tab.setObjectName("SettingsTab")
@@ -248,7 +243,7 @@ class MainWindowLayoutMixin:
 
         self.status_label = QLabel()
         self.status_label.setObjectName("StatusLabel")
-        content_layout.addWidget(self.status_label)
+        workspace_layout.addWidget(self.status_label)
 
         self.switch_page(0)
 
@@ -258,12 +253,12 @@ class MainWindowLayoutMixin:
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(16)
 
-        self.preview_group, preview_layout, self.preview_group_title_label = self.create_section_card()
+        self.preview_group, preview_layout, self.preview_group_title_label = self.create_section_card(role="monitor")
         preview_header = QHBoxLayout()
         preview_header.setSpacing(8)
         preview_header.addWidget(self.preview_group_title_label)
         preview_header.addStretch(1)
-        self.preview_capture_button = self.create_button(self.start_selection, compact=True)
+        self.preview_capture_button = self.create_button(self.start_selection, secondary=True, compact=True)
         preview_header.addWidget(self.preview_capture_button)
         preview_layout.insertLayout(0, preview_header)
         layout.addWidget(self.preview_group, 3)
@@ -275,7 +270,7 @@ class MainWindowLayoutMixin:
         self.preview_label.setTextFormat(Qt.PlainText)
         preview_layout.addWidget(self.preview_label)
 
-        self.log_group, log_layout, self.log_group_title_label = self.create_section_card()
+        self.log_group, log_layout, self.log_group_title_label = self.create_section_card(role="monitor")
         log_header = QHBoxLayout()
         log_header.setSpacing(8)
         log_header.addWidget(self.log_group_title_label)
@@ -294,14 +289,26 @@ class MainWindowLayoutMixin:
         log_layout.addWidget(self.log_text)
 
     def apply_styles(self):
-        self.setStyleSheet(load_style_sheet("main_window.qss"))
+        theme_name = set_theme_mode(self.current_theme_mode() if hasattr(self, "current_theme_mode") else getattr(self.config, "theme_mode", "system"))
+        self.setStyleSheet(load_style_sheet("main_window.qss", theme_name=theme_name))
+        if hasattr(self, "translation_overlay"):
+            self.translation_overlay.apply_styles()
+        if hasattr(self, "selection_overlay"):
+            self.selection_overlay.apply_theme()
+        self.icon = self.create_app_icon()
+        self.setWindowIcon(self.icon)
+        if hasattr(self, "tray_service"):
+            self.tray_service.icon = self.icon
+        if getattr(self, "tray", None):
+            self.tray.setIcon(self.icon)
 
     def apply_language(self):
+        self.apply_styles()
         self.setWindowTitle(f"{self.tr('window_title')}[*]")
         self.title_label.setText(self.tr("title"))
         self.subtitle_label.setText(self.tr("subtitle"))
         self.navigation_label.setText(self.tr("navigation"))
-        self.quick_actions_label.setText(self.tr("quick_actions"))
+        self.quick_actions_label.setText(self.tr("sidebar_start_here"))
         self.hero_capture_button.setText(self.tr("start_capture"))
         self.hero_manual_input_button.setText(self.tr("open_manual_input"))
         self.hero_tray_button.setText(self.tr("minimize_to_tray"))
@@ -318,16 +325,18 @@ class MainWindowLayoutMixin:
             f"<span style='color:{color('text_primary')};'>{AUTHOR_NAME_EN}</span>"
             "<br/>"
             f"<span style='color:{color('text_secondary')};'>{self.tr('about_repo_label')}：</span>"
-            f"<a href='{REPOSITORY_URL}' style='color:{color('accent_soft')}; text-decoration:none;'>{REPOSITORY_NAME}</a>"
+            f"<a href='{REPOSITORY_URL}' style='color:{color('link')}; text-decoration:none;'>{REPOSITORY_NAME}</a>"
         )
-        self.profile_group_title_label.setText(self.tr("section_profiles"))
-        self.api_group_title_label.setText(self.tr("section_api"))
-        self.reading_group_title_label.setText(self.tr("section_reading"))
-        self.prompts_group_title_label.setText(self.tr("section_prompts"))
+        self.connection_group_title_label.setText(self.tr("section_connection"))
+        self.connection_intro_label.setText(self.tr("section_connection_intro"))
+        self.translation_group_title_label.setText(self.tr("section_translation"))
+        self.translation_intro_label.setText(self.tr("section_translation_intro"))
         self.advanced_group_title_label.setText(self.tr("section_advanced"))
-        self.quick_group_title_label.setText(self.tr("quick_actions"))
+        self.advanced_intro_label.setText(self.tr("section_advanced_intro"))
         self.preview_group_title_label.setText(self.tr("preview_panel"))
         self.log_group_title_label.setText(self.tr("activity_panel"))
+        self.prompt_hint_label.setText(self.tr("prompt_hint"))
+        self.advanced_hint_label.setText(self.tr("runtime_settings_hint"))
         self.preview_capture_button.setText(self.tr("start_capture"))
         self.clear_logs_button.setText(self.tr("clear_logs"))
         if not self.preview_pixmap:
@@ -353,6 +362,7 @@ class MainWindowLayoutMixin:
         self.retry_interval_label.setText(self.tr("retry_interval"))
         self.target_language_label.setText(self.tr("target_language"))
         self.ui_language_label.setText(self.tr("ui_language"))
+        self.theme_label.setText(self.tr("theme_mode"))
         self.hotkey_label.setText(self.tr("capture_hotkey"))
         self.selection_hotkey_label.setText(self.tr("selection_hotkey"))
         self.input_hotkey_label.setText(self.tr("input_hotkey"))
@@ -360,7 +370,6 @@ class MainWindowLayoutMixin:
         self.overlay_font_size_label.setText(self.tr("overlay_font_size"))
         self.image_prompt_label.setText(self.tr("image_prompt"))
         self.text_prompt_label.setText(self.tr("text_prompt"))
-        self.prompt_hint_label.setText(self.tr("prompt_hint"))
         self.profile_name_edit.setPlaceholderText(self.tr("profile_name_placeholder"))
         self.prompt_preset_name_edit.setPlaceholderText(self.tr("prompt_preset_name_placeholder"))
         self.base_url_edit.setPlaceholderText(self.tr("base_url_placeholder"))
@@ -394,9 +403,10 @@ class MainWindowLayoutMixin:
         self.close_to_tray_on_close_checkbox.setText(self.tr("close_to_tray_on_close"))
         self.api_keys_toggle_button.setText(self.tr("show_api_keys") if not self.api_keys_visible else self.tr("hide_api_keys"))
         self.export_logs_button.setText(self.tr("export_logs"))
-        self.advanced_hint_label.setText(self.tr("runtime_settings_hint"))
         self.update_provider_options()
         self.update_mode_options()
+        if hasattr(self, "update_theme_mode_options"):
+            self.update_theme_mode_options(self.current_theme_mode() if hasattr(self, "current_theme_mode") else getattr(self.config, "theme_mode", "system"))
         self.refresh_page_header()
         self.refresh_shell_state()
         if hasattr(self, "tray"):
@@ -407,6 +417,7 @@ class MainWindowLayoutMixin:
         self.set_status(self.current_status_key, **self.current_status_kwargs)
         if hasattr(self, "update_action_states"):
             self.update_action_states()
+        self.refresh_save_button_emphasis()
         if hasattr(self, "refresh_sidebar_layout"):
             self.refresh_sidebar_layout()
         self.validate_form_inputs()
@@ -449,26 +460,26 @@ class MainWindowLayoutMixin:
         current_target_language = self.current_target_language() if hasattr(self, "current_target_language") else self.config.target_language
         current_prompt_preset = self.current_prompt_preset_name() if hasattr(self, "current_prompt_preset_name") else self.config.active_prompt_preset_name
         mode_label = self.tr("mode_book_lr") if current_mode == "book_lr" else self.tr("mode_web_ud")
-        chip_values = {
-            self.hotkey_chip: self.tr("meta_hotkey", value=current_hotkey),
-            self.target_chip: self.tr("meta_target", value=current_target_language),
-            self.prompt_chip: self.tr("meta_prompt", value=current_prompt_preset),
-            self.mode_chip: self.tr("meta_mode", value=mode_label),
-        }
-        for chip, text in chip_values.items():
-            chip.setText(text)
-            chip.setToolTip(text)
+        summary_text = self.tr(
+            "header_summary",
+            prompt=current_prompt_preset,
+            target=current_target_language,
+            mode=mode_label,
+            hotkey=current_hotkey,
+        )
+        self.page_context_label.setText(summary_text)
+        self.page_context_label.setToolTip(summary_text)
         profile = self.get_active_profile() if getattr(self.config, "api_profiles", None) else None
         if profile and hasattr(self, "profile_name_edit") and hasattr(self, "provider_combo"):
             profile_name = self.profile_name_edit.text().strip() or self.tr("untitled_profile")
             provider = normalize_provider_name(self.provider_combo.currentData() or profile.provider)
-            badge_text = f"{profile_name} · {self.provider_display(provider)}"
+            badge_text = profile_name
             self.active_profile_badge.setText(badge_text)
-            self.active_profile_badge.setToolTip(badge_text)
+            self.active_profile_badge.setToolTip(f"{profile_name} · {self.provider_display(provider)}")
         elif profile:
-            badge_text = f"{profile.name} · {self.provider_display(profile.provider)}"
+            badge_text = profile.name
             self.active_profile_badge.setText(badge_text)
-            self.active_profile_badge.setToolTip(badge_text)
+            self.active_profile_badge.setToolTip(f"{profile.name} · {self.provider_display(profile.provider)}")
         else:
             badge_text = self.tr("untitled_profile")
             self.active_profile_badge.setText(badge_text)
@@ -484,22 +495,23 @@ class MainWindowLayoutMixin:
         layout.addWidget(field_widget)
         return block
 
-    def create_section_card(self):
+    def create_section_card(self, *, role: str = "settings"):
         card = QFrame()
         card.setObjectName("SectionCard")
-        self.add_shadow(card, blur=34, y_offset=12, alpha=74)
+        card.setProperty("sectionRole", role)
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setContentsMargins(8, 10, 8, 8)
         layout.setSpacing(16)
         title_label = QLabel()
         title_label.setObjectName("SectionTitleLabel")
+        title_label.setProperty("sectionRole", role)
         layout.addWidget(title_label)
         body_layout = QVBoxLayout()
         body_layout.setSpacing(14)
         layout.addLayout(body_layout)
         return card, body_layout, title_label
 
-    def create_button(self, callback, accent=True, secondary=False, success=False, danger=False, compact=False):
+    def create_button(self, callback, accent=True, secondary=False, success=False, warning=False, danger=False, compact=False):
         button = QPushButton()
         button.clicked.connect(callback)
         variant = "primary"
@@ -507,14 +519,32 @@ class MainWindowLayoutMixin:
             variant = "secondary"
         elif success:
             variant = "success"
+        elif warning:
+            variant = "warning"
         elif danger:
             variant = "danger"
         elif not accent:
             variant = "neutral"
-        button.setProperty("variant", variant)
+        self.set_button_variant(button, variant)
         if compact:
             button.setProperty("compact", True)
         return button
+
+    def set_button_variant(self, button, variant: str):
+        if not hasattr(button, "setProperty"):
+            return
+        button.setProperty("variant", variant)
+        if hasattr(button, "style"):
+            style = button.style()
+            if style:
+                style.unpolish(button)
+                style.polish(button)
+        if hasattr(button, "update"):
+            button.update()
+
+    def refresh_save_button_emphasis(self):
+        if hasattr(self, "save_button"):
+            self.set_button_variant(self.save_button, "secondary" if getattr(self, "has_unsaved_changes", False) else "neutral")
 
     def add_shadow(self, widget, blur=32, y_offset=10, alpha=90):
         shadow = QGraphicsDropShadowEffect(self)
@@ -538,17 +568,17 @@ class MainWindowLayoutMixin:
         painter = QPainter(pix)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setPen(Qt.NoPen)
-        painter.setBrush(qcolor("accent"))
+        painter.setBrush(qcolor("primary"))
         painter.drawRoundedRect(4, 4, 56, 56, 18, 18)
-        painter.setBrush(qcolor("surface_alt"))
+        painter.setBrush(qcolor("surface_container_low"))
         painter.drawRoundedRect(13, 10, 38, 44, 13, 13)
-        painter.setPen(QPen(qcolor("text_emphasis"), 4))
+        painter.setPen(QPen(qcolor("on_surface"), 4))
         painter.drawLine(23, 19, 23, 45)
         painter.setPen(QPen(qcolor("warning"), 4))
         painter.drawLine(23, 19, 38, 19)
-        painter.setPen(QPen(qcolor("text_emphasis"), 3))
+        painter.setPen(QPen(qcolor("on_surface"), 3))
         painter.drawLine(23, 31, 44, 31)
-        painter.setPen(QPen(qcolor("accent_soft"), 3))
+        painter.setPen(QPen(qcolor("primary_container"), 3))
         painter.drawLine(23, 41, 39, 41)
         painter.end()
         return QIcon(pix)

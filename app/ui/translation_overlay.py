@@ -57,9 +57,9 @@ class TranslationOverlay(QWidget):
         self.card.setObjectName("overlayCard")
         self.card.setMouseTracking(True)
         shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(48)
-        shadow.setOffset(0, 18)
-        shadow.setColor(qcolor("shadow", alpha=190))
+        shadow.setBlurRadius(26)
+        shadow.setOffset(0, 8)
+        shadow.setColor(qcolor("shadow", alpha=90))
         self.card.setGraphicsEffect(shadow)
 
         card_layout = QVBoxLayout(self.card)
@@ -144,7 +144,7 @@ class TranslationOverlay(QWidget):
         self.apply_surface_state()
 
     def apply_styles(self):
-        self.setStyleSheet(load_style_sheet("translation_overlay.qss"))
+        self.setStyleSheet(load_style_sheet("translation_overlay.qss", theme_name=self.app_window.effective_theme_name()))
 
     def refresh_language(self):
         title = self.app_window.tr("overlay_title")

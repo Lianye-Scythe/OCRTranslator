@@ -78,6 +78,7 @@ class MainWindowRuntimeTests(unittest.TestCase):
             "hotkey_edit",
             "hotkey_record_button",
             "selection_hotkey_edit",
+            "theme_mode_combo",
             "selection_hotkey_record_button",
             "input_hotkey_edit",
             "input_hotkey_record_button",
@@ -113,6 +114,7 @@ class MainWindowRuntimeTests(unittest.TestCase):
         self.assertFalse(window.target_language_edit.enabled)
         self.assertFalse(window.prompt_preset_combo.enabled)
         self.assertFalse(window.close_to_tray_on_close_checkbox.enabled)
+        self.assertFalse(window.theme_mode_combo.enabled)
         self.assertTrue(window.hero_tray_button.enabled)
         self.assertFalse(window.profile_combo.enabled)
         self.assertFalse(window.tray_capture_action.enabled)

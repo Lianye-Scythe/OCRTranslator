@@ -1,6 +1,9 @@
 DEFAULT_TARGET_LANGUAGE = "繁體中文"
 DEFAULT_UI_LANGUAGE = "en"
+DEFAULT_THEME_MODE = "system"
 DEFAULT_OVERLAY_FONT_FAMILY = "Microsoft JhengHei UI"
+
+VALID_THEME_MODES = ("system", "light", "dark")
 
 DEFAULT_TARGET_LANGUAGE_BY_UI_LANGUAGE = {
     "zh-TW": "繁體中文",
@@ -11,6 +14,12 @@ DEFAULT_TARGET_LANGUAGE_BY_UI_LANGUAGE = {
 
 def default_target_language_for_ui_language(ui_language: str) -> str:
     return DEFAULT_TARGET_LANGUAGE_BY_UI_LANGUAGE.get(str(ui_language or "").strip(), DEFAULT_TARGET_LANGUAGE_BY_UI_LANGUAGE[DEFAULT_UI_LANGUAGE])
+
+
+def normalize_theme_mode(value, *, default: str = DEFAULT_THEME_MODE) -> str:
+    normalized = str(value or "").strip().lower()
+    return normalized if normalized in VALID_THEME_MODES else default
+
 
 DEFAULT_MODEL = "models/gemini-3.1-flash-lite-preview"
 DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com"

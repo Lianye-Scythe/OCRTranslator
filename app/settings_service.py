@@ -1,6 +1,6 @@
 from copy import deepcopy
 
-from .app_defaults import DEFAULT_CAPTURE_HOTKEY, DEFAULT_INPUT_HOTKEY, DEFAULT_SELECTION_HOTKEY
+from .app_defaults import DEFAULT_CAPTURE_HOTKEY, DEFAULT_INPUT_HOTKEY, DEFAULT_SELECTION_HOTKEY, DEFAULT_THEME_MODE
 from .hotkey_listener import find_hotkey_conflicts
 from .models import ApiProfile, AppConfig, PromptPreset
 from .profile_utils import default_base_url_for_provider, default_model_for_provider, normalize_model_value, normalize_provider_name, unique_non_empty
@@ -225,6 +225,7 @@ def build_candidate_config(
     _upsert_prompt_preset(candidate_config, prompt_preset, current_name=base_config.active_prompt_preset_name)
     candidate_config.target_language = snapshot.target_language.strip() or candidate_config.target_language
     candidate_config.ui_language = snapshot.ui_language.strip() or candidate_config.ui_language
+    candidate_config.theme_mode = snapshot.theme_mode or DEFAULT_THEME_MODE
     candidate_config.hotkey = snapshot.hotkey.strip() or DEFAULT_CAPTURE_HOTKEY
     candidate_config.selection_hotkey = snapshot.selection_hotkey.strip() or DEFAULT_SELECTION_HOTKEY
     candidate_config.input_hotkey = snapshot.input_hotkey.strip() or DEFAULT_INPUT_HOTKEY

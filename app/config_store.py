@@ -13,8 +13,10 @@ from .app_defaults import (
     DEFAULT_MODEL,
     DEFAULT_OVERLAY_FONT_FAMILY,
     DEFAULT_SELECTION_HOTKEY,
+    DEFAULT_THEME_MODE,
     DEFAULT_UI_LANGUAGE,
     default_target_language_for_ui_language,
+    normalize_theme_mode,
 )
 from .default_prompts import canonical_prompt_preset_name, canonical_prompt_preset_name_for_builtin
 from .i18n import detect_system_ui_language, normalize_ui_language
@@ -43,7 +45,11 @@ def _default_profile() -> ApiProfile:
 
 def _default_app_config() -> AppConfig:
     ui_language = detect_system_ui_language()
-    return AppConfig(ui_language=ui_language, target_language=default_target_language_for_ui_language(ui_language))
+    return AppConfig(
+        ui_language=ui_language,
+        target_language=default_target_language_for_ui_language(ui_language),
+        theme_mode=DEFAULT_THEME_MODE,
+    )
 
 
 def _default_prompt_preset() -> PromptPreset:
@@ -227,6 +233,7 @@ def _migrate_legacy_config(data: dict) -> AppConfig:
         overlay_height=_coerce_int(source.get("overlay_height"), 520, min_value=220, max_value=1600),
         margin=_coerce_int(source.get("margin"), 18, min_value=8, max_value=120),
         ui_language=ui_language,
+        theme_mode=normalize_theme_mode(source.get("theme_mode"), default=DEFAULT_THEME_MODE),
         hotkey=_coerce_text(source.get("hotkey"), DEFAULT_CAPTURE_HOTKEY),
         selection_hotkey=_coerce_text(source.get("selection_hotkey"), DEFAULT_SELECTION_HOTKEY),
         input_hotkey=_coerce_text(source.get("input_hotkey"), DEFAULT_INPUT_HOTKEY),

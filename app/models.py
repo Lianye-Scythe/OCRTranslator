@@ -8,6 +8,7 @@ from .app_defaults import (
     DEFAULT_OVERLAY_FONT_FAMILY,
     DEFAULT_SELECTION_HOTKEY,
     DEFAULT_TARGET_LANGUAGE,
+    DEFAULT_THEME_MODE,
     DEFAULT_UI_LANGUAGE,
 )
 from .default_prompts import DEFAULT_PROMPT_PRESET_DEFINITIONS
@@ -46,6 +47,7 @@ class AppConfig:
     overlay_height: int = 520
     margin: int = 18
     ui_language: str = DEFAULT_UI_LANGUAGE
+    theme_mode: str = DEFAULT_THEME_MODE
     hotkey: str = DEFAULT_CAPTURE_HOTKEY
     selection_hotkey: str = DEFAULT_SELECTION_HOTKEY
     input_hotkey: str = DEFAULT_INPUT_HOTKEY

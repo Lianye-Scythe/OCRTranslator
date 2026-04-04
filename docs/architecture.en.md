@@ -50,7 +50,7 @@ OCRTranslator/
 ├─ app/
 │  ├─ __init__.py                    # package marker for app
 │  ├─ api_client.py                  # unified API calling, key rotation, retry, and provider dispatch
-│  ├─ app_defaults.py                # default provider / URL / model / hotkey / display values
+│  ├─ app_defaults.py                # default provider / URL / model / hotkey / theme mode / display values
 │  ├─ app_metadata.py                # author and repository metadata
 │  ├─ config_store.py                # load, migrate, save, and recover config.json
 │  ├─ crash_handling.py              # shared crash-hook setup and error dialog entry point
@@ -60,7 +60,7 @@ OCRTranslator/
 │  ├─ hotkey_utils.py                # shared hotkey splitting, modifier detection, and normalization helpers
 │  ├─ i18n.py                        # locale loading, language normalization, system-language detection
 │  ├─ main.py                        # main GUI entry, single-instance control, capture forwarding
-│  ├─ models.py                      # AppConfig / ApiProfile / PromptPreset data structures
+│  ├─ models.py                      # AppConfig / ApiProfile / PromptPreset data structures (including theme mode)
 │  ├─ operation_control.py           # cancellation tokens, RequestContext, operation error wrapping
 │  ├─ profile_utils.py               # provider/model normalization and string helpers
 │  ├─ prompt_utils.py                # prompt template rendering and text-request wrapping
@@ -98,15 +98,15 @@ OCRTranslator/
 │  └─ ui/
 │     ├─ __init__.py                 # package marker for UI
 │     ├─ main_window.py              # main window coordinator, integrating mixins and service calls
-│     ├─ main_window_layout.py       # shell layout, navigation, header, style application
+│     ├─ main_window_layout.py       # shell layout, workspace surface, navigation, button variants, and style application
 │     ├─ main_window_profiles.py     # profile form binding, validation rendering, hotkey recording
 │     ├─ main_window_prompts.py      # prompt preset form logic and built-in preset protection
-│     ├─ main_window_settings_layout.py # settings-page section layout construction
+│     ├─ main_window_settings_layout.py # workflow-first settings layout (connection / translation / advanced)
 │     ├─ overlay_positioning.py      # overlay position, size, and screen-bound calculations
 │     ├─ prompt_input_dialog.py      # manual text input dialog
 │     ├─ selection_overlay.py        # full-screen selection overlay
-│     ├─ style_utils.py              # QSS loading and theme-token rendering
-│     ├─ theme_tokens.py             # shared color/font tokens for QSS and non-QSS UI code
+│     ├─ style_utils.py              # theme-aware QSS loading, caching, and token rendering
+│     ├─ theme_tokens.py             # Material-inspired semantic color roles, compatibility aliases, and QSS tokens
 │     ├─ translation_overlay.py      # result overlay widget and interaction logic
 │     │
 │     └─ styles/

@@ -20,6 +20,8 @@ It is not just a screenshot translator. It is a desktop AI workspace organized a
 - Multiple API profiles
 - `Gemini Compatible` and `OpenAI Compatible` providers
 - API key rotation and retry support
+- Light / dark / follow-system theme modes
+- A workflow-first settings page organized as `Connection and model → Translation workflow → Appearance and advanced`
 - Result overlay supports copy, pin / unpin, opacity adjustment, drag to move, corner resize, and `Ctrl + mouse wheel` font zoom
 - Global hotkeys, system tray, and single-instance protection
 - Portable config stored next to the project root or packaged exe
@@ -76,14 +78,23 @@ python -m app.main --capture
 
 ## Basic workflow
 
-### 1. Configure the API
+### 1. Finish the connection and model check first
 
-At minimum, fill in:
+The settings page now guides first-run setup through the `Connection and model` section. At minimum, fill in:
 
 - Provider
 - Base URL
 - API Keys
 - Model
+
+Recommended order:
+
+1. Select or create an API profile
+2. `Fetch Models`
+3. `Test API`
+4. `Save Settings`
+
+After the connection works, fine-tune translation behavior, hotkeys, theme mode, and overlay preferences.
 
 ### 2. Trigger one of the three entry points
 

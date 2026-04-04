@@ -18,6 +18,7 @@ class SettingsServiceTests(unittest.TestCase):
             "retry_interval": 2.0,
             "target_language": "English",
             "ui_language": "en",
+            "theme_mode": "dark",
             "hotkey": "Ctrl+Shift+X",
             "selection_hotkey": "Ctrl+Shift+C",
             "input_hotkey": "Ctrl+Shift+Z",
@@ -120,6 +121,7 @@ class SettingsServiceTests(unittest.TestCase):
         self.assertEqual(base_config.ui_language, "zh-TW")
         self.assertEqual(base_config.api_profiles[0].provider, "gemini")
         self.assertEqual(candidate_config.ui_language, "en")
+        self.assertEqual(candidate_config.theme_mode, "dark")
         self.assertEqual(candidate_config.target_language, "English")
         self.assertEqual(candidate_config.active_profile_name, "Demo")
         self.assertEqual(candidate_config.active_prompt_preset_name, "Translate")

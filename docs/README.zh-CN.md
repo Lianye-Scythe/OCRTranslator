@@ -24,6 +24,8 @@ OCRTranslator 是一款以 **桌面即时阅读** 为核心的 **便携式 OCR /
 - 支持多个 API Profile
 - 支持 `Gemini Compatible` / `OpenAI Compatible`
 - 支持多 Key 轮替与失败重试
+- 支持 `浅色 / 深色 / 跟随系统` 三态主题切换
+- 设置页改为“连接与模型 → 翻译方式与快捷键 → 界面与进阶”三段式流程，降低第一次使用的理解成本
 - 结果浮窗支持：复制、Pin / 取消 Pin、透明度调整、拖拽移动、角落拖拽改尺寸、`Ctrl + 鼠标滚轮` 缩放字体
 - 支持全局快捷键、系统托盘、单实例保护
 - 配置默认保存在项目根目录 / exe 同层，保持便携
@@ -97,27 +99,29 @@ python -m app.main --capture
 
 ## 使用流程
 
-### 1. 先完成 API 设置
+### 1. 先完成当前配置的连接与模型测试
 
-设置页至少需要填写：
+设置页现在会优先引导你完成“连接与模型”区块，至少需要填写：
 
 - Provider
 - Base URL
 - API Keys
 - Model
 
-按需再补：
+建议顺序：
+
+1. 选择或新增一个 API Profile
+2. `Fetch Models`
+3. `Test API`
+4. `Save Settings`
+
+等连接完成后，再按需补上：
 
 - Target Language
 - Global Hotkeys
 - Prompt Preset
 - Overlay 偏好
-
-建议顺序：
-
-1. `Fetch Models`
-2. `Test API`
-3. `Save Settings`
+- Theme / UI Language
 
 ### 2. 从三种入口发起请求
 
@@ -174,6 +178,7 @@ python -m app.main --capture
 主要保存内容：
 
 - Target Language / UI Language
+- Theme Mode
 - 三组全局快捷键
 - Overlay 字体 / 字号 / 透明度 / Pin / 默认尺寸
 - 是否按 X 最小化到系统托盘

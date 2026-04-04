@@ -5,7 +5,7 @@ from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QMessageBox
 
 from ..config_store import load_config, save_config
-from ..app_defaults import PROVIDER_LABELS
+from ..app_defaults import DEFAULT_THEME_MODE, PROVIDER_LABELS, normalize_theme_mode
 from ..hotkey_utils import hotkey_has_modifier as hotkey_has_modifier_rule
 from ..i18n import I18N
 from ..models import ApiProfile, AppConfig
@@ -45,6 +45,10 @@ class MainWindowProfilesMixin:
     def set_unsaved_changes(self, dirty: bool):
         self.has_unsaved_changes = bool(dirty)
         self.setWindowModified(self.has_unsaved_changes)
+        if hasattr(self, "refresh_save_button_emphasis"):
+            self.refresh_save_button_emphasis()
+        if hasattr(self, "update_action_states"):
+            self.update_action_states()
 
     def on_form_input_changed(self, *_):
         if self.is_form_tracking_suppressed():
@@ -107,6 +111,17 @@ class MainWindowProfilesMixin:
         index = self.mode_combo.findData(current_value)
         self.mode_combo.setCurrentIndex(max(0, index))
         self.mode_combo.blockSignals(False)
+
+    def update_theme_mode_options(self, current: str | None = None):
+        current_value = normalize_theme_mode(current or self.theme_mode_combo.currentData() or getattr(self.config, "theme_mode", DEFAULT_THEME_MODE))
+        self.theme_mode_combo.blockSignals(True)
+        self.theme_mode_combo.clear()
+        self.theme_mode_combo.addItem(self.tr("theme_system"), "system")
+        self.theme_mode_combo.addItem(self.tr("theme_light"), "light")
+        self.theme_mode_combo.addItem(self.tr("theme_dark"), "dark")
+        index = self.theme_mode_combo.findData(current_value)
+        self.theme_mode_combo.setCurrentIndex(max(0, index))
+        self.theme_mode_combo.blockSignals(False)
 
     def update_provider_options(self):
         current = self.provider_combo.currentData() or self.get_active_profile().provider
@@ -258,6 +273,7 @@ class MainWindowProfilesMixin:
             retry_interval=self.retry_interval_spin.value(),
             target_language=self.target_language_edit.text().strip(),
             ui_language=self.ui_language_combo.currentText().strip(),
+            theme_mode=normalize_theme_mode(self.theme_mode_combo.currentData() or getattr(self.config, "theme_mode", DEFAULT_THEME_MODE)),
             hotkey=self.hotkey_edit.text().strip(),
             selection_hotkey=self.selection_hotkey_edit.text().strip(),
             input_hotkey=self.input_hotkey_edit.text().strip(),
@@ -548,6 +564,7 @@ class MainWindowProfilesMixin:
             self.retry_interval_spin.setValue(profile.retry_interval)
             self.target_language_edit.setText(self.config.target_language)
             self.ui_language_combo.setCurrentText(self.config.ui_language)
+            self.update_theme_mode_options(getattr(self.config, "theme_mode", DEFAULT_THEME_MODE))
             self.hotkey_edit.setText(self.config.hotkey)
             self.selection_hotkey_edit.setText(self.config.selection_hotkey)
             self.input_hotkey_edit.setText(self.config.input_hotkey)
@@ -677,6 +694,12 @@ class MainWindowProfilesMixin:
     def on_ui_language_changed(self, value: str):
         if value not in I18N:
             return
+        if self.is_form_tracking_suppressed():
+            return
+        self.apply_language()
+        self.on_form_input_changed()
+
+    def on_theme_mode_changed(self, _value: str):
         if self.is_form_tracking_suppressed():
             return
         self.apply_language()

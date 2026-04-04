@@ -13,6 +13,7 @@ class SettingsFormSnapshot:
     retry_interval: float = 0.0
     target_language: str = ""
     ui_language: str = ""
+    theme_mode: str = "system"
     hotkey: str = ""
     selection_hotkey: str = ""
     input_hotkey: str = ""

@@ -1,78 +1,87 @@
 #overlayCard {
-    background:qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #141c28, stop:1 {{surface_base}});
-    border:1px solid {{border_base}};
-    border-radius:22px;
+    background:{{overlay_card_bg}};
+    border:1px solid {{overlay_card_border}};
+    border-radius:16px;
 }
+
 #overlayHeader {
-    background:#151f2e;
-    border-top-left-radius:22px;
-    border-top-right-radius:22px;
-    border-bottom:1px solid #263448;
+    background:transparent;
+    border-top-left-radius:16px;
+    border-top-right-radius:16px;
+    border-bottom:1px solid {{overlay_header_border}};
 }
+
 #overlayTitleLabel {
     color:{{text_emphasis}};
-    font-size:14px;
+    font-size:13px;
     font-weight:700;
 }
+
 #overlayValueChip {
-    background:#121c2a;
-    color:#dbe5f8;
-    border:1px solid {{border_soft}};
-    border-radius:12px;
+    background:{{overlay_value_bg}};
+    color:{{overlay_value_fg}};
+    border:1px solid transparent;
+    border-radius:10px;
     padding:0 10px;
     font-size:12px;
-    font-weight:700;
-}
-#overlayBody {
-    background:{{surface_base}};
-    color:{{text_primary}};
-    border:none;
-    padding:14px 16px 16px 16px;
-    border-bottom-left-radius:22px;
-    border-bottom-right-radius:22px;
-    selection-background-color:{{accent}};
-}
-#overlayCloseButton {
-    background:#182130;
-    color:#e8eef9;
-    border:1px solid #2d3b4f;
-    border-radius:12px;
-    font-size:18px;
     font-weight:600;
 }
+
+#overlayBody {
+    background:transparent;
+    color:{{overlay_body_fg}};
+    border:none;
+    padding:18px 18px 20px 18px;
+    border-bottom-left-radius:16px;
+    border-bottom-right-radius:16px;
+    selection-background-color:{{selection_bg}};
+}
+
+#overlayCloseButton,
 #overlayActionButton {
-    background:#1d293a;
-    color:#edf2fb;
-    border:1px solid {{border_soft}};
-    border-radius:12px;
+    background:transparent;
+    color:{{overlay_action_fg}};
+    border:1px solid transparent;
+    border-radius:10px;
     padding:0 12px;
-    font-weight:700;
+    font-weight:600;
 }
+
+#overlayCloseButton {
+    font-size:18px;
+    font-weight:500;
+}
+
 #overlayActionButton:checked {
-    background:{{accent}};
-    color:#0f1420;
-    border:1px solid {{accent_soft}};
+    background:{{overlay_action_checked_bg}};
+    color:{{overlay_action_checked_fg}};
+    border:1px solid {{overlay_action_checked_border}};
 }
-#overlayCloseButton:hover {
-    background:#1d2839;
+
+#overlayCloseButton:hover,
+#overlayActionButton:hover {
+    background:{{overlay_action_hover_bg}};
+    border-color:{{overlay_action_hover_border}};
+    color:{{overlay_action_hover_fg}};
 }
+
 #overlayActionButton:focus,
 #overlayCloseButton:focus {
-    border:1px solid {{accent_focus}};
+    border:1px solid {{overlay_focus_border}};
 }
-#overlayActionButton:hover {
-    background:#243245;
-}
+
 QScrollBar:vertical {
     width:10px;
     margin:2px;
     background:transparent;
 }
+
 QScrollBar::handle:vertical {
-    background:{{scroll_handle}};
+    background:{{scrollbar_handle}};
     border-radius:5px;
     min-height:28px;
 }
+
 QScrollBar::add-line:vertical,
 QScrollBar::sub-line:vertical,
 QScrollBar::add-page:vertical,

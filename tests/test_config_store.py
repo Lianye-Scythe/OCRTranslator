@@ -20,6 +20,7 @@ class ConfigStoreMigrationTests(unittest.TestCase):
                 "ui_language": "jp",
                 "hotkey": "",
                 "overlay_font_family": "",
+                "theme_mode": "midnight",
                 "overlay_font_size": 1,
                 "overlay_opacity": 5,
                 "overlay_pinned": "yes",
@@ -47,6 +48,7 @@ class ConfigStoreMigrationTests(unittest.TestCase):
         self.assertEqual(config.hotkey, "Shift+Win+X")
         self.assertEqual(config.selection_hotkey, "Shift+Win+C")
         self.assertEqual(config.input_hotkey, "Shift+Win+Z")
+        self.assertEqual(config.theme_mode, "system")
         self.assertEqual(config.overlay_font_family, "Microsoft JhengHei UI")
         self.assertEqual(config.overlay_font_size, 10)
         self.assertEqual(config.overlay_opacity, 55)
@@ -85,6 +87,7 @@ class ConfigStoreMigrationTests(unittest.TestCase):
         self.assertEqual(config.mode, "web_ud")
         self.assertEqual(config.ui_language, "zh-CN")
         self.assertEqual(config.active_profile_name, "Default Gemini")
+        self.assertEqual(config.theme_mode, "system")
         self.assertEqual(config.overlay_opacity, 96)
         self.assertFalse(config.overlay_pinned)
         self.assertEqual(config.selection_hotkey, "Shift+Win+C")

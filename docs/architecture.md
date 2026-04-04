@@ -50,7 +50,7 @@ OCRTranslator/
 ├─ app/
 │  ├─ __init__.py                    # app 套件標記
 │  ├─ api_client.py                  # 統一 API 呼叫、Key 輪替、重試與 Provider 調度
-│  ├─ app_defaults.py                # 預設 Provider / URL / 模型 / 快捷鍵 / 顯示值
+│  ├─ app_defaults.py                # 預設 Provider / URL / 模型 / 快捷鍵 / theme mode / 顯示值
 │  ├─ app_metadata.py                # 作者與倉庫 metadata
 │  ├─ config_store.py                # config.json 載入、遷移、儲存、損壞恢復
 │  ├─ crash_handling.py              # 共用 crash hook 安裝與錯誤對話框入口
@@ -60,7 +60,7 @@ OCRTranslator/
 │  ├─ hotkey_utils.py                # 快捷鍵切分、修飾鍵判斷、正規化共用工具
 │  ├─ i18n.py                        # locale 載入、語言正規化、系統語言偵測
 │  ├─ main.py                        # GUI 啟動主入口、單實例控制、capture 轉發
-│  ├─ models.py                      # AppConfig / ApiProfile / PromptPreset 資料結構
+│  ├─ models.py                      # AppConfig / ApiProfile / PromptPreset 資料結構（含 theme mode）
 │  ├─ operation_control.py           # 取消 token、RequestContext、操作錯誤包裝
 │  ├─ profile_utils.py               # Provider / 模型值正規化與字串工具
 │  ├─ prompt_utils.py                # Prompt 模板渲染與文字請求包裝
@@ -98,15 +98,15 @@ OCRTranslator/
 │  └─ ui/
 │     ├─ __init__.py                 # UI 套件標記
 │     ├─ main_window.py              # 主視窗協調層，整合 mixin 與 service 呼叫
-│     ├─ main_window_layout.py       # 主殼層版面、導航、header、樣式套用
+│     ├─ main_window_layout.py       # 主殼層版面、workspace surface、導航、button variant 與樣式套用
 │     ├─ main_window_profiles.py     # Profile 表單綁定、驗證呈現、快捷鍵錄製
 │     ├─ main_window_prompts.py      # Prompt Preset 表單邏輯與內建 preset 保護
-│     ├─ main_window_settings_layout.py # Settings 頁各 section 版面建構
+│     ├─ main_window_settings_layout.py # workflow-first Settings 版面（連線 / 翻譯 / 進階）
 │     ├─ overlay_positioning.py      # 浮窗定位、尺寸與螢幕邊界計算
 │     ├─ prompt_input_dialog.py      # 手動輸入文字請求的對話框
 │     ├─ selection_overlay.py        # 全螢幕框選覆蓋層
-│     ├─ style_utils.py              # QSS 載入與 theme token 渲染
-│     ├─ theme_tokens.py             # 非 QSS 與 QSS 共用的色彩 / 字型 token
+│     ├─ style_utils.py              # 依 theme name 載入並快取 QSS / theme token 渲染結果
+│     ├─ theme_tokens.py             # Material 風格語義色彩角色、相容別名與 QSS token
 │     ├─ translation_overlay.py      # 結果浮窗本體與互動邏輯
 │     │
 │     └─ styles/

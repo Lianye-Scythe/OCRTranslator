@@ -12,11 +12,19 @@
 - 新增 `app/hotkey_utils.py`，统一快捷键切分、修饰键判断与正规化规则
 - 新增 `app/crash_handling.py`，把 crash hook 初始化逻辑抽成共用入口
 - 新增 `requirements-dev.txt` 与多语言文档版本
+- 新增 `浅色 / 深色 / 跟随系统` 三态主题设置与 `theme_mode` 配置字段
 
 ### Changed
 - 设置表单校验改为按操作场景拆分，避免 Fetch Models / Test API / 文字请求被无关字段阻塞
 - API Test 的 stale result 判断现在会纳入模型名称
 - 内建提示词方案改为不可删除，避免重启后被自动补回造成语义不一致
+- 设置页信息架构改为「连接与模型 → 翻译方式与快捷键 → 界面与进阶」，强化先完成连接再开始使用的主路径
+- UI 主题 token 重构为偏 Material Design 方法论的语义色彩系统，让主按钮、次按钮、导航 selected、badge、warning / danger 状态各自有明确角色
+- 主窗口、结果浮窗与框选遮罩现在共用同一套主题角色，深色 / 浅色样式与运行时切换逻辑一并收敛
 - README 改为繁体中文默认版，并补上简体中文与英文版本
 - `docs/` 下的架构、开发与打包文档补齐三语版本
 - 非 QSS 的 UI 颜色常量开始收敛到 `app/ui/theme_tokens.py`
+
+### Fixed
+- 修正“取消当前操作”和“删除”共用危险色的语义错位，改为 warning / danger 分离
+- 修正 `保存设置`、`打开输入框`、disabled 与 validation 状态在浅色主题下容易混淆的问题

@@ -3,11 +3,11 @@ from pathlib import Path
 
 from PIL import Image
 from PySide6.QtCore import QPoint, Qt
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QGuiApplication, QPixmap
 from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QMessageBox
 
 from ..api_client import ApiClient
-from ..app_defaults import DEFAULT_UI_LANGUAGE
+from ..app_defaults import DEFAULT_UI_LANGUAGE, normalize_theme_mode
 from ..config_store import load_config, save_config
 from ..hotkey_utils import normalize_hotkey_text
 from ..hotkey_listener import HotkeyListener, find_hotkey_conflicts
@@ -24,6 +24,7 @@ from ..services.request_workflow import RequestWorkflowController
 from ..services.runtime_log import RuntimeLogStore
 from ..services.system_tray import SystemTrayService
 from ..workers import AppBridge, WorkerThread
+from .theme_tokens import resolve_theme_name, set_theme_mode
 from .main_window_layout import MainWindowLayoutMixin
 from .main_window_settings_layout import MainWindowSettingsLayoutMixin
 from .main_window_prompts import MainWindowPromptPresetsMixin
@@ -57,10 +58,14 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self.capture_workflow_active = False
         self.restore_window_after_capture = False
         self.restore_pinned_overlay_after_capture = False
+        self._style_hints = QGuiApplication.instance().styleHints() if QGuiApplication.instance() else None
         self._form_provider = normalize_provider_name(self.config.api_profiles[0].provider if self.config.api_profiles else "gemini")
+        set_theme_mode(getattr(self.config, "theme_mode", "system"))
         self.icon = self.create_app_icon()
         self.has_unsaved_changes = False
         self._suppress_form_tracking = False
+        if self._style_hints and hasattr(self._style_hints, "colorSchemeChanged"):
+            self._style_hints.colorSchemeChanged.connect(self.handle_system_color_scheme_changed)
         self.fetch_models_in_progress = False
         self.test_profile_in_progress = False
         self.translation_in_progress = False
@@ -137,6 +142,18 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         if hasattr(self, "mode_combo"):
             return self.mode_combo.currentData() or self.config.mode
         return self.config.mode
+
+    def current_theme_mode(self) -> str:
+        if hasattr(self, "theme_mode_combo"):
+            return normalize_theme_mode(self.theme_mode_combo.currentData() or getattr(self.config, "theme_mode", "system"))
+        return normalize_theme_mode(getattr(self.config, "theme_mode", "system"))
+
+    def effective_theme_name(self) -> str:
+        return resolve_theme_name(self.current_theme_mode())
+
+    def handle_system_color_scheme_changed(self, _scheme):
+        if self.current_theme_mode() == "system":
+            self.apply_language()
 
     def current_temperature(self) -> float:
         if hasattr(self, "temperature_spin"):
@@ -217,6 +234,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             "target_language_edit",
             "ui_language_combo",
             "hotkey_edit",
+            "theme_mode_combo",
             "hotkey_record_button",
             "selection_hotkey_edit",
             "selection_hotkey_record_button",
@@ -246,7 +264,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self.preview_capture_button.setText(capture_text)
         self.fetch_models_button.setEnabled(not any_background_busy)
         self.test_button.setEnabled(not any_background_busy)
-        self.save_button.setEnabled(not any_background_busy)
+        self.save_button.setEnabled(not any_background_busy and bool(getattr(self, "has_unsaved_changes", False)))
         self.cancel_button.setEnabled(cancel_available)
         self.hero_tray_button.setEnabled(bool(self.tray))
         self.hero_capture_button.setEnabled(not capture_busy)

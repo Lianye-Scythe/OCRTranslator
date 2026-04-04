@@ -16,20 +16,11 @@ class SelectionOverlay(QWidget):
         self.setFocusPolicy(Qt.StrongFocus)
         self.setCursor(Qt.CrossCursor)
         self.rubber_band = QRubberBand(QRubberBand.Rectangle, self)
-        self.rubber_band.setStyleSheet(
-            """
-            QRubberBand {
-                border:2px solid BORDER_COLOR;
-                background:OVERLAY_SCRIM;
-                border-radius:10px;
-            }
-            """
-            .replace("BORDER_COLOR", color("accent")).replace("OVERLAY_SCRIM", color("overlay_scrim"))
-        )
         self.origin = QPoint()
         self.hint_text = ""
         self.virtual_rect = self._get_virtual_rect()
         self.setGeometry(self.virtual_rect)
+        self.apply_theme()
 
     def _get_virtual_rect(self) -> QRect:
         screens = QGuiApplication.screens()
@@ -39,6 +30,19 @@ class SelectionOverlay(QWidget):
         for screen in screens[1:]:
             rect = rect.united(screen.geometry())
         return rect
+
+    def _rubber_band_style_sheet(self) -> str:
+        return (
+            "QRubberBand {"
+            f"border:2px solid {color('secondary_border')};"
+            f"background:{color('scrim')};"
+            "border-radius:12px;"
+            "}"
+        )
+
+    def apply_theme(self):
+        self.rubber_band.setStyleSheet(self._rubber_band_style_sheet())
+        self.update()
 
     def show_overlay(self):
         self.virtual_rect = self._get_virtual_rect()
@@ -90,10 +94,10 @@ class SelectionOverlay(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.fillRect(self.rect(), QColor(7, 11, 17, 160))
-        painter.setPen(QPen(qcolor("accent_soft", alpha=180), 1))
+        painter.setPen(QPen(qcolor("primary_container", alpha=180), 1))
         painter.drawRect(self.rect().adjusted(0, 0, -1, -1))
         if self.hint_text:
-            painter.setPen(qcolor("text_primary", alpha=220))
+            painter.setPen(qcolor("on_surface", alpha=220, theme_name="dark"))
             hint_rect = self.rect().adjusted(24, 24, -24, -24)
             painter.drawText(
                 hint_rect,
