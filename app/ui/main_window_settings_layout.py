@@ -22,8 +22,8 @@ class MainWindowSettingsLayoutMixin:
         scroll.setWidget(content)
 
         content_layout = QVBoxLayout(content)
-        content_layout.setContentsMargins(10, 10, 12, 40)
-        content_layout.setSpacing(22)
+        content_layout.setContentsMargins(10, 10, 12, 48)
+        content_layout.setSpacing(32)
 
         self._build_connection_section(content_layout)
         self._build_translation_section(content_layout)
@@ -63,8 +63,8 @@ class MainWindowSettingsLayoutMixin:
         connection_layout.addWidget(selector_shell)
 
         api_grid = QGridLayout()
-        api_grid.setHorizontalSpacing(14)
-        api_grid.setVerticalSpacing(14)
+        api_grid.setHorizontalSpacing(16)
+        api_grid.setVerticalSpacing(10)
         api_grid.setColumnStretch(0, 1)
         api_grid.setColumnStretch(1, 1)
         connection_layout.addLayout(api_grid)
@@ -101,7 +101,7 @@ class MainWindowSettingsLayoutMixin:
         runtime_actions_shell = QFrame()
         runtime_actions_shell.setObjectName("ActionClusterPanel")
         runtime_actions_layout = QHBoxLayout(runtime_actions_shell)
-        runtime_actions_layout.setContentsMargins(10, 10, 10, 10)
+        runtime_actions_layout.setContentsMargins(12, 10, 12, 10)
         runtime_actions_layout.setSpacing(10)
 
         self.fetch_models_button = self.create_button(self.fetch_models, accent=False)
@@ -172,8 +172,8 @@ class MainWindowSettingsLayoutMixin:
         translation_layout.addWidget(self.translation_intro_label)
 
         translation_grid = QGridLayout()
-        translation_grid.setHorizontalSpacing(14)
-        translation_grid.setVerticalSpacing(14)
+        translation_grid.setHorizontalSpacing(16)
+        translation_grid.setVerticalSpacing(10)
         translation_grid.setColumnStretch(0, 1)
         translation_grid.setColumnStretch(1, 1)
         translation_layout.addLayout(translation_grid)
@@ -283,8 +283,8 @@ class MainWindowSettingsLayoutMixin:
         advanced_content_layout.setContentsMargins(0, 0, 0, 0)
         advanced_content_layout.setSpacing(14)
         advanced_grid = QGridLayout()
-        advanced_grid.setHorizontalSpacing(14)
-        advanced_grid.setVerticalSpacing(14)
+        advanced_grid.setHorizontalSpacing(16)
+        advanced_grid.setVerticalSpacing(10)
         advanced_grid.setColumnStretch(0, 1)
         advanced_grid.setColumnStretch(1, 1)
         advanced_content_layout.addLayout(advanced_grid)

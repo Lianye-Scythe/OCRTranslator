@@ -142,7 +142,7 @@ def _compatibility_tokens(scheme: dict[str, str]) -> dict[str, str]:
     return {
         "accent": scheme["primary"],
         "accent_soft": scheme["primary_container"],
-        "accent_focus": scheme["primary_focus"],
+        "accent_focus": scheme["primary"],
         "accent_hover": scheme["primary_hover"],
         "accent_border": scheme["secondary_border"],
         "on_accent": scheme["on_primary"],
@@ -194,6 +194,7 @@ def _ui_role_tokens(scheme: dict[str, str]) -> dict[str, str]:
         "muted_fg": scheme["on_surface_variant"],
         "muted_fg_url": scheme["on_surface_variant"].replace("#", "%23"),
         "subtle_fg": scheme["outline"],
+        "subtle_fg_url": scheme["outline"].replace("#", "%23"),
         "link_fg": scheme["primary"],
         "hint_title_fg": scheme["warning"],
         "header_divider": scheme["outline_variant"],
@@ -207,7 +208,7 @@ def _ui_role_tokens(scheme: dict[str, str]) -> dict[str, str]:
         "nav_selected_bg": scheme["secondary_container"],
         "nav_selected_border": scheme["secondary_border"],
         "nav_selected_fg": scheme["on_secondary_container"],
-        "nav_focus_border": scheme["primary_focus"],
+        "nav_focus_border": scheme["primary"],
         "panel_bg": scheme["surface_container_low"],
         "panel_border": scheme["outline_variant"],
         "monitor_card_bg": scheme["surface_container"],
@@ -264,7 +265,7 @@ def _ui_role_tokens(scheme: dict[str, str]) -> dict[str, str]:
         "overlay_action_hover_bg": scheme["surface_container_high"],
         "overlay_action_hover_border": scheme["outline_variant"],
         "overlay_action_hover_fg": scheme["on_surface"],
-        "overlay_focus_border": scheme["primary_focus"],
+        "overlay_focus_border": scheme["primary"],
         "scrollbar_handle": scheme["scrollbar_handle"],
     }
 

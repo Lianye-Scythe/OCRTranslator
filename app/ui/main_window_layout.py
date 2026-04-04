@@ -504,14 +504,14 @@ class MainWindowLayoutMixin:
         card.setObjectName("SectionCard")
         card.setProperty("sectionRole", role)
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(8, 10, 8, 8)
-        layout.setSpacing(16)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(20)
         title_label = QLabel()
         title_label.setObjectName("SectionTitleLabel")
         title_label.setProperty("sectionRole", role)
         layout.addWidget(title_label)
         body_layout = QVBoxLayout()
-        body_layout.setSpacing(14)
+        body_layout.setSpacing(16)
         layout.addLayout(body_layout)
         return card, body_layout, title_label
 

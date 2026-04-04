@@ -93,6 +93,7 @@ QScrollArea#SidebarScrollArea > QWidget > QWidget,
 #NavButton:focus {
     border:1px solid {{nav_focus_border}};
     color:{{text_primary}};
+    background:{{nav_hover_bg}};
 }
 
 #HintCard,
@@ -235,7 +236,7 @@ QFontComboBox:focus,
 QSpinBox:focus,
 QDoubleSpinBox:focus {
     border:1px solid {{accent_focus}};
-    background:{{surface_input}};
+    background:{{field_focus_bg}};
 }
 
 QComboBox,

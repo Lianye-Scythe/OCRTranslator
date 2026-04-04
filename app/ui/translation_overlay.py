@@ -129,6 +129,11 @@ class TranslationOverlay(QWidget):
         card_layout.addWidget(self.body)
         outer.addWidget(self.card)
 
+        self.resize_grip = QLabel(self.card)
+        self.resize_grip.setObjectName("overlayResizeGrip")
+        self.resize_grip.setFixedSize(16, 16)
+        self.resize_grip.setAttribute(Qt.WA_TransparentForMouseEvents)
+
         for widget in (self, self.card, self.header, self.title_label, self.body, self.body.viewport()):
             widget.installEventFilter(self)
 
@@ -398,3 +403,7 @@ class TranslationOverlay(QWidget):
             if not self._resize_mode and not self._dragging:
                 self.unsetCursor()
         return super().eventFilter(watched, event)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.resize_grip.move(self.card.width() - 16, self.card.height() - 16)

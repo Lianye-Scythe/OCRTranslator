@@ -38,6 +38,9 @@ This file records important OCRTranslator changes.
 - Enhanced button visual hierarchy, dynamically emphasizing the "Save Settings" primary action when unsaved changes exist
 - Refined form error states by replacing aggressive red blocks with subtle text and input border highlights
 - Upgraded dark mode with recessed inputs and a soft off-white primary accent to improve comfort during extended use
+- Improved settings page spatial rhythm based on the "Law of Proximity", increasing spacing between unrelated sections (32px) and tightening spacing between strongly related options (10px) to enhance visual hierarchy and breathing room
+- Added a semi-transparent "Resize Grip" SVG icon to the bottom-right corner of the Translation Overlay, increasing the visual affordance for drag-to-resize behavior
+- Optimized accessibility Focus States: navigation buttons and input fields now display clearer background highlights and theme-colored borders when focused, improving visual feedback for keyboard navigation
 
 ### Fixed
 - Split warning-style interruption actions from destructive delete actions instead of reusing the same danger color treatment

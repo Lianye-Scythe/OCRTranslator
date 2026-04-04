@@ -90,3 +90,8 @@ QScrollBar::sub-page:vertical {
     border:none;
     height:0;
 }
+
+#overlayResizeGrip {
+    image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'><path d='M14 14L14 10M14 14L10 14M10 14L14 10' stroke='{{subtle_fg_url}}' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/><path d='M14 6L6 14' stroke='{{subtle_fg_url}}' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    opacity: 0.5;
+}
