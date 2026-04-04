@@ -1,4 +1,4 @@
-from PySide6.QtCore import QPoint, QRect, QSize, Qt, Signal
+from PySide6.QtCore import QPoint, QRect, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QGuiApplication, QMouseEvent, QPainter, QPen
 from PySide6.QtWidgets import QRubberBand, QWidget
 
@@ -84,7 +84,8 @@ class SelectionOverlay(QWidget):
         if rect.width() < 20 or rect.height() < 20:
             self.cancelled.emit()
             return
-        self.selected.emit((rect.left(), rect.top(), rect.right() + 1, rect.bottom() + 1))
+        selection = (rect.left(), rect.top(), rect.right() + 1, rect.bottom() + 1)
+        QTimer.singleShot(0, lambda selection=selection: self.selected.emit(selection))
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:

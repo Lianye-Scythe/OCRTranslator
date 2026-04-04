@@ -71,7 +71,7 @@ class RequestWorkflowControllerTests(unittest.TestCase):
             ),
             current_selection_hotkey=lambda: "Shift+Win+C",
             current_temperature=lambda: 0.2,
-            api_client=SimpleNamespace(request_text=Mock(return_value="done")),
+            api_client=SimpleNamespace(request_text=Mock(return_value="done"), request_image_png=Mock(return_value="done")),
             set_status=Mock(),
             log_tr=Mock(),
             log=Mock(),
@@ -154,6 +154,43 @@ class RequestWorkflowControllerTests(unittest.TestCase):
         window.run_worker.assert_not_called()
         window.show_tray_toast.assert_called_once_with("request_cancelled")
         self.assertEqual(window.set_status.call_args_list[-1].args[0], "request_cancelled")
+
+    @patch("app.services.request_workflow.QTimer.singleShot", side_effect=lambda _delay, callback: callback())
+    @patch("app.services.request_workflow.build_image_request_prompt", return_value="image-prompt")
+    def test_handle_selection_starts_request_before_preview_refresh(self, _mock_prompt, _mock_single_shot):
+        window = self._build_window()
+        controller = RequestWorkflowController(window)
+        capture_result = SimpleNamespace(png_bytes=b"png-data", preview_pixmap="preview-pixmap")
+        events = []
+
+        window.screen_capture_service = SimpleNamespace(capture_bbox_image=Mock(return_value=capture_result))
+        window.pending_capture_profile = None
+        window.pending_capture_target_language = "English"
+        window.pending_capture_prompt_preset = None
+        window.build_prompt_preset_from_form = lambda validate_name=False: SimpleNamespace(name="Translate", image_prompt="Describe")
+
+        def record_run_worker(*args, **kwargs):
+            events.append("run_worker")
+
+        def record_update_preview(image=None, *, preview_pixmap=None):
+            events.append(("update_preview", image, preview_pixmap))
+
+        window.run_worker = Mock(side_effect=record_run_worker)
+        window.update_preview = Mock(side_effect=record_update_preview)
+
+        controller.handle_selection((10, 20, 110, 120))
+
+        window.screen_capture_service.capture_bbox_image.assert_called_once_with((10, 20, 110, 120))
+        window.log.assert_called()
+        window.run_worker.assert_called_once()
+        request_callable = window.run_worker.call_args.args[0]
+        self.assertEqual(request_callable("ctx"), "done")
+        window.api_client.request_image_png.assert_called_once_with(b"png-data", unittest.mock.ANY, "image-prompt", 0.2, request_context="ctx")
+        window.update_preview.assert_called_once_with(preview_pixmap="preview-pixmap")
+        self.assertEqual(events[0], "run_worker")
+        self.assertEqual(events[1], ("update_preview", None, "preview-pixmap"))
+        self.assertEqual(window.set_status.call_args_list[0].args[0], "capturing")
+        window.show_tray_toast.assert_called_once_with("tray_capturing")
 
 
 if __name__ == "__main__":

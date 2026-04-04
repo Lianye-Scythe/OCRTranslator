@@ -543,8 +543,11 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
     def adjust_overlay_font_size(self, direction: int):
         self.overlay_presenter.adjust_font_size(direction)
 
-    def update_preview(self, image: Image.Image):
-        self.preview_pixmap = self.screen_capture_service.build_preview_pixmap(image)
+    def update_preview(self, image: Image.Image | None = None, *, preview_pixmap: QPixmap | None = None):
+        if preview_pixmap is not None:
+            self.preview_pixmap = preview_pixmap
+        elif image is not None:
+            self.preview_pixmap = self.screen_capture_service.build_preview_pixmap(image)
         self.refresh_preview_pixmap()
 
     def refresh_preview_pixmap(self):

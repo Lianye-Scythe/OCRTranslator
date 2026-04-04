@@ -36,10 +36,8 @@ class ApiClient:
 
 
     @staticmethod
-    def _image_to_base64(image: Image.Image) -> str:
-        buffer = io.BytesIO()
-        image.save(buffer, format="PNG")
-        return base64.b64encode(buffer.getvalue()).decode("utf-8")
+    def _binary_to_base64(data: bytes) -> str:
+        return base64.b64encode(data).decode("utf-8")
 
     @staticmethod
     def _http_retry_policy(status_code: int) -> tuple[bool, bool]:
@@ -263,10 +261,27 @@ class ApiClient:
         return f"OK | provider={profile.provider} | model={profile.model} | response={preview}"
 
     def request_image(self, image: Image.Image, profile: ApiProfile, prompt: str, temperature: float, *, request_context: RequestContext | None = None) -> str:
+        return self.request_image_png(
+            self._image_to_binary(image),
+            profile,
+            prompt,
+            temperature,
+            request_context=request_context,
+        )
+
+    @staticmethod
+    def _image_to_binary(image: Image.Image) -> bytes:
+        buffer = io.BytesIO()
+        image.save(buffer, format="PNG")
+        return buffer.getvalue()
+
+    def request_image_png(self, png_bytes: bytes, profile: ApiProfile, prompt: str, temperature: float, *, request_context: RequestContext | None = None) -> str:
         prompt_text = str(prompt or "").strip()
         if not prompt_text:
             raise ApiClientError("No prompt configured", user_message="目前提示詞不可為空。", retryable=False, retry_same_key=False)
-        image_base64 = self._image_to_base64(image)
+        self._check_cancelled(request_context)
+        image_base64 = self._binary_to_base64(png_bytes)
+        self._check_cancelled(request_context)
         return self._execute_keyed_operation(
             profile,
             request_label="Image request",

@@ -4,6 +4,22 @@
 
 This file records important OCRTranslator changes.
 
+## [0.9.1] - 2026-04-04
+
+### Added
+- Added image-request timing logs that report `capture / request / total / png`, making it easier to see whether latency comes from local capture, upload time, or model response time
+
+### Changed
+- Screen capture now sends the original PNG bytes directly into the image-request pipeline as soon as capture finishes, without extra resizing or additional image preprocessing first
+- Capture preview refresh now runs after the image request starts, so translation requests leave the gate earlier
+- Startup now reactivates the main window on the next event-loop tick, and the single-instance forwarding protocol now uses newline-delimited messages plus ACK replies to reduce "only tray icon appeared" activation failures
+- Translation overlay display now includes a Windows-native topmost fallback so result popups are less likely to be covered by normal desktop windows
+
+### Fixed
+- Fixed the imbalance between suppressed modifier keydown and keyup handling in the global hotkey hook, reducing the risk of `Shift / Ctrl / Win` appearing to stay stuck
+- Added hotkey-state resynchronization: if a release event is missed, the next keyboard event reconciles internal pressed state against the real physical key state
+- Added regression coverage for single-instance ACK handling, overlay topmost behavior, direct-PNG image submission, and sticky-modifier prevention
+
 ## [0.9.0] - 2026-04-04
 
 ### Added

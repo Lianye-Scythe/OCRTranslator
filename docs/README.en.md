@@ -21,6 +21,9 @@ It is not just a screenshot translator. It is a desktop AI workspace organized a
 - `Gemini Compatible` and `OpenAI Compatible` providers
 - API key rotation and retry support
 - Light / dark / follow-system theme modes
+- Screen capture now sends the original PNG bytes directly after selection completes, reducing the wait from capture to result overlay
+- Runtime logs now report `capture / request / total / png` timing so you can tell whether latency comes from local processing or the model side
+- Global hotkeys now include modifier-release pairing and state resynchronization safeguards to reduce stuck-looking `Shift / Ctrl / Win` behavior
 - A workflow-first settings page organized as `Connection and model → Translation workflow → Appearance and advanced`
 - Selected-text capture now runs as a non-blocking flow, shows a single processing toast only when the request is submitted, and supports cancellation during capture
 - Result overlay supports copy, pin / unpin, opacity adjustment, drag to move, corner resize, and `Ctrl + mouse wheel` font zoom
@@ -113,6 +116,7 @@ You can start requests from:
 
 - Capture requests update the latest preview in `Preview & Log`
 - Results appear in a floating overlay near the source area or trigger point
+- Recent image-request logs also include PNG size plus `capture / request / total` timings for quick bottleneck diagnosis
 - Runtime activity is stored in memory and can be viewed or exported
 
 ## Prompt presets

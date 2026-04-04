@@ -5,7 +5,7 @@ from .crash_handling import install_crash_hooks
 
 install_crash_hooks()
 
-from PySide6.QtCore import QLockFile, Qt
+from PySide6.QtCore import QLockFile, Qt, QTimer
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtNetwork import QLocalSocket
 from PySide6.QtWidgets import QApplication, QMessageBox
@@ -49,16 +49,30 @@ def request_existing_instance_action(action: str) -> bool:
     socket.connectToServer(APP_SERVER_NAME)
     if not socket.waitForConnected(400):
         return False
-    socket.write(action.encode("utf-8"))
+    socket.write(f"{action}\n".encode("utf-8"))
     socket.flush()
-    socket.waitForBytesWritten(400)
+    if not socket.waitForBytesWritten(400):
+        socket.disconnectFromServer()
+        return False
+    if not socket.waitForReadyRead(800):
+        socket.disconnectFromServer()
+        return False
+    reply = bytes(socket.readAll()).decode("utf-8", errors="ignore").strip().lower()
     socket.disconnectFromServer()
-    return True
+    return reply == "ok"
 
 
 def should_forward_capture_request() -> bool:
     args = {arg.lower() for arg in sys.argv[1:]}
     return any(arg in {"--capture", "/capture", "capture"} for arg in args)
+
+
+def schedule_initial_window_action(window, *, pending_capture: bool) -> None:
+    window.show()
+    if pending_capture:
+        QTimer.singleShot(0, window.start_selection)
+        return
+    QTimer.singleShot(0, window.show_main_window)
 
 
 def run_app():
@@ -83,9 +97,7 @@ def run_app():
 
     window = MainWindow()
     app.instance_lock = lock
-    window.show()
-    if pending_capture:
-        window.start_selection()
+    schedule_initial_window_action(window, pending_capture=pending_capture)
     app.exec()
 
 

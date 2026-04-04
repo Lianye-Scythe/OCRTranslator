@@ -109,7 +109,7 @@ class ApiClientTests(unittest.TestCase):
             used_keys.append(api_key)
             return "ok"
 
-        with patch.object(self.client, "_image_to_base64", return_value="base64"), patch.object(self.client, "_translate_openai", side_effect=fake_translate):
+        with patch.object(self.client, "_image_to_binary", return_value=b"png-data"), patch.object(self.client, "_translate_openai", side_effect=fake_translate):
             for _ in range(4):
                 self.client.request_image(Mock(), profile, "Translate into 繁體中文", 0.2)
 
@@ -217,7 +217,7 @@ class ApiClientTests(unittest.TestCase):
             retry_interval=0,
         )
 
-        with patch.object(self.client, "_image_to_base64", return_value="base64"), patch.object(self.client, "_translate_gemini", side_effect=ApiClientError("Gemini finished without text (finishReason=PROHIBITED_CONTENT)", user_message="blocked", retryable=False)) as mock_translate:
+        with patch.object(self.client, "_image_to_binary", return_value=b"png-data"), patch.object(self.client, "_translate_gemini", side_effect=ApiClientError("Gemini finished without text (finishReason=PROHIBITED_CONTENT)", user_message="blocked", retryable=False)) as mock_translate:
             with self.assertRaisesRegex(ApiClientError, "PROHIBITED_CONTENT"):
                 self.client.request_image(Mock(), profile, "Translate into 繁體中文", 0.2)
 
@@ -304,6 +304,18 @@ class ApiClientTests(unittest.TestCase):
                 self.client._sleep_with_cancellation(0.3, request_context=request_context, poll_interval=0.01)
         finally:
             timer.cancel()
+
+    def test_request_image_png_uses_raw_png_bytes_without_extra_processing(self):
+        png_bytes = b"\x89PNG\r\n\x1a\nraw-data"
+
+        with patch.object(self.client, "_translate_openai", return_value="ok") as mock_translate:
+            result = self.client.request_image_png(png_bytes, self.profile, "Translate into 繁體中文", 0.2)
+
+        self.assertEqual(result, "ok")
+        mock_translate.assert_called_once()
+        self.assertEqual(mock_translate.call_args.args[0:3], (self.profile, "demo-key", "Translate into 繁體中文"))
+        self.assertEqual(mock_translate.call_args.args[4], 0.2)
+        self.assertEqual(mock_translate.call_args.args[3], "iVBORw0KGgpyYXctZGF0YQ==")
 
 
 if __name__ == "__main__":

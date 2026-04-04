@@ -1,4 +1,4 @@
-from PySide6.QtCore import QEvent, QPoint, QRect, Qt, Signal
+from PySide6.QtCore import QEvent, QPoint, QRect, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QGuiApplication, QKeySequence, QMouseEvent, QShortcut, QTextDocument
 from PySide6.QtWidgets import (
     QApplication,
@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 from .style_utils import load_style_sheet
 from .overlay_positioning import clamp_rect_to_visible_screen
 from .theme_tokens import qcolor
+from ..platform.windows.window_topmost import ensure_window_topmost
 
 
 class TranslationOverlay(QWidget):
@@ -232,9 +233,7 @@ class TranslationOverlay(QWidget):
         self.body.setPlainText(text)
         self.last_text = text
         self.manual_positioned = bool(keep_manual_position)
-        self.show()
-        self.raise_()
-        self.activateWindow()
+        self._show_as_topmost()
 
     def restore_last_overlay(self):
         if not self.last_text.strip() or self.last_geometry is None:
@@ -243,9 +242,18 @@ class TranslationOverlay(QWidget):
         self.setGeometry(clamp_rect_to_visible_screen(self.last_geometry))
         self.last_geometry = self.geometry()
         self.body.setPlainText(self.last_text)
+        self._show_as_topmost()
+
+    def _show_as_topmost(self):
         self.show()
         self.raise_()
         self.activateWindow()
+
+        self._ensure_native_topmost()
+
+    def _ensure_native_topmost(self):
+        ensure_window_topmost(self, activate=False)
+        QTimer.singleShot(0, lambda: ensure_window_topmost(self, activate=False))
 
     def _header_rect(self) -> QRect:
         top_left = self.header.mapTo(self, QPoint(0, 0))

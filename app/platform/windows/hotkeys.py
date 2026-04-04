@@ -1,6 +1,14 @@
+import ctypes
+
 from pynput import keyboard
 
 from ...hotkey_utils import canonical_hotkey_parts
+
+
+try:
+    USER32 = ctypes.windll.user32
+except Exception:  # noqa: BLE001
+    USER32 = None
 
 
 WM_KEYDOWN = 0x0100
@@ -110,6 +118,15 @@ def normalize_virtual_key(vk_code: int) -> int:
     return VK_NORMALIZATION_MAP.get(int(vk_code), int(vk_code))
 
 
+def _is_virtual_key_pressed(vk_code: int) -> bool:
+    if USER32 is None:
+        return False
+    try:
+        return bool(USER32.GetAsyncKeyState(int(vk_code)) & 0x8000)
+    except Exception:  # noqa: BLE001
+        return False
+
+
 class HotkeyListener:
     def __init__(self, hotkeys: dict[str, str], callback, *, log_func=None):
         self.hotkeys = dict(hotkeys)
@@ -120,6 +137,7 @@ class HotkeyListener:
         self._pressed_virtual_keys: set[int] = set()
         self._active_actions: set[str] = set()
         self._suppressed_virtual_keys: set[int] = set()
+        self._suppressed_pressed_virtual_keys: set[int] = set()
 
     def start(self):
         self._combo_virtual_keys = {action: hotkey_to_virtual_keys(hotkey_text) for action, hotkey_text in self.hotkeys.items()}
@@ -130,6 +148,7 @@ class HotkeyListener:
         self._pressed_virtual_keys.clear()
         self._active_actions.clear()
         self._suppressed_virtual_keys.clear()
+        self._suppressed_pressed_virtual_keys.clear()
         self.listener = keyboard.Listener(win32_event_filter=self._win32_event_filter)
         self.listener.start()
         for action, hotkey_text in self.hotkeys.items():
@@ -142,6 +161,21 @@ class HotkeyListener:
         self._pressed_virtual_keys.clear()
         self._active_actions.clear()
         self._suppressed_virtual_keys.clear()
+        self._suppressed_pressed_virtual_keys.clear()
+
+    def _resync_pressed_virtual_keys(self):
+        if not self._pressed_virtual_keys:
+            return
+        released_virtual_keys = {vk for vk in tuple(self._pressed_virtual_keys) if not _is_virtual_key_pressed(vk)}
+        if not released_virtual_keys:
+            return
+        self._pressed_virtual_keys.difference_update(released_virtual_keys)
+        self._suppressed_pressed_virtual_keys.difference_update(released_virtual_keys)
+        self._refresh_active_state()
+        self.log(
+            "Resynced hotkey state after missing release event: "
+            + ", ".join(str(vk) for vk in sorted(released_virtual_keys))
+        )
 
     def _refresh_active_state(self):
         active_actions = {
@@ -165,6 +199,7 @@ class HotkeyListener:
     def _win32_event_filter(self, msg, data):
         if not self.listener:
             return True
+        self._resync_pressed_virtual_keys()
         virtual_key = normalize_virtual_key(int(getattr(data, "vkCode", 0)))
 
         if msg in {WM_KEYDOWN, WM_SYSKEYDOWN}:
@@ -173,10 +208,12 @@ class HotkeyListener:
             for action in new_actions:
                 self.callback(action)
             if virtual_key in self._suppressed_virtual_keys:
+                self._suppressed_pressed_virtual_keys.add(virtual_key)
                 self.listener.suppress_event()
         elif msg in {WM_KEYUP, WM_SYSKEYUP}:
-            should_suppress = virtual_key in self._suppressed_virtual_keys
+            should_suppress = virtual_key in self._suppressed_pressed_virtual_keys
             self._pressed_virtual_keys.discard(virtual_key)
+            self._suppressed_pressed_virtual_keys.discard(virtual_key)
             self._refresh_active_state()
             if should_suppress:
                 self.listener.suppress_event()

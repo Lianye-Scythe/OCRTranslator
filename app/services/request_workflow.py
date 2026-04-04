@@ -1,4 +1,6 @@
-from PySide6.QtCore import Qt
+import time
+
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import QApplication
 
@@ -268,22 +270,54 @@ class RequestWorkflowController:
         self.window.set_status("capture_cancelled")
         self.window.show_tray_toast(self.window.tr("capture_cancelled"))
 
+    def _handle_image_translation_success(self, text: str, *, bbox, preset_name: str, capture_started_at: float, request_started_at: float, capture_elapsed: float, payload_bytes: int):
+        self.window.overlay_presenter.show_translation(
+            bbox,
+            text,
+            preset_name=preset_name,
+        )
+        request_elapsed = time.perf_counter() - request_started_at
+        total_elapsed = time.perf_counter() - capture_started_at
+        self.window.log(
+            "圖片請求完成｜"
+            f"capture={capture_elapsed * 1000:.0f}ms｜"
+            f"request={request_elapsed:.2f}s｜"
+            f"total={total_elapsed:.2f}s｜"
+            f"png={payload_bytes / 1024:.1f}KB"
+        )
+
     def handle_selection(self, bbox):
-        image = self.window.screen_capture_service.capture_bbox_image(bbox)
-        self.window.update_preview(image)
+        capture_started_at = time.perf_counter()
+        capture_result = self.window.screen_capture_service.capture_bbox_image(bbox)
+        capture_elapsed = time.perf_counter() - capture_started_at
+        png_bytes = capture_result.png_bytes
+        preview_pixmap = capture_result.preview_pixmap
+        self.window.log(f"截圖已就緒｜capture={capture_elapsed * 1000:.0f}ms｜png={len(png_bytes) / 1024:.1f}KB")
         self.window.set_status("capturing")
         self.window.show_tray_toast(self.window.tr("tray_capturing"))
         profile = self.window.pending_capture_profile or self.window.build_profile_from_form(validate_name=False)
         target_language = self.window.pending_capture_target_language or self.window.current_target_language()
         prompt_preset = self.window.pending_capture_prompt_preset or self.window.build_prompt_preset_from_form(validate_name=False)
         prompt = build_image_request_prompt(prompt_preset.image_prompt, target_language=target_language)
+        request_started_at = time.perf_counter()
         self.window.run_worker(
-            lambda request_context: self.window.api_client.request_image(image, profile, prompt, self.window.current_temperature(), request_context=request_context),
-            lambda text, bbox=bbox, preset_name=prompt_preset.name: self.window.overlay_presenter.show_translation(
-                bbox,
+            lambda request_context: self.window.api_client.request_image_png(
+                png_bytes,
+                profile,
+                prompt,
+                self.window.current_temperature(),
+                request_context=request_context,
+            ),
+            lambda text, bbox=bbox, preset_name=prompt_preset.name, capture_started_at=capture_started_at, request_started_at=request_started_at, capture_elapsed=capture_elapsed, payload_bytes=len(png_bytes): self._handle_image_translation_success(
                 text,
+                bbox=bbox,
                 preset_name=preset_name,
+                capture_started_at=capture_started_at,
+                request_started_at=request_started_at,
+                capture_elapsed=capture_elapsed,
+                payload_bytes=payload_bytes,
             ),
             operation_key="translation",
             cancellable=True,
         )
+        QTimer.singleShot(0, lambda preview_pixmap=preview_pixmap: self.window.update_preview(preview_pixmap=preview_pixmap))
