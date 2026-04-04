@@ -82,6 +82,9 @@ class MainWindowLayoutMixin:
         self.resize(1080, 740)
         self.setMinimumSize(880, 660)
         self.setFocusPolicy(Qt.StrongFocus)
+        no_shadow_hint = getattr(Qt, "NoDropShadowWindowHint", getattr(getattr(Qt, "WindowType", object), "NoDropShadowWindowHint", None))
+        if no_shadow_hint is not None:
+            self.setWindowFlag(no_shadow_hint, True)
 
         root = QWidget()
         root.setObjectName("AppRoot")
@@ -208,6 +211,7 @@ class MainWindowLayoutMixin:
         workspace_layout = QVBoxLayout(self.workspace_surface)
         workspace_layout.setContentsMargins(18, 14, 18, 14)
         workspace_layout.setSpacing(10)
+        self.refresh_workspace_shadow()
         content_shell_layout.addWidget(self.workspace_surface, 1)
 
         self.header_card = QFrame()
@@ -307,9 +311,12 @@ class MainWindowLayoutMixin:
             self.translation_overlay.apply_styles()
         if hasattr(self, "selection_overlay"):
             self.selection_overlay.apply_theme()
+        if hasattr(self, "refresh_workspace_shadow"):
+            self.refresh_workspace_shadow()
         self.icon = self.create_app_icon()
         self.setWindowIcon(self.icon)
         if hasattr(self, "tray_service"):
+            self.tray_service.apply_styles()
             self.tray_service.icon = self.icon
         if getattr(self, "tray", None):
             self.tray.setIcon(self.icon)
@@ -649,12 +656,32 @@ class MainWindowLayoutMixin:
         if hasattr(self, "save_button"):
             self.set_button_variant(self.save_button, "primary" if getattr(self, "has_unsaved_changes", False) else "neutral")
 
-    def add_shadow(self, widget, blur=32, y_offset=10, alpha=90):
-        shadow = QGraphicsDropShadowEffect(self)
+    def workspace_shadow_spec(self) -> dict[str, int]:
+        theme_name = self.effective_theme_name() if hasattr(self, "effective_theme_name") else "dark"
+        if theme_name == "light":
+            return {"blur": 12, "y_offset": 1, "alpha": 12}
+        return {"blur": 14, "y_offset": 2, "alpha": 18}
+
+    def add_shadow(self, widget, blur=32, y_offset=10, alpha=90, *, theme_name: str | None = None):
+        shadow = widget.graphicsEffect() if hasattr(widget, "graphicsEffect") else None
+        if not isinstance(shadow, QGraphicsDropShadowEffect):
+            shadow = QGraphicsDropShadowEffect(self)
+            widget.setGraphicsEffect(shadow)
         shadow.setBlurRadius(blur)
         shadow.setOffset(0, y_offset)
-        shadow.setColor(QColor(2, 6, 20, alpha))
-        widget.setGraphicsEffect(shadow)
+        shadow.setColor(qcolor("shadow", alpha=alpha, theme_name=theme_name or (self.effective_theme_name() if hasattr(self, "effective_theme_name") else None)))
+        return shadow
+
+    def refresh_workspace_shadow(self):
+        if not hasattr(self, "workspace_surface"):
+            return
+        spec = self.workspace_shadow_spec()
+        self.add_shadow(
+            self.workspace_surface,
+            blur=spec["blur"],
+            y_offset=spec["y_offset"],
+            alpha=spec["alpha"],
+        )
 
     def refresh_sidebar_layout(self):
         for widget in (self.title_label, self.subtitle_label, self.navigation_label, self.quick_actions_label, self.hint_title_label, self.hint_label, self.about_title_label, self.about_meta_label, self.hint_card, self.about_card, self.sidebar):

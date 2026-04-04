@@ -1,11 +1,12 @@
 import time
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import QApplication
 
 from ..prompt_utils import build_image_request_prompt, build_text_request_prompt
 from ..profile_utils import normalize_model_value, unique_non_empty
+from ..operation_control import RequestCancelledError
 from ..selected_text_capture import SelectedTextCaptureSession
 from ..ui.prompt_input_dialog import PromptInputDialog
 
@@ -126,14 +127,24 @@ class RequestWorkflowController:
         self.window.set_status(source_key)
         self.window.log_tr("log_text_request_submitted", preset=prompt_preset.name, chars=len(text))
         self.window.show_tray_toast(self.window.tr(source_key))
-        preserve_manual_position = bool(self.window.translation_overlay.isVisible() and self.window.translation_overlay.manual_positioned)
+        overlay = self.window.translation_overlay
+        preserve_pinned_geometry = bool(overlay.is_pinned and overlay.last_geometry is not None)
+        preserve_manual_position = bool(
+            overlay.isVisible()
+            and overlay.manual_positioned
+            and not preserve_pinned_geometry
+        )
+        temperature = self.window.current_temperature()
         self.window.run_worker(
-            lambda request_context: self.window.api_client.request_text(prompt, profile, self.window.current_temperature(), request_context=request_context),
-            lambda result, anchor_point=anchor_point, preset_name=prompt_preset.name, preserve_manual_position=preserve_manual_position: self.window.overlay_presenter.show_response(
+            lambda request_context, prompt=prompt, profile=profile, temperature=temperature: self.window.api_client.request_text(
+                prompt, profile, temperature, request_context=request_context
+            ),
+            lambda result, anchor_point=anchor_point, preset_name=prompt_preset.name, preserve_manual_position=preserve_manual_position, preserve_pinned_geometry=preserve_pinned_geometry: self.window.overlay_presenter.show_response(
                 result,
                 anchor_point=anchor_point,
                 preset_name=preset_name,
                 preserve_manual_position=preserve_manual_position,
+                preserve_geometry=preserve_pinned_geometry,
             ),
             operation_key="translation",
             cancellable=True,
@@ -275,6 +286,7 @@ class RequestWorkflowController:
             bbox,
             text,
             preset_name=preset_name,
+            preserve_geometry=bool(self.window.restore_pinned_overlay_after_capture),
         )
         request_elapsed = time.perf_counter() - request_started_at
         total_elapsed = time.perf_counter() - capture_started_at
@@ -286,38 +298,47 @@ class RequestWorkflowController:
             f"png={payload_bytes / 1024:.1f}KB"
         )
 
+    def _update_preview_from_png_bytes(self, png_bytes: bytes):
+        self.window.update_preview(preview_pixmap=self.window.screen_capture_service.build_preview_pixmap_from_bytes(png_bytes))
+
     def handle_selection(self, bbox):
-        capture_started_at = time.perf_counter()
-        capture_result = self.window.screen_capture_service.capture_bbox_image(bbox)
-        capture_elapsed = time.perf_counter() - capture_started_at
-        png_bytes = capture_result.png_bytes
-        preview_pixmap = capture_result.preview_pixmap
-        self.window.log(f"截圖已就緒｜capture={capture_elapsed * 1000:.0f}ms｜png={len(png_bytes) / 1024:.1f}KB")
         self.window.set_status("capturing")
         self.window.show_tray_toast(self.window.tr("tray_capturing"))
         profile = self.window.pending_capture_profile or self.window.build_profile_from_form(validate_name=False)
         target_language = self.window.pending_capture_target_language or self.window.current_target_language()
         prompt_preset = self.window.pending_capture_prompt_preset or self.window.build_prompt_preset_from_form(validate_name=False)
         prompt = build_image_request_prompt(prompt_preset.image_prompt, target_language=target_language)
-        request_started_at = time.perf_counter()
-        self.window.run_worker(
-            lambda request_context: self.window.api_client.request_image_png(
+        temperature = self.window.current_temperature()
+        capture_started_at = time.perf_counter()
+
+        def capture_and_request(request_context):
+            if request_context is not None and request_context.is_cancelled():
+                raise RequestCancelledError()
+            png_bytes = self.window.screen_capture_service.capture_bbox_png_bytes_threadsafe(bbox)
+            capture_elapsed = time.perf_counter() - capture_started_at
+            self.window.log(f"截圖已就緒｜capture={capture_elapsed * 1000:.0f}ms｜png={len(png_bytes) / 1024:.1f}KB")
+            self.window.bridge.invoke_main_thread.emit(self._update_preview_from_png_bytes, png_bytes)
+            request_started_at = time.perf_counter()
+            text = self.window.api_client.request_image_png(
                 png_bytes,
                 profile,
                 prompt,
-                self.window.current_temperature(),
+                temperature,
                 request_context=request_context,
-            ),
-            lambda text, bbox=bbox, preset_name=prompt_preset.name, capture_started_at=capture_started_at, request_started_at=request_started_at, capture_elapsed=capture_elapsed, payload_bytes=len(png_bytes): self._handle_image_translation_success(
-                text,
+            )
+            return text, capture_elapsed, len(png_bytes), request_started_at
+
+        self.window.run_worker(
+            capture_and_request,
+            lambda result, bbox=bbox, preset_name=prompt_preset.name, capture_started_at=capture_started_at: self._handle_image_translation_success(
+                result[0],
                 bbox=bbox,
                 preset_name=preset_name,
                 capture_started_at=capture_started_at,
-                request_started_at=request_started_at,
-                capture_elapsed=capture_elapsed,
-                payload_bytes=payload_bytes,
+                request_started_at=result[3],
+                capture_elapsed=result[1],
+                payload_bytes=result[2],
             ),
             operation_key="translation",
             cancellable=True,
         )
-        QTimer.singleShot(0, lambda preview_pixmap=preview_pixmap: self.window.update_preview(preview_pixmap=preview_pixmap))

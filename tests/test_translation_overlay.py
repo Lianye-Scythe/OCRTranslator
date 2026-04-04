@@ -80,6 +80,7 @@ class TranslationOverlayTests(unittest.TestCase):
         self.assertEqual(self.overlay.windowOpacity(), 1.0)
         self.assertEqual(self.overlay.opacity_value_label.text(), "35%")
         self.assertEqual(self.overlay.pin_button.text(), "")
+        self.assertTrue(self.overlay.pin_button.property("pinToggle"))
         self.assertFalse(self.overlay.pin_button.icon().isNull())
         self.assertEqual(self.overlay.pin_button.toolTip(), "切换是否保留浮窗")
         self.assertEqual(self.overlay.pin_button.accessibleName(), "Pin")

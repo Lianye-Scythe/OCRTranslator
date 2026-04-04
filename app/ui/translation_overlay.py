@@ -1,5 +1,5 @@
 from PySide6.QtCore import QEvent, QPoint, QPointF, QRect, QRectF, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QCursor, QFont, QFontMetrics, QGuiApplication, QIcon, QIntValidator, QKeySequence, QMouseEvent, QPainter, QPainterPath, QPen, QPixmap, QShortcut, QTextDocument
+from PySide6.QtGui import QColor, QCursor, QFont, QFontMetrics, QGuiApplication, QIcon, QIntValidator, QKeySequence, QMouseEvent, QPainter, QPainterPath, QPen, QPixmap, QShortcut, QTextDocument, QTransform
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
@@ -170,10 +170,11 @@ class TranslationOverlay(QWidget):
         self.pin_button = QPushButton()
         self.pin_button.setObjectName("overlayActionButton")
         self.pin_button.setProperty("iconOnly", True)
+        self.pin_button.setProperty("pinToggle", True)
         self.pin_button.setCheckable(True)
         self.pin_button.setFixedSize(32, 32)
         self.pin_button.clicked.connect(self.toggle_pin)
-        self.pin_button.setIconSize(QSize(16, 16))
+        self.pin_button.setIconSize(QSize(18, 18))
 
         self.opacity_down_button = QPushButton("−")
         self.opacity_down_button.setObjectName("overlayActionButton")
@@ -282,6 +283,12 @@ class TranslationOverlay(QWidget):
         header_opacity = 100 if self._topbar_hovered else opacity
         card_alpha = self._alpha_from_percent(opacity)
         header_alpha = self._alpha_from_percent(header_opacity)
+        pin_idle_alpha = max(30, round(header_alpha * 0.20))
+        pin_idle_border_alpha = max(54, round(header_alpha * 0.28))
+        pin_hover_alpha = max(42, round(header_alpha * 0.28))
+        pin_hover_border_alpha = max(72, round(header_alpha * 0.38))
+        pin_checked_alpha = max(54, round(header_alpha * 0.34))
+        pin_checked_border_alpha = max(86, round(header_alpha * 0.46))
         return "\n".join(
             [
                 "#overlayCard {",
@@ -309,6 +316,29 @@ class TranslationOverlay(QWidget):
                 f"    background:{self._rgba('overlay_action_hover_bg', alpha=header_alpha, theme_name=theme_name)};",
                 f"    border-color:{self._rgba('overlay_action_hover_border', alpha=header_alpha, theme_name=theme_name)};",
                 "}",
+                "#overlayActionButton[pinToggle=\"true\"] {",
+                f"    background:{self._rgba('overlay_pin_bg', alpha=pin_idle_alpha, theme_name=theme_name)};",
+                f"    color:{self._rgba('overlay_pin_fg', theme_name=theme_name)};",
+                f"    border-color:{self._rgba('overlay_pin_border', alpha=pin_idle_border_alpha, theme_name=theme_name)};",
+                "}",
+                "#overlayActionButton[pinToggle=\"true\"]:hover {",
+                f"    background:{self._rgba('overlay_pin_hover_bg', alpha=pin_hover_alpha, theme_name=theme_name)};",
+                f"    color:{self._rgba('overlay_pin_hover_fg', theme_name=theme_name)};",
+                f"    border-color:{self._rgba('overlay_pin_hover_border', alpha=pin_hover_border_alpha, theme_name=theme_name)};",
+                "}",
+                "#overlayActionButton[pinToggle=\"true\"]:checked {",
+                f"    background:{self._rgba('overlay_pin_checked_bg', alpha=pin_checked_alpha, theme_name=theme_name)};",
+                f"    color:{self._rgba('overlay_pin_checked_fg', theme_name=theme_name)};",
+                f"    border-color:{self._rgba('overlay_pin_checked_border', alpha=pin_checked_border_alpha, theme_name=theme_name)};",
+                "}",
+                "#overlayActionButton[pinToggle=\"true\"]:checked:hover {",
+                f"    background:{self._rgba('overlay_pin_checked_bg', alpha=min(255, pin_checked_alpha + 8), theme_name=theme_name)};",
+                f"    color:{self._rgba('overlay_pin_checked_fg', theme_name=theme_name)};",
+                f"    border-color:{self._rgba('overlay_pin_checked_border', alpha=min(255, pin_checked_border_alpha + 8), theme_name=theme_name)};",
+                "}",
+                "#overlayActionButton[pinToggle=\"true\"]:focus {",
+                f"    border-color:{self._rgba('overlay_focus_border', alpha=header_alpha, theme_name=theme_name)};",
+                "}",
             ]
         )
 
@@ -334,32 +364,48 @@ class TranslationOverlay(QWidget):
         self.setStyleSheet(f"{base_style}\n{self._build_dynamic_style_sheet(theme_name)}")
 
     def _build_pin_icon(self, checked: bool) -> QIcon:
-        color_token = "overlay_action_checked_fg" if checked else "overlay_action_hover_fg" if self.pin_button.underMouse() else "overlay_action_fg"
+        color_token = "overlay_pin_checked_fg" if checked else "overlay_pin_hover_fg" if self.pin_button.underMouse() else "overlay_pin_fg"
         color = qcolor(color_token, theme_name=self.app_window.effective_theme_name())
-        pixmap = QPixmap(16, 16)
+        pixmap = QPixmap(18, 18)
         pixmap.fill(Qt.transparent)
+
+        base_path = QPainterPath()
+        base_path.moveTo(7.0, 2.0)
+        base_path.lineTo(17.0, 2.0)
+        base_path.lineTo(17.0, 4.0)
+        base_path.lineTo(16.0, 4.0)
+        base_path.lineTo(16.0, 12.0)
+        base_path.lineTo(18.0, 14.0)
+        base_path.lineTo(18.0, 16.0)
+        base_path.lineTo(13.0, 16.0)
+        base_path.lineTo(13.0, 22.0)
+        base_path.lineTo(11.0, 22.0)
+        base_path.lineTo(11.0, 16.0)
+        base_path.lineTo(6.0, 16.0)
+        base_path.lineTo(6.0, 14.0)
+        base_path.lineTo(8.0, 12.0)
+        base_path.lineTo(8.0, 4.0)
+        base_path.lineTo(7.0, 4.0)
+        base_path.closeSubpath()
+
+        scale = 16.0 / 24.0
+        offset = (18.0 - (24.0 * scale)) / 2.0
+        transform = QTransform()
+        transform.translate(offset, offset)
+        transform.scale(scale, scale)
+        path = transform.map(base_path)
+
         painter = QPainter(pixmap)
         painter.setRenderHint(QPainter.Antialiasing)
-        painter.setPen(QPen(color, 1.35, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
-
-        head = QPainterPath()
-        head.addEllipse(QRectF(4.5, 2.1, 7.0, 4.9))
-        collar = QPainterPath()
-        collar.moveTo(QPointF(5.0, 6.1))
-        collar.lineTo(QPointF(11.0, 6.1))
-        collar.lineTo(QPointF(9.2, 8.6))
-        collar.lineTo(QPointF(6.8, 8.6))
-        collar.closeSubpath()
-
+        painter.setPen(QPen(color, 1.6, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
         if checked:
-            painter.fillPath(head, color)
-            painter.fillPath(collar, color)
+            painter.fillPath(path, color)
         else:
-            painter.drawPath(head)
-        painter.drawPath(collar)
-        painter.drawLine(QPointF(8.0, 8.6), QPointF(8.0, 12.6))
-        painter.drawLine(QPointF(8.0, 12.6), QPointF(6.9, 14.1))
-        painter.drawLine(QPointF(8.0, 12.6), QPointF(9.1, 14.1))
+            ghost_fill = QColor(color)
+            ghost_fill.setAlpha(40)
+            painter.fillPath(path, ghost_fill)
+        painter.drawPath(path)
+
         painter.end()
         return QIcon(pixmap)
 

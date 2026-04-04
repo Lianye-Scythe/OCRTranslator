@@ -8,6 +8,8 @@ from app.services.request_workflow import RequestWorkflowController
 class _FakeOverlay:
     def __init__(self):
         self.manual_positioned = False
+        self.is_pinned = False
+        self.last_geometry = None
 
     def isVisible(self):
         return False
@@ -78,6 +80,8 @@ class RequestWorkflowControllerTests(unittest.TestCase):
             show_tray_toast=Mock(),
             update_action_states=Mock(),
             run_worker=Mock(),
+            overlay_presenter=SimpleNamespace(show_response=Mock(), show_translation=Mock()),
+            bridge=SimpleNamespace(invoke_main_thread=SimpleNamespace(emit=lambda callback, payload: callback(payload))),
             handle_error=Mock(),
             tr=lambda key, **kwargs: key,
         )
@@ -134,6 +138,31 @@ class RequestWorkflowControllerTests(unittest.TestCase):
         window.run_worker.assert_called_once()
         mock_set_cursor.assert_called_once()
 
+    def test_submit_text_request_reuses_pinned_overlay_geometry(self):
+        window = self._build_window()
+        controller = RequestWorkflowController(window)
+        overlay = window.translation_overlay
+        overlay.is_pinned = True
+        overlay.last_geometry = object()
+        overlay.manual_positioned = True
+        window.run_worker = Mock()
+
+        controller.submit_text_request(
+            "Hello",
+            profile=window.build_profile_from_form(),
+            target_language="English",
+            prompt_preset=window.build_prompt_preset_from_form(),
+            anchor_point="anchor",
+            source_key="manual_input_processing",
+        )
+
+        callback = window.run_worker.call_args.args[1]
+        callback("done")
+
+        window.overlay_presenter.show_response.assert_called_once_with(
+            "done", anchor_point="anchor", preset_name="Translate", preserve_manual_position=False, preserve_geometry=True
+        )
+
     def test_cancel_selected_text_capture_cleans_up_without_submitting_request(self):
         window = self._build_window()
         controller = RequestWorkflowController(window)
@@ -155,40 +184,43 @@ class RequestWorkflowControllerTests(unittest.TestCase):
         window.show_tray_toast.assert_called_once_with("request_cancelled")
         self.assertEqual(window.set_status.call_args_list[-1].args[0], "request_cancelled")
 
-    @patch("app.services.request_workflow.QTimer.singleShot", side_effect=lambda _delay, callback: callback())
     @patch("app.services.request_workflow.build_image_request_prompt", return_value="image-prompt")
-    def test_handle_selection_starts_request_before_preview_refresh(self, _mock_prompt, _mock_single_shot):
+    def test_handle_selection_captures_in_worker_and_dispatches_preview(self, _mock_prompt):
         window = self._build_window()
         controller = RequestWorkflowController(window)
-        capture_result = SimpleNamespace(png_bytes=b"png-data", preview_pixmap="preview-pixmap")
         events = []
 
-        window.screen_capture_service = SimpleNamespace(capture_bbox_image=Mock(return_value=capture_result))
+        window.screen_capture_service = SimpleNamespace(
+            capture_bbox_png_bytes_threadsafe=Mock(return_value=b"png-data"),
+            build_preview_pixmap_from_bytes=Mock(return_value="preview-pixmap"),
+        )
         window.pending_capture_profile = None
         window.pending_capture_target_language = "English"
         window.pending_capture_prompt_preset = None
         window.build_prompt_preset_from_form = lambda validate_name=False: SimpleNamespace(name="Translate", image_prompt="Describe")
 
-        def record_run_worker(*args, **kwargs):
-            events.append("run_worker")
-
         def record_update_preview(image=None, *, preview_pixmap=None):
             events.append(("update_preview", image, preview_pixmap))
 
-        window.run_worker = Mock(side_effect=record_run_worker)
+        def request_image(*args, **kwargs):
+            events.append("request_image")
+            return "done"
+
+        window.api_client.request_image_png = Mock(side_effect=request_image)
         window.update_preview = Mock(side_effect=record_update_preview)
 
         controller.handle_selection((10, 20, 110, 120))
 
-        window.screen_capture_service.capture_bbox_image.assert_called_once_with((10, 20, 110, 120))
-        window.log.assert_called()
         window.run_worker.assert_called_once()
         request_callable = window.run_worker.call_args.args[0]
-        self.assertEqual(request_callable("ctx"), "done")
-        window.api_client.request_image_png.assert_called_once_with(b"png-data", unittest.mock.ANY, "image-prompt", 0.2, request_context="ctx")
+        window.screen_capture_service.capture_bbox_png_bytes_threadsafe.assert_not_called()
+        request_context = SimpleNamespace(is_cancelled=lambda: False)
+        self.assertEqual(request_callable(request_context), ("done", unittest.mock.ANY, 8, unittest.mock.ANY))
+        window.screen_capture_service.capture_bbox_png_bytes_threadsafe.assert_called_once_with((10, 20, 110, 120))
+        window.api_client.request_image_png.assert_called_once_with(b"png-data", unittest.mock.ANY, "image-prompt", 0.2, request_context=request_context)
         window.update_preview.assert_called_once_with(preview_pixmap="preview-pixmap")
-        self.assertEqual(events[0], "run_worker")
-        self.assertEqual(events[1], ("update_preview", None, "preview-pixmap"))
+        self.assertEqual(events[0], ("update_preview", None, "preview-pixmap"))
+        self.assertEqual(events[1], "request_image")
         self.assertEqual(window.set_status.call_args_list[0].args[0], "capturing")
         window.show_tray_toast.assert_called_once_with("tray_capturing")
 

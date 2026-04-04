@@ -79,6 +79,33 @@
     border:1px solid {{overlay_focus_border}};
 }
 
+#overlayActionButton[pinToggle="true"] {
+    border-radius:10px;
+    background:{{overlay_pin_bg}};
+    color:{{overlay_pin_fg}};
+    border:1px solid {{overlay_pin_border}};
+}
+
+#overlayActionButton[pinToggle="true"]:hover {
+    background:{{overlay_pin_hover_bg}};
+    color:{{overlay_pin_hover_fg}};
+    border:1px solid {{overlay_pin_hover_border}};
+}
+
+#overlayActionButton[pinToggle="true"]:checked {
+    background:{{overlay_pin_checked_bg}};
+    color:{{overlay_pin_checked_fg}};
+    border:1px solid {{overlay_pin_checked_border}};
+}
+
+#overlayActionButton[pinToggle="true"]:focus {
+    border:1px solid {{overlay_focus_border}};
+}
+
+#overlayActionButton[pinToggle="true"]:checked:hover {
+    color:{{overlay_pin_checked_fg}};
+}
+
 QScrollBar:vertical {
     width:10px;
     margin:2px;

@@ -12,6 +12,17 @@ if "pynput" not in sys.modules:
 from app.hotkey_listener import HotkeyListener, VK_CONTROL, VK_SHIFT, VK_LWIN, WM_KEYDOWN, WM_KEYUP, find_hotkey_conflicts
 
 
+class _FakePynputListener:
+    def __init__(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
+        self.daemon = False
+        self.started = False
+
+    def start(self):
+        self.started = True
+
+
 class HotkeyListenerTests(unittest.TestCase):
     def test_find_hotkey_conflicts_detects_subset_conflict(self):
         conflicts = find_hotkey_conflicts(
@@ -82,6 +93,24 @@ class HotkeyListenerTests(unittest.TestCase):
         self.assertEqual(listener._active_actions, set())
         self.assertEqual(listener._suppressed_pressed_virtual_keys, {ord("X")})
         self.assertTrue(any("Resynced hotkey state" in message for message in logs))
+
+    @patch("app.platform.windows.hotkeys.keyboard.Listener")
+    def test_start_marks_underlying_listener_as_daemon(self, mock_listener_cls):
+        fake_listener = _FakePynputListener()
+        mock_listener_cls.return_value = fake_listener
+        listener = HotkeyListener({"capture": "Shift+Win+X"}, lambda action: None)
+
+        listener.start()
+
+        self.assertTrue(fake_listener.daemon)
+        self.assertTrue(fake_listener.started)
+
+    def test_stop_uses_best_effort_listener_shutdown(self):
+        listener = HotkeyListener({}, lambda action: None)
+        listener.listener = object()
+        with patch.object(HotkeyListener, "_stop_listener_best_effort") as mock_stop:
+            listener.stop()
+        mock_stop.assert_called_once()
 
 
 if __name__ == "__main__":

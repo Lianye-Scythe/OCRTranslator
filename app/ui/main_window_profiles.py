@@ -1,4 +1,5 @@
 import copy
+import threading
 
 from PySide6.QtCore import QEvent, Qt
 from PySide6.QtGui import QFont
@@ -185,6 +186,7 @@ class MainWindowProfilesMixin:
         self.log(f"Provider changed to: {provider}")
 
     def refresh_profile_combo(self):
+        self.ensure_profile_list()
         names = [profile.name for profile in self.config.api_profiles]
         self.profile_combo.blockSignals(True)
         self.profile_combo.clear()
@@ -194,13 +196,23 @@ class MainWindowProfilesMixin:
         self.profile_combo.blockSignals(False)
 
     def find_profile_by_name(self, name: str) -> ApiProfile | None:
-        for profile in self.config.api_profiles:
+        for profile in getattr(self.config, "api_profiles", []) or []:
             if profile.name == name:
                 return profile
         return None
 
+    def ensure_profile_list(self) -> list[ApiProfile]:
+        profiles = list(getattr(self.config, "api_profiles", []) or [])
+        if not profiles:
+            profiles = [ApiProfile()]
+            self.config.api_profiles = profiles
+        if not getattr(self.config, "active_profile_name", ""):
+            self.config.active_profile_name = profiles[0].name
+        return profiles
+
     def get_profile_by_name(self, name: str) -> ApiProfile:
-        return self.find_profile_by_name(name) or self.config.api_profiles[0]
+        profiles = self.ensure_profile_list()
+        return self.find_profile_by_name(name) or profiles[0]
 
     def get_active_profile(self) -> ApiProfile:
         return self.get_profile_by_name(self.config.active_profile_name)
@@ -403,6 +415,34 @@ class MainWindowProfilesMixin:
             invalid_widgets[0].setFocus()
         return validation.is_valid, validation.first_error
 
+    @staticmethod
+    def _mark_external_listener_daemon(listener) -> None:
+        if listener is None:
+            return
+        try:
+            listener.daemon = True
+        except Exception:  # noqa: BLE001
+            pass
+
+    @staticmethod
+    def _stop_external_listener_best_effort(listener, *, thread_name: str) -> None:
+        if listener is None:
+            return
+
+        def request_stop():
+            try:
+                listener.stop()
+            except Exception:  # noqa: BLE001
+                return
+            try:
+                join = getattr(listener, "join", None)
+                if callable(join) and listener is not threading.current_thread():
+                    join(0.25)
+            except Exception:  # noqa: BLE001
+                pass
+
+        threading.Thread(target=request_stop, name=thread_name, daemon=True).start()
+
     def start_hotkey_recording(self, field_key: str = "capture"):
         if getattr(self, "hotkey_record_target", None) == field_key:
             self.stop_hotkey_recording(cancelled=True)
@@ -425,19 +465,18 @@ class MainWindowProfilesMixin:
         self.set_status("hotkey_recording")
         self.validate_form_inputs()
 
-    def stop_hotkey_recording(self, *, cancelled: bool = False):
+    def stop_hotkey_recording(self, *, cancelled: bool = False, restore_hotkey_listener: bool = True):
         field_key = getattr(self, "hotkey_record_target", None)
         listener = getattr(self, "hotkey_record_listener", None)
         if listener:
-            try:
-                listener.stop()
-            except Exception:  # noqa: BLE001
-                pass
+            self._stop_external_listener_best_effort(listener, thread_name="HotkeyRecorderStop")
             self.hotkey_record_listener = None
         if not field_key:
-            if getattr(self, "hotkey_listener_paused_for_recording", False):
+            if restore_hotkey_listener and getattr(self, "hotkey_listener_paused_for_recording", False):
                 self.hotkey_listener_paused_for_recording = False
                 self.setup_hotkey_listener(initial=True)
+            else:
+                self.hotkey_listener_paused_for_recording = False
             return
         self.hotkey_record_target = None
         field = self.hotkey_fields().get(field_key)
@@ -445,9 +484,11 @@ class MainWindowProfilesMixin:
             _, button = field
             field[0].setReadOnly(False)
             button.setText(self.tr("record_hotkey"))
-        if getattr(self, "hotkey_listener_paused_for_recording", False):
+        if restore_hotkey_listener and getattr(self, "hotkey_listener_paused_for_recording", False):
             self.hotkey_listener_paused_for_recording = False
             self.setup_hotkey_listener(initial=True)
+        else:
+            self.hotkey_listener_paused_for_recording = False
         self.validate_form_inputs()
         if cancelled:
             self.set_status("hotkey_record_cancelled")
@@ -542,6 +583,7 @@ class MainWindowProfilesMixin:
                 return False
 
         self.hotkey_record_listener = keyboard.Listener(on_press=on_press, on_release=on_release, suppress=True)
+        self._mark_external_listener_daemon(self.hotkey_record_listener)
         self.hotkey_record_listener.start()
 
     def handle_recorded_hotkey(self, field_key: str, hotkey_text: str):
@@ -574,6 +616,7 @@ class MainWindowProfilesMixin:
 
     def load_profile_to_form(self, profile_name: str):
         self.stop_hotkey_recording(cancelled=False)
+        self.ensure_profile_list()
         profile = self.get_profile_by_name(profile_name)
         self._suppress_form_tracking = True
         try:
@@ -668,8 +711,9 @@ class MainWindowProfilesMixin:
             cancel_text=self.tr("unsaved_changes_cancel"),
         ):
             return
+        self.ensure_profile_list()
         self.config.api_profiles = [profile for profile in self.config.api_profiles if profile.name != name]
-        self.config.active_profile_name = self.config.api_profiles[0].name
+        self.config.active_profile_name = self.ensure_profile_list()[0].name
         self.load_profile_to_form(self.config.active_profile_name)
         self.set_unsaved_changes(True)
         self.set_status("profile_deleted", name=name)

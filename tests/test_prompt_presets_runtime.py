@@ -42,6 +42,16 @@ class PromptPresetRuntimeTests(unittest.TestCase):
         self.assertEqual(kwargs["confirm_text"], "delete_prompt_preset")
         self.assertEqual(kwargs["cancel_text"], "unsaved_changes_cancel")
 
+    def test_get_prompt_preset_by_name_recovers_empty_preset_list(self):
+        window = MainWindowPromptPresetsMixin.__new__(MainWindowPromptPresetsMixin)
+        window.config = SimpleNamespace(prompt_presets=[], active_prompt_preset_name="")
+
+        preset = MainWindowPromptPresetsMixin.get_prompt_preset_by_name(window, "missing")
+
+        self.assertEqual(preset.name, "翻譯 (Translate)")
+        self.assertEqual(len(window.config.prompt_presets), 4)
+        self.assertEqual(window.config.active_prompt_preset_name, "翻譯 (Translate)")
+
 
 if __name__ == "__main__":
     unittest.main()

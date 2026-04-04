@@ -44,3 +44,36 @@ class MainWindowProfilesDialogTests(unittest.TestCase):
 
         self.assertEqual(result, QMessageBox.Cancel)
         mock_dialog.assert_called_once()
+
+    def test_stop_hotkey_recording_skips_hotkey_restore_when_requested(self):
+        window = MainWindowProfilesMixin.__new__(MainWindowProfilesMixin)
+        edit = SimpleNamespace(setReadOnly=Mock())
+        button = SimpleNamespace(setText=Mock())
+        window.hotkey_record_target = "capture"
+        window.hotkey_record_listener = object()
+        window.hotkey_listener_paused_for_recording = True
+        window.hotkey_fields = lambda: {"capture": (edit, button)}
+        window.tr = lambda key, **kwargs: key
+        window.setup_hotkey_listener = Mock()
+        window.validate_form_inputs = Mock(return_value=(True, ""))
+        window.set_status = Mock()
+
+        with patch.object(MainWindowProfilesMixin, "_stop_external_listener_best_effort") as mock_stop:
+            MainWindowProfilesMixin.stop_hotkey_recording(window, cancelled=False, restore_hotkey_listener=False)
+
+        mock_stop.assert_called_once()
+        window.setup_hotkey_listener.assert_not_called()
+        self.assertFalse(window.hotkey_listener_paused_for_recording)
+        self.assertIsNone(window.hotkey_record_target)
+        edit.setReadOnly.assert_called_once_with(False)
+        button.setText.assert_called_once_with("record_hotkey")
+
+    def test_get_profile_by_name_recovers_empty_profile_list(self):
+        window = MainWindowProfilesMixin.__new__(MainWindowProfilesMixin)
+        window.config = SimpleNamespace(api_profiles=[], active_profile_name="")
+
+        profile = MainWindowProfilesMixin.get_profile_by_name(window, "missing")
+
+        self.assertEqual(profile.name, "Default Gemini")
+        self.assertEqual(len(window.config.api_profiles), 1)
+        self.assertEqual(window.config.active_profile_name, "Default Gemini")

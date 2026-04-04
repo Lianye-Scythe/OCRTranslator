@@ -1,5 +1,5 @@
 from .message_boxes import show_destructive_confirmation, show_information_message, show_warning_message
-from ..models import PromptPreset
+from ..models import PromptPreset, default_prompt_presets
 from ..settings_service import build_prompt_preset_from_snapshot, validate_prompt_preset_name as validate_prompt_preset_name_rule
 
 
@@ -16,6 +16,7 @@ class MainWindowPromptPresetsMixin:
         return getattr(self.config, "active_prompt_preset_name", "")
 
     def refresh_prompt_preset_combo(self):
+        self.ensure_prompt_preset_list()
         names = [preset.name for preset in self.config.prompt_presets]
         self.prompt_preset_combo.blockSignals(True)
         self.prompt_preset_combo.clear()
@@ -25,13 +26,23 @@ class MainWindowPromptPresetsMixin:
         self.prompt_preset_combo.blockSignals(False)
 
     def find_prompt_preset_by_name(self, name: str) -> PromptPreset | None:
-        for preset in self.config.prompt_presets:
+        for preset in getattr(self.config, "prompt_presets", []) or []:
             if preset.name == name:
                 return preset
         return None
 
+    def ensure_prompt_preset_list(self) -> list[PromptPreset]:
+        presets = list(getattr(self.config, "prompt_presets", []) or [])
+        if not presets:
+            presets = default_prompt_presets()
+            self.config.prompt_presets = presets
+        if not getattr(self.config, "active_prompt_preset_name", ""):
+            self.config.active_prompt_preset_name = presets[0].name
+        return presets
+
     def get_prompt_preset_by_name(self, name: str) -> PromptPreset:
-        return self.find_prompt_preset_by_name(name) or self.config.prompt_presets[0]
+        presets = self.ensure_prompt_preset_list()
+        return self.find_prompt_preset_by_name(name) or presets[0]
 
     def get_active_prompt_preset(self) -> PromptPreset:
         return self.get_prompt_preset_by_name(self.config.active_prompt_preset_name)
@@ -82,6 +93,7 @@ class MainWindowPromptPresetsMixin:
             raise ValueError(self.tr("prompt_preset_name_exists", name=str(exc))) from exc
 
     def load_prompt_preset_to_form(self, preset_name: str):
+        self.ensure_prompt_preset_list()
         preset = self.get_prompt_preset_by_name(preset_name)
         self._suppress_form_tracking = True
         try:
@@ -142,7 +154,8 @@ class MainWindowPromptPresetsMixin:
         ):
             return
         self.config.prompt_presets = [preset for preset in self.config.prompt_presets if preset.name != name]
-        self.config.active_prompt_preset_name = self.config.prompt_presets[0].name
+        presets = self.ensure_prompt_preset_list()
+        self.config.active_prompt_preset_name = presets[0].name
         self.load_prompt_preset_to_form(self.config.active_prompt_preset_name)
         self.set_unsaved_changes(True)
         self.set_status("prompt_preset_deleted", name=name)

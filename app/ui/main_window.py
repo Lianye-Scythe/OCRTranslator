@@ -1,3 +1,6 @@
+import os
+import sys
+import threading
 import time
 from pathlib import Path
 
@@ -15,7 +18,8 @@ from ..i18n import I18N, normalize_ui_language
 from ..operation_control import RequestCancelledError
 from ..profile_utils import normalize_provider_name
 from ..runtime_paths import APP_SERVER_NAME
-from .message_boxes import show_critical_message, show_information_message
+from .message_boxes import show_critical_message, show_information_message, show_non_blocking_critical_message
+from ..crash_reporter import safe_record_exception
 from ..services.background_task_runner import BackgroundTaskRunner
 from ..services.image_capture import ScreenCaptureService
 from ..services.instance_server import InstanceServerService
@@ -41,6 +45,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self.bridge.action_requested.connect(self.handle_action_request)
         self.bridge.worker_error.connect(self.handle_error)
         self.bridge.log_message.connect(self._append_log_message)
+        self.bridge.invoke_main_thread.connect(self._invoke_main_thread)
         self.bridge.hotkey_recorded.connect(self.handle_recorded_hotkey)
 
         self.config = load_config()
@@ -67,6 +72,9 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self._suppress_form_tracking = False
         if self._style_hints and hasattr(self._style_hints, "colorSchemeChanged"):
             self._style_hints.colorSchemeChanged.connect(self.handle_system_color_scheme_changed)
+        self._active_error_dialogs = []
+        self._handling_error = False
+        self._exit_watchdog_started = False
         self.fetch_models_in_progress = False
         self.test_profile_in_progress = False
         self.translation_in_progress = False
@@ -325,6 +333,57 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
     def log(self, message: str):
         self.bridge.log_message.emit(str(message))
 
+    def _invoke_main_thread(self, callback, payload):
+        if not callable(callback):
+            return
+        try:
+            callback(payload)
+        except Exception as exc:  # noqa: BLE001
+            self.handle_error(exc)
+
+    def _track_error_dialog(self, dialog):
+        if dialog is None:
+            return
+        self._active_error_dialogs.append(dialog)
+        dialog.destroyed.connect(lambda *_args, dialog=dialog: self._discard_error_dialog(dialog))
+
+    def _discard_error_dialog(self, dialog):
+        self._active_error_dialogs = [item for item in self._active_error_dialogs if item is not dialog]
+
+    @staticmethod
+    def _safe_write_stderr(message: str):
+        try:
+            sys.stderr.write(f"{message}\n")
+            sys.stderr.flush()
+        except Exception:  # noqa: BLE001
+            pass
+
+    @staticmethod
+    def _force_process_exit(exit_code: int = 0):
+        os._exit(int(exit_code))
+
+    def _run_exit_watchdog(self, timeout_seconds: float = 5.0):
+        time.sleep(max(0.0, float(timeout_seconds or 0.0)))
+        if not getattr(self, "is_quitting", False):
+            return
+        self._safe_write_stderr("Quit watchdog forced process exit after shutdown timeout")
+        self._force_process_exit(0)
+
+    def _start_exit_watchdog(self, timeout_seconds: float = 5.0):
+        if getattr(self, "_exit_watchdog_started", False):
+            return
+        self._exit_watchdog_started = True
+        threading.Thread(
+            target=self._run_exit_watchdog,
+            args=(timeout_seconds,),
+            name="OCRTranslatorQuitWatchdog",
+            daemon=True,
+        ).start()
+
+    def _show_error_dialog_safe(self, display_message: str):
+        dialog = show_non_blocking_critical_message(self if self.isVisible() else None, self.tr("error_title"), display_message, theme_name=self.effective_theme_name())
+        self._track_error_dialog(dialog)
+
     def clear_logs(self):
         self.log_store.clear()
         self.refresh_log_view()
@@ -547,6 +606,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         *,
         preset_name: str = "",
         preserve_manual_position: bool = False,
+        preserve_geometry: bool = False,
         reflow_only: bool = False,
     ):
         self.overlay_presenter.show_translation(
@@ -554,6 +614,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             text,
             preset_name=preset_name,
             preserve_manual_position=preserve_manual_position,
+            preserve_geometry=preserve_geometry,
             reflow_only=reflow_only,
         )
 
@@ -604,29 +665,60 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self.activateWindow()
 
     def handle_error(self, exc: Exception):
-        operation = getattr(exc, "operation", None)
-        task_id = getattr(exc, "task_id", None)
-        actual_exc = getattr(exc, "original", exc)
-        if self._handle_stale_operation_error(operation, task_id, actual_exc):
+        if getattr(self, "_handling_error", False):
+            self._safe_write_stderr(f"Suppressed recursive handle_error call: {exc}")
             return
-        if operation in {"fetch_models", "test_profile", "translation"}:
-            if task_id is not None:
-                self.operation_manager.finish(operation, task_id)
-            else:
-                self.set_operation_state(operation, False)
-        if isinstance(actual_exc, RequestCancelledError):
-            self.set_status("request_cancelled")
-            self.log(f"Operation cancelled: {operation or 'unknown'}")
-            return
-        is_capture_error = self.capture_workflow_active or operation == "translation"
-        self.finish_capture_workflow(restore_window=is_capture_error)
-        if is_capture_error and self.restore_pinned_overlay_after_capture:
-            self.translation_overlay.restore_last_overlay()
-            self.restore_pinned_overlay_after_capture = False
-        self.set_status("translate_failed" if is_capture_error else "operation_failed")
-        self.log(f"Error: {actual_exc}")
-        display_message = getattr(actual_exc, "user_message", str(actual_exc))
-        show_critical_message(self if self.isVisible() else None, self.tr("error_title"), display_message)
+        self._handling_error = True
+        try:
+            operation = getattr(exc, "operation", None)
+            task_id = getattr(exc, "task_id", None)
+            actual_exc = getattr(exc, "original", exc)
+            if self._handle_stale_operation_error(operation, task_id, actual_exc):
+                return
+            if operation in {"fetch_models", "test_profile", "translation"}:
+                if task_id is not None:
+                    self.operation_manager.finish(operation, task_id)
+                else:
+                    self.set_operation_state(operation, False)
+            if isinstance(actual_exc, RequestCancelledError):
+                if hasattr(self, "status_label"):
+                    self.set_status("request_cancelled")
+                self.log(f"Operation cancelled: {operation or 'unknown'}")
+                return
+            is_capture_error = self.capture_workflow_active or operation == "translation"
+            try:
+                self.finish_capture_workflow(restore_window=is_capture_error)
+            except Exception:  # noqa: BLE001
+                pass
+            if is_capture_error and self.restore_pinned_overlay_after_capture:
+                try:
+                    self.translation_overlay.restore_last_overlay()
+                except Exception:  # noqa: BLE001
+                    pass
+                self.restore_pinned_overlay_after_capture = False
+            if hasattr(self, "status_label"):
+                self.set_status("translate_failed" if is_capture_error else "operation_failed")
+            self.log(f"Error: {actual_exc}")
+            if not self.isVisible() and not self.is_quitting:
+                try:
+                    self.show_main_window()
+                except Exception:  # noqa: BLE001
+                    pass
+            display_message = getattr(actual_exc, "user_message", str(actual_exc))
+            try:
+                self._show_error_dialog_safe(display_message)
+            except Exception as dialog_exc:  # noqa: BLE001
+                self._safe_write_stderr(f"Failed to show non-blocking error dialog: {dialog_exc}")
+                try:
+                    show_critical_message(self if self.isVisible() else None, self.tr("error_title"), display_message, theme_name=self.effective_theme_name())
+                except Exception as fallback_exc:  # noqa: BLE001
+                    self._safe_write_stderr(f"Fallback error dialog also failed: {fallback_exc}")
+                    safe_record_exception(type(fallback_exc), fallback_exc, fallback_exc.__traceback__, context="MainWindow.handle_error fallback failure")
+        except Exception as handler_exc:  # noqa: BLE001
+            self._safe_write_stderr(f"MainWindow.handle_error crashed: {handler_exc}")
+            safe_record_exception(type(handler_exc), handler_exc, handler_exc.__traceback__, context="MainWindow.handle_error failure")
+        finally:
+            self._handling_error = False
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -658,6 +750,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             return False
         self.is_quitting = True
         self.log_tr("log_application_exiting")
+        self._start_exit_watchdog()
         if self.selected_text_capture_in_progress and getattr(self, "selected_text_capture_session", None):
             try:
                 self.selected_text_capture_session.cancel()
@@ -669,15 +762,23 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         except Exception:  # noqa: BLE001
             pass
         try:
-            self.stop_hotkey_recording(cancelled=False)
+            self.stop_hotkey_recording(cancelled=False, restore_hotkey_listener=False)
         except Exception:  # noqa: BLE001
             pass
         if self.hotkey_listener:
             self.hotkey_listener.stop()
             self.hotkey_listener = None
         self.registered_hotkeys = {}
+        for dialog in list(getattr(self, "_active_error_dialogs", [])):
+            try:
+                dialog.close()
+            except Exception:  # noqa: BLE001
+                pass
         self.instance_server_service.close()
         self.translation_overlay.close()
         self.tray_service.close()
-        QApplication.instance().quit()
+        app = QApplication.instance()
+        if app is None:
+            return True
+        app.quit()
         return True

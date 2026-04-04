@@ -31,6 +31,16 @@ class ScreenCaptureService:
         image.save(buffer, format="PNG")
         return buffer.getvalue()
 
+    @staticmethod
+    def capture_bbox_png_bytes_threadsafe(bbox) -> bytes:
+        left, top, right, bottom = bbox
+        return ScreenCaptureService.image_to_png_bytes(
+            ImageGrab.grab(
+                bbox=(left, top, right, bottom),
+                all_screens=True,
+            )
+        )
+
     def capture_bbox_image(self, bbox) -> CaptureResult:
         left, top, right, bottom = bbox
         width = max(1, right - left)

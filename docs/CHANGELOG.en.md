@@ -4,6 +4,24 @@
 
 This file records important OCRTranslator changes.
 
+## [0.9.4] - 2026-04-05
+
+### Added
+- Added a shutdown watchdog, non-blocking error-dialog fallback, and crash-log backstop so app shutdown and runtime failures have a final safety net
+- Added light / dark themed styling for the system-tray context menu so tray actions keep readable contrast in both themes
+
+### Changed
+- Moved screen capture work off the UI thread while keeping the original PNG bytes on the direct image-request path, preserving responsiveness without slowing the request pipeline
+- Pinned result overlays now preserve their existing position and size across capture, selected-text, and manual-input flows; capture hides the overlay only temporarily and restores it with the same geometry
+- Refined the Pin button into a more Material-style pushpin toggle with lower-contrast selected / idle states, and toned the main workspace surface shadow down to a lighter depth layer
+
+### Fixed
+- Reduced the risk of the app hanging during shutdown because of global-hotkey listeners, recorder listeners, or cleanup paths that could leave `X` / tray exit seemingly unresponsive
+- Hardened `handle_error()` with recursion guards, dialog fallbacks, and crash-log recording so the error path is less likely to crash on its own
+- Fixed the light-theme tray context menu using a dark-looking background that made the menu text hard to read
+- Fixed edge cases where empty `api_profiles` / `prompt_presets` config data could trigger runtime indexing errors
+- Added regression coverage for background capture, pinned-overlay geometry preservation, tray theming, shutdown watchdog behavior, and config self-healing
+
 ## [0.9.3] - 2026-04-04
 
 ### Added

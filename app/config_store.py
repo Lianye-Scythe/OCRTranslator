@@ -121,6 +121,8 @@ def _coerce_str_list(value) -> list[str]:
 
 
 def _normalize_active_profile_name(profiles: list[ApiProfile], active_name: str | None) -> str:
+    if not profiles:
+        return _default_profile().name
     names = {profile.name for profile in profiles}
     if active_name in names:
         return active_name
@@ -128,6 +130,8 @@ def _normalize_active_profile_name(profiles: list[ApiProfile], active_name: str 
 
 
 def _normalize_active_prompt_preset_name(presets: list[PromptPreset], active_name: str | None) -> str:
+    if not presets:
+        return _default_prompt_preset().name
     names = {preset.name for preset in presets}
     active_name = canonical_prompt_preset_name(active_name)
     if active_name in names:
@@ -216,8 +220,12 @@ def _migrate_legacy_config(data: dict) -> AppConfig:
         presets_data = source.get("prompt_presets", [])
         if not isinstance(presets_data, list):
             presets_data = [presets_data]
-        prompt_presets = _merge_missing_builtin_prompt_presets([_dict_to_prompt_preset(item) for item in presets_data]) or default_prompt_presets()
+        prompt_presets = _merge_missing_builtin_prompt_presets([_dict_to_prompt_preset(item) for item in presets_data])
     else:
+        prompt_presets = default_prompt_presets()
+    if not profiles:
+        profiles = [_default_profile()]
+    if not prompt_presets:
         prompt_presets = default_prompt_presets()
 
     ui_language = normalize_ui_language(

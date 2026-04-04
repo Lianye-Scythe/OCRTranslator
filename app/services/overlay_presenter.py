@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from PySide6.QtGui import QCursor
 
 from ..ui.overlay_positioning import (
+    clamp_rect_to_visible_screen,
     clamp_overlay_size_to_screen,
     compute_overlay_position,
     compute_overlay_position_for_point,
@@ -28,6 +29,14 @@ class OverlayPresenter:
             overlay_height=self.window.current_overlay_height(),
         )
 
+    def _preserved_geometry(self, *, preserve_geometry: bool):
+        if not preserve_geometry or self.overlay.last_geometry is None:
+            return None
+        geometry = clamp_rect_to_visible_screen(self.overlay.last_geometry)
+        if geometry.width() <= 0 or geometry.height() <= 0:
+            return None
+        return geometry
+
     def show_response(
         self,
         text: str,
@@ -36,6 +45,7 @@ class OverlayPresenter:
         anchor_point=None,
         preset_name: str = "",
         preserve_manual_position: bool = False,
+        preserve_geometry: bool = False,
         reflow_only: bool = False,
         complete_capture_flow: bool = False,
     ):
@@ -43,8 +53,14 @@ class OverlayPresenter:
         overlay_config = self._overlay_config()
         self.overlay.apply_typography()
         width, height = self.overlay.calculate_size(text)
+        preserved_geometry = self._preserved_geometry(preserve_geometry=preserve_geometry)
 
-        if bbox is not None:
+        if preserved_geometry is not None:
+            x = preserved_geometry.x()
+            y = preserved_geometry.y()
+            width = preserved_geometry.width()
+            height = preserved_geometry.height()
+        elif bbox is not None:
             width, height = fit_overlay_size(overlay_config, self.overlay, bbox, text, width, height)
             target_screen_rect = get_target_screen_rect(bbox)
             if preserve_manual_position and self.overlay.last_geometry is not None:
@@ -79,7 +95,7 @@ class OverlayPresenter:
                 x, y = compute_overlay_position_for_point(overlay_config, anchor_point, width, height)
 
         self.overlay.remember_context(bbox, text, anchor_point=anchor_point, preset_name=preset_name)
-        self.overlay.show_text(text, x, y, width, height, keep_manual_position=preserve_manual_position)
+        self.overlay.show_text(text, x, y, width, height, keep_manual_position=preserve_manual_position or bool(preserved_geometry and self.overlay.manual_positioned))
         if complete_capture_flow and not reflow_only:
             self.window.finish_capture_workflow()
             self.window.restore_pinned_overlay_after_capture = False
@@ -87,12 +103,13 @@ class OverlayPresenter:
             self.window.set_status("translated")
             self.window.log_tr("log_request_finished", preset=preset_name or "default")
 
-    def show_translation(self, bbox, text: str, *, preset_name: str = "", preserve_manual_position: bool = False, reflow_only: bool = False):
+    def show_translation(self, bbox, text: str, *, preset_name: str = "", preserve_manual_position: bool = False, preserve_geometry: bool = False, reflow_only: bool = False):
         self.show_response(
             text,
             bbox=bbox,
             preset_name=preset_name,
             preserve_manual_position=preserve_manual_position,
+            preserve_geometry=preserve_geometry,
             reflow_only=reflow_only,
             complete_capture_flow=not reflow_only,
         )
@@ -119,7 +136,8 @@ class OverlayPresenter:
                     self.overlay.last_bbox,
                     self.overlay.last_text,
                     preset_name=self.overlay.last_preset_name,
-                    preserve_manual_position=self.overlay.manual_positioned,
+                    preserve_manual_position=self.overlay.manual_positioned and not self.overlay.is_pinned,
+                    preserve_geometry=self.overlay.is_pinned,
                     reflow_only=True,
                 )
             else:
@@ -127,6 +145,7 @@ class OverlayPresenter:
                     self.overlay.last_text,
                     anchor_point=self.overlay.last_anchor_point,
                     preset_name=self.overlay.last_preset_name,
-                    preserve_manual_position=self.overlay.manual_positioned,
+                    preserve_manual_position=self.overlay.manual_positioned and not self.overlay.is_pinned,
+                    preserve_geometry=self.overlay.is_pinned,
                     reflow_only=True,
                 )

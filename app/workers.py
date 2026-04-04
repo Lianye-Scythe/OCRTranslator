@@ -20,6 +20,7 @@ class WorkerThread(threading.Thread):
 
 class AppBridge(QObject):
     action_requested = Signal(str)
+    invoke_main_thread = Signal(object, object)
     worker_success = Signal(object, object)
     worker_error = Signal(object)
     hotkey_recorded = Signal(str, str)

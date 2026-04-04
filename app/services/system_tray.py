@@ -1,6 +1,8 @@
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon
 
+from ..ui.theme_tokens import color, resolve_theme_name
+
 
 class SystemTrayService:
     def __init__(self, window, icon, *, log_func=None):
@@ -13,6 +15,36 @@ class SystemTrayService:
         self.manual_input_action: QAction | None = None
         self.cancel_action: QAction | None = None
         self.quit_action: QAction | None = None
+        self.menu: QMenu | None = None
+
+    def _theme_name(self) -> str:
+        if hasattr(self.window, "effective_theme_name"):
+            try:
+                return self.window.effective_theme_name()
+            except Exception:  # noqa: BLE001
+                pass
+        return resolve_theme_name(getattr(getattr(self.window, "config", None), "theme_mode", None))
+
+    def _menu_style_sheet(self) -> str:
+        theme_name = self._theme_name()
+        return "\n".join(
+            [
+                "QMenu {",
+                f"    background:{color('menu_bg', theme_name=theme_name)};",
+                f"    color:{color('menu_fg', theme_name=theme_name)};",
+                f"    border:1px solid {color('menu_border', theme_name=theme_name)};",
+                "    border-radius:10px; padding:6px;",
+                "}",
+                "QMenu::item { padding:8px 12px; margin:2px 0; border-radius:8px; background:transparent; }",
+                f"QMenu::item:selected {{ background:{color('menu_hover_bg', theme_name=theme_name)}; color:{color('menu_hover_fg', theme_name=theme_name)}; }}",
+                f"QMenu::item:disabled {{ color:{color('menu_disabled_fg', theme_name=theme_name)}; background:transparent; }}",
+                f"QMenu::separator {{ height:1px; margin:6px 8px; background:{color('menu_separator', theme_name=theme_name)}; }}",
+            ]
+        )
+
+    def apply_styles(self):
+        if self.menu:
+            self.menu.setStyleSheet(self._menu_style_sheet())
 
     def setup(self):
         if not QSystemTrayIcon.isSystemTrayAvailable():
@@ -31,15 +63,16 @@ class SystemTrayService:
         self.cancel_action.triggered.connect(self.window.cancel_background_operation)
         self.quit_action.triggered.connect(self.window.quit_app)
 
-        menu = QMenu(self.window)
-        menu.addAction(self.show_action)
-        menu.addAction(self.capture_action)
-        menu.addAction(self.manual_input_action)
-        menu.addAction(self.cancel_action)
-        if menu.actions():
-            menu.addSeparator()
-        menu.addAction(self.quit_action)
-        self.tray.setContextMenu(menu)
+        self.menu = QMenu(self.window)
+        self.menu.addAction(self.show_action)
+        self.menu.addAction(self.capture_action)
+        self.menu.addAction(self.manual_input_action)
+        self.menu.addAction(self.cancel_action)
+        if self.menu.actions():
+            self.menu.addSeparator()
+        self.menu.addAction(self.quit_action)
+        self.apply_styles()
+        self.tray.setContextMenu(self.menu)
         self.tray.activated.connect(self._on_activated)
 
         self.window.tray = self.tray
@@ -56,6 +89,7 @@ class SystemTrayService:
     def update_texts(self):
         if not self.tray:
             return
+        self.apply_styles()
         self.tray.setToolTip(self.window.tr("tray_title"))
         self.show_action.setText(self.window.tr("tray_show"))
         self.capture_action.setText(self.window.tr("tray_capture"))
@@ -70,6 +104,7 @@ class SystemTrayService:
     def close(self):
         if self.tray:
             self.tray.hide()
+        self.menu = None
 
     def _on_activated(self, reason):
         if not self.tray:

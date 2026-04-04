@@ -1,4 +1,5 @@
 import ctypes
+import threading
 
 from pynput import keyboard
 
@@ -139,6 +140,13 @@ class HotkeyListener:
         self._suppressed_virtual_keys: set[int] = set()
         self._suppressed_pressed_virtual_keys: set[int] = set()
 
+    @staticmethod
+    def _mark_listener_daemon(listener) -> None:
+        try:
+            listener.daemon = True
+        except Exception:  # noqa: BLE001
+            pass
+
     def start(self):
         self._combo_virtual_keys = {action: hotkey_to_virtual_keys(hotkey_text) for action, hotkey_text in self.hotkeys.items()}
         conflicts = find_hotkey_conflicts(self.hotkeys)
@@ -150,18 +158,38 @@ class HotkeyListener:
         self._suppressed_virtual_keys.clear()
         self._suppressed_pressed_virtual_keys.clear()
         self.listener = keyboard.Listener(win32_event_filter=self._win32_event_filter)
+        self._mark_listener_daemon(self.listener)
         self.listener.start()
         for action, hotkey_text in self.hotkeys.items():
             self.log(f"Registered low-level hotkey: {hotkey_text} -> {action}")
 
+    @staticmethod
+    def _stop_listener_best_effort(listener) -> None:
+        if listener is None:
+            return
+
+        def request_stop():
+            try:
+                listener.stop()
+            except Exception:  # noqa: BLE001
+                return
+            try:
+                join = getattr(listener, "join", None)
+                if callable(join) and listener is not threading.current_thread():
+                    join(0.25)
+            except Exception:  # noqa: BLE001
+                pass
+
+        threading.Thread(target=request_stop, name="HotkeyListenerStop", daemon=True).start()
+
     def stop(self):
-        if self.listener:
-            self.listener.stop()
-            self.listener = None
+        listener = self.listener
+        self.listener = None
         self._pressed_virtual_keys.clear()
         self._active_actions.clear()
         self._suppressed_virtual_keys.clear()
         self._suppressed_pressed_virtual_keys.clear()
+        self._stop_listener_best_effort(listener)
 
     def _resync_pressed_virtual_keys(self):
         if not self._pressed_virtual_keys:

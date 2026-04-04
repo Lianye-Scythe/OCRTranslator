@@ -171,6 +171,22 @@ class MainWindowRuntimeTests(unittest.TestCase):
         self.assertEqual(window.current_overlay_auto_expand_top_margin(), 64)
         self.assertEqual(window.current_overlay_auto_expand_bottom_margin(), 18)
 
+    def test_workspace_shadow_spec_uses_lighter_material_elevation_in_light_mode(self):
+        window = MainWindow.__new__(MainWindow)
+        window.effective_theme_name = lambda: "light"
+
+        spec = window.workspace_shadow_spec()
+
+        self.assertEqual(spec, {"blur": 12, "y_offset": 1, "alpha": 12})
+
+    def test_workspace_shadow_spec_uses_subtle_but_clear_depth_in_dark_mode(self):
+        window = MainWindow.__new__(MainWindow)
+        window.effective_theme_name = lambda: "dark"
+
+        spec = window.workspace_shadow_spec()
+
+        self.assertEqual(spec, {"blur": 14, "y_offset": 2, "alpha": 18})
+
     def test_update_action_states_freezes_settings_during_translation(self):
         window = MainWindow.__new__(MainWindow)
         window.tr = lambda key, **kwargs: key
@@ -294,6 +310,77 @@ class MainWindowRuntimeTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             window.validate_hotkey_actions({"capture": "Ctrl+X", "selection_text": "Ctrl+Shift+X", "manual_input": "Ctrl+Z"})
+
+    @patch("app.ui.main_window.show_critical_message")
+    @patch("app.ui.main_window.show_non_blocking_critical_message", side_effect=RuntimeError("dialog failed"))
+    def test_handle_error_falls_back_when_non_blocking_dialog_fails(self, _mock_non_blocking, mock_blocking):
+        window = MainWindow.__new__(MainWindow)
+        window._handling_error = False
+        window._safe_write_stderr = Mock()
+        window._handle_stale_operation_error = Mock(return_value=False)
+        window.capture_workflow_active = False
+        window.restore_pinned_overlay_after_capture = False
+        window.is_quitting = False
+        window.status_label = object()
+        window.isVisible = lambda: True
+        window.finish_capture_workflow = Mock()
+        window.set_status = Mock()
+        window.log = Mock()
+        window.tr = lambda key, **kwargs: key
+        window.effective_theme_name = lambda: "light"
+
+        window.handle_error(RuntimeError("boom"))
+
+        mock_blocking.assert_called_once()
+        window.set_status.assert_called_once_with("operation_failed")
+        window.log.assert_called()
+        self.assertFalse(window._handling_error)
+
+    def test_handle_error_suppresses_recursive_reentry(self):
+        window = MainWindow.__new__(MainWindow)
+        window._handling_error = True
+        window._safe_write_stderr = Mock()
+
+        window.handle_error(RuntimeError("boom"))
+
+        window._safe_write_stderr.assert_called_once()
+
+    def test_run_exit_watchdog_forces_exit_only_while_quitting(self):
+        window = MainWindow.__new__(MainWindow)
+        window.is_quitting = True
+        window._force_process_exit = Mock()
+        window._safe_write_stderr = Mock()
+
+        with patch("app.ui.main_window.time.sleep"):
+            window._run_exit_watchdog(0)
+
+        window._force_process_exit.assert_called_once_with(0)
+
+    @patch("app.ui.main_window.QApplication.instance")
+    def test_quit_app_does_not_restore_hotkeys_while_exiting(self, mock_app_instance):
+        fake_app = SimpleNamespace(quit=Mock())
+        mock_app_instance.return_value = fake_app
+        window = MainWindow.__new__(MainWindow)
+        window.is_quitting = False
+        window.resolve_unsaved_changes = lambda for_exit=True: True
+        window.log_tr = Mock()
+        window._start_exit_watchdog = Mock()
+        window.selected_text_capture_in_progress = False
+        window.operation_manager = SimpleNamespace(cancel_all=Mock())
+        window.selection_overlay = SimpleNamespace(hide=Mock())
+        window.stop_hotkey_recording = Mock()
+        window.hotkey_listener = None
+        window.registered_hotkeys = {}
+        window.instance_server_service = SimpleNamespace(close=Mock())
+        window.translation_overlay = SimpleNamespace(close=Mock())
+        window.tray_service = SimpleNamespace(close=Mock())
+
+        result = window.quit_app()
+
+        self.assertTrue(result)
+        window.stop_hotkey_recording.assert_called_once_with(cancelled=False, restore_hotkey_listener=False)
+        window._start_exit_watchdog.assert_called_once_with()
+        fake_app.quit.assert_called_once_with()
 
 
 if __name__ == "__main__":

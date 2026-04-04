@@ -338,3 +338,30 @@ def show_destructive_confirmation(
             escape_result=False,
         )
     )
+
+
+def show_non_blocking_critical_message(parent, title: str, text: str, *, theme_name: str | None = None):
+    dialog = QMessageBox(parent)
+    dialog.setIcon(QMessageBox.Critical)
+    dialog.setWindowTitle(title)
+    dialog.setText(text)
+    button = dialog.addButton(QMessageBox.Ok)
+    dialog.setDefaultButton(button)
+    dialog.setEscapeButton(button)
+    dialog.setAttribute(Qt.WA_DeleteOnClose, True)
+    dialog.setModal(False)
+    dialog.setWindowModality(Qt.NonModal)
+    dialog.setWindowFlag(Qt.WindowStaysOnTopHint, True)
+    _set_button_variant(button, "primary")
+    _polish_dialog(
+        dialog,
+        [button],
+        parent=parent,
+        theme_name=theme_name,
+        tone="critical",
+        preserve_initial_focus=False,
+    )
+    dialog.show()
+    dialog.raise_()
+    dialog.activateWindow()
+    return dialog

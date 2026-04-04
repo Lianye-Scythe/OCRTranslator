@@ -22,12 +22,16 @@ It is not just a screenshot translator. It is a desktop AI workspace organized a
 - API key rotation and retry support
 - Light / dark / follow-system theme modes
 - Screen capture now sends the original PNG bytes directly after selection completes, reducing the wait from capture to result overlay
+- Screen capture itself now runs off the UI thread while keeping original PNG bytes on the direct image-request path, reducing the chance of synchronous capture stalls dragging the main window down
 - Runtime logs now report `capture / request / total / png` timing so you can tell whether latency comes from local processing or the model side
 - Global hotkeys now include modifier-release pairing and state resynchronization safeguards to reduce stuck-looking `Shift / Ctrl / Win` behavior
 - A workflow-first settings page organized as `Connection and model → Translation workflow → Appearance and advanced`
 - Advanced settings now include configurable overlay auto-expand top / bottom safe margins so you can tune how close the popup grows toward the taskbar
 - Selected-text capture now runs as a non-blocking flow, shows a single processing toast only when the request is submitted, and supports cancellation during capture
 - Result overlay supports copy, a pushpin-style keep-visible toggle, surface-only opacity control, direct opacity input, drag to move, corner resize, and `Ctrl + mouse wheel` font zoom
+- Pinned result overlays now preserve their previous size and position across capture, selected-text, and manual-input flows; capture hides the overlay only temporarily and restores it with the same geometry
+- The tray context menu and Pin button states now follow the current light / dark theme and use a more restrained Material-style presentation
+- Shutdown now includes a watchdog and error-dialog fallback path to reduce the risk of the app becoming hard to close after runtime failures or third-party hook issues
 - Message boxes and destructive confirmations now share consistent button semantics, focus handling, and Escape behavior
 - Global hotkeys, system tray, and single-instance protection
 - Portable config stored next to the project root or packaged exe

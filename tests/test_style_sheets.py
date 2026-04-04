@@ -15,3 +15,10 @@ class StyleSheetTests(unittest.TestCase):
 
         self.assertIn('QMessageBox[messageBox="true"][messageBoxTone="information"] QLabel#qt_msgboxex_icon_label', style)
         self.assertIn('QMessageBox[messageBox="true"][messageBoxTone="destructive"] QLabel#qt_msgboxex_icon_label', style)
+
+    def test_translation_overlay_pin_toggle_matches_action_corner_radius(self):
+        style = load_style_sheet("translation_overlay.qss", theme_name="light")
+
+        self.assertIn('#overlayActionButton[pinToggle="true"] {', style)
+        self.assertIn('border-radius:10px;', style)
+        self.assertIn('background:#f5f5f7;', style)
