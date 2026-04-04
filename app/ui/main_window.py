@@ -146,6 +146,10 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         return self.config.mode
 
     def current_theme_mode(self) -> str:
+        if hasattr(self, "theme_mode_buttons"):
+            for mode, button in self.theme_mode_buttons.items():
+                if button.isChecked():
+                    return normalize_theme_mode(mode)
         if hasattr(self, "theme_mode_combo"):
             return normalize_theme_mode(self.theme_mode_combo.currentData() or getattr(self.config, "theme_mode", "system"))
         return normalize_theme_mode(getattr(self.config, "theme_mode", "system"))
@@ -236,7 +240,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             "target_language_edit",
             "ui_language_combo",
             "hotkey_edit",
-            "theme_mode_combo",
+            "theme_mode_switch",
             "hotkey_record_button",
             "selection_hotkey_edit",
             "selection_hotkey_record_button",

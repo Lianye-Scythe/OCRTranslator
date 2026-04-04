@@ -43,29 +43,43 @@ QScrollArea#SidebarScrollArea > QWidget > QWidget,
     border-radius:22px;
 }
 
+#BrandBlock {
+    background:transparent;
+    border:none;
+}
+
 #BrandTitle {
     color:{{text_emphasis}};
     font-size:22px;
     font-weight:700;
-    padding-bottom:4px;
+    line-height:1.15;
+    padding:0px 0px 2px 0px;
 }
 
 #BrandSubtitle {
-    color:{{subtle_fg}};
-    line-height:1.5;
+    color:{{text_secondary}};
+    font-size:13px;
+    font-weight:500;
+    line-height:1.55;
+    padding:0px;
 }
 
-#SidebarCaption,
+#SidebarCaption {
+    color:{{subtle_fg}};
+    font-size:12px;
+    font-weight:600;
+    padding-left:6px;
+    padding-bottom:6px;
+}
+
 #FieldLabel {
     color:{{muted_fg}};
-    font-size:12px;
+    font-size:13px;
     font-weight:700;
     padding-bottom:2px;
 }
 
-#SidebarCaption {
-    min-height:16px;
-}
+#SidebarCaption { min-height:16px; }
 
 #NavButton {
     background:transparent;
@@ -107,14 +121,20 @@ QScrollArea#SidebarScrollArea > QWidget > QWidget,
     color:{{text_emphasis}};
     font-size:13px;
     font-weight:700;
-    padding-bottom:2px;
+    padding-bottom:3px;
     min-height:18px;
 }
 
-#HintLabel,
-#AboutMetaLabel {
+#HintLabel {
     color:{{muted_fg}};
-    font-size:11px;
+    font-size:12px;
+    padding-right:8px;
+}
+
+#AboutMetaLabel {
+    color:{{text_secondary}};
+    font-size:12px;
+    padding-right:8px;
 }
 
 QCheckBox {
@@ -148,7 +168,7 @@ QCheckBox::indicator:checked {
 #HeaderCard {
     background:transparent;
     border:none;
-    border-bottom:1px solid {{header_divider}};
+    border-bottom:none;
 }
 
 #PageTitleLabel {
@@ -158,24 +178,19 @@ QCheckBox::indicator:checked {
     padding-bottom:2px;
 }
 
-#PageSubtitleLabel,
+#PageSubtitleLabel {
+    color:{{text_secondary}};
+    font-size:13px;
+    font-weight:500;
+    padding-left:2px;
+}
+
 #PageContextLabel {
     color:{{muted_fg}};
-}
-
-#PageContextLabel {
-    font-size:12px;
-    font-weight:600;
+    font-size:13px;
+    font-weight:500;
     padding-top:2px;
-}
-
-#ActiveProfileBadge {
-    background:{{badge_bg}};
-    border:1px solid {{badge_border}};
-    border-radius:12px;
-    padding:8px 12px;
-    color:{{badge_fg}};
-    font-weight:600;
+    padding-left:2px;
 }
 
 #SectionCard[sectionRole="settings"] {
@@ -415,6 +430,51 @@ QPushButton[variant="danger"] {
 
 QPushButton[variant="danger"]:hover {
     background:{{button_danger_bg}};
+}
+
+#ThemeModeSwitch {
+    background:{{panel_bg}};
+    border:1px solid {{field_border}};
+    border-radius:12px;
+    padding:1px;
+}
+
+#ThemeModeSwitch:disabled {
+    background:{{field_bg}};
+    border-color:{{button_disabled_border}};
+}
+
+#ThemeModeSwitch QPushButton {
+    background:transparent;
+    color:{{text_secondary}};
+    border:1px solid transparent;
+    border-radius:9px;
+    padding:4px;
+    min-height:12px;
+    min-width:32px;
+    font-size:15px;
+    font-weight:600;
+}
+
+#ThemeModeSwitch QPushButton:hover {
+    background:{{surface_hover}};
+    color:{{text_primary}};
+}
+
+#ThemeModeSwitch QPushButton:checked {
+    background:{{accent_soft}};
+    color:{{accent_text}};
+}
+
+#ThemeModeSwitch QPushButton:checked:hover {
+    background:{{surface_selected}};
+}
+
+#ThemeModeSwitch QPushButton:disabled,
+#ThemeModeSwitch QPushButton:checked:disabled {
+    color:{{button_disabled_fg}};
+    background:transparent;
+    border-color:transparent;
 }
 
 #PreviewViewport {

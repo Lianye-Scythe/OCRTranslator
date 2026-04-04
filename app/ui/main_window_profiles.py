@@ -113,15 +113,39 @@ class MainWindowProfilesMixin:
         self.mode_combo.blockSignals(False)
 
     def update_theme_mode_options(self, current: str | None = None):
-        current_value = normalize_theme_mode(current or self.theme_mode_combo.currentData() or getattr(self.config, "theme_mode", DEFAULT_THEME_MODE))
-        self.theme_mode_combo.blockSignals(True)
-        self.theme_mode_combo.clear()
-        self.theme_mode_combo.addItem(self.tr("theme_system"), "system")
-        self.theme_mode_combo.addItem(self.tr("theme_light"), "light")
-        self.theme_mode_combo.addItem(self.tr("theme_dark"), "dark")
-        index = self.theme_mode_combo.findData(current_value)
-        self.theme_mode_combo.setCurrentIndex(max(0, index))
-        self.theme_mode_combo.blockSignals(False)
+        current_value = normalize_theme_mode(current or self.current_theme_mode() or getattr(self.config, "theme_mode", DEFAULT_THEME_MODE))
+        symbols = {
+            "system": "◐",
+            "light": "☀",
+            "dark": "☾",
+        }
+        tooltips = {
+            "system": self.tr("theme_system"),
+            "light": self.tr("theme_light"),
+            "dark": self.tr("theme_dark"),
+        }
+        if hasattr(self, "theme_mode_switch"):
+            self.theme_mode_switch.setToolTip(self.tr("theme_mode"))
+            self.theme_mode_switch.setAccessibleName(self.tr("theme_mode"))
+        if hasattr(self, "theme_mode_buttons"):
+            for mode, button in self.theme_mode_buttons.items():
+                button.blockSignals(True)
+                button.setText(symbols[mode])
+                button.setToolTip(tooltips[mode])
+                button.setAccessibleName(tooltips[mode])
+                button.setChecked(mode == current_value)
+                button.blockSignals(False)
+            return
+
+        if hasattr(self, "theme_mode_combo"):
+            self.theme_mode_combo.blockSignals(True)
+            self.theme_mode_combo.clear()
+            self.theme_mode_combo.addItem(self.tr("theme_system"), "system")
+            self.theme_mode_combo.addItem(self.tr("theme_light"), "light")
+            self.theme_mode_combo.addItem(self.tr("theme_dark"), "dark")
+            index = self.theme_mode_combo.findData(current_value)
+            self.theme_mode_combo.setCurrentIndex(max(0, index))
+            self.theme_mode_combo.blockSignals(False)
 
     def update_provider_options(self):
         current = self.provider_combo.currentData() or self.get_active_profile().provider
@@ -273,7 +297,7 @@ class MainWindowProfilesMixin:
             retry_interval=self.retry_interval_spin.value(),
             target_language=self.target_language_edit.text().strip(),
             ui_language=self.ui_language_combo.currentText().strip(),
-            theme_mode=normalize_theme_mode(self.theme_mode_combo.currentData() or getattr(self.config, "theme_mode", DEFAULT_THEME_MODE)),
+            theme_mode=self.current_theme_mode(),
             hotkey=self.hotkey_edit.text().strip(),
             selection_hotkey=self.selection_hotkey_edit.text().strip(),
             input_hotkey=self.input_hotkey_edit.text().strip(),
@@ -652,6 +676,29 @@ class MainWindowProfilesMixin:
         profile.name = self.validate_profile_name(profile.name, self.get_active_profile().name)
         return previous_language, candidate_config, profile
 
+    def auto_save_theme_mode(self) -> bool:
+        previous_mode = normalize_theme_mode(getattr(self.config, "theme_mode", DEFAULT_THEME_MODE))
+        selected_mode = self.current_theme_mode()
+        if selected_mode == previous_mode:
+            return True
+        keep_dirty = bool(getattr(self, "has_unsaved_changes", False))
+        try:
+            self.config.theme_mode = selected_mode
+            save_config(self.config)
+            self.set_status("settings_saved")
+            self.log(f"Theme mode auto-saved: {selected_mode}")
+            self.set_unsaved_changes(keep_dirty)
+            return True
+        except Exception as exc:  # noqa: BLE001
+            self.config.theme_mode = previous_mode
+            self._suppress_form_tracking = True
+            try:
+                self.update_theme_mode_options(previous_mode)
+            finally:
+                self._suppress_form_tracking = False
+            self.handle_error(exc)
+            return False
+
     def save_settings(self):
         try:
             valid, _ = self.validate_form_inputs(focus_first_invalid=True, scope="save")
@@ -703,4 +750,5 @@ class MainWindowProfilesMixin:
         if self.is_form_tracking_suppressed():
             return
         self.apply_language()
-        self.on_form_input_changed()
+        if not self.auto_save_theme_mode():
+            self.apply_language()

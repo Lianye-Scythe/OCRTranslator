@@ -38,6 +38,115 @@ class _FakeWidget:
 
 
 class MainWindowRuntimeTests(unittest.TestCase):
+    def test_current_theme_mode_prefers_live_theme_buttons(self):
+        window = MainWindow.__new__(MainWindow)
+        window.config = SimpleNamespace(theme_mode="system")
+        window.theme_mode_buttons = {
+            "system": SimpleNamespace(isChecked=lambda: False),
+            "light": SimpleNamespace(isChecked=lambda: False),
+            "dark": SimpleNamespace(isChecked=lambda: True),
+        }
+        self.assertEqual(window.current_theme_mode(), "dark")
+
+    def test_auto_save_theme_mode_persists_selection_without_creating_dirty_state(self):
+        window = MainWindow.__new__(MainWindow)
+        window.config = SimpleNamespace(theme_mode="system")
+        window.has_unsaved_changes = False
+        window.current_theme_mode = lambda: "dark"
+        window.set_status = Mock()
+        window.log = Mock()
+        window.handle_error = Mock()
+        window.set_unsaved_changes = Mock(side_effect=lambda dirty: setattr(window, "has_unsaved_changes", bool(dirty)))
+
+        with patch("app.ui.main_window_profiles.save_config") as mock_save_config:
+            result = window.auto_save_theme_mode()
+
+        self.assertTrue(result)
+        self.assertEqual(window.config.theme_mode, "dark")
+        self.assertFalse(window.has_unsaved_changes)
+        mock_save_config.assert_called_once_with(window.config)
+        window.set_unsaved_changes.assert_called_once_with(False)
+
+    def test_auto_save_theme_mode_preserves_existing_unsaved_changes(self):
+        window = MainWindow.__new__(MainWindow)
+        window.config = SimpleNamespace(theme_mode="system")
+        window.has_unsaved_changes = True
+        window.current_theme_mode = lambda: "light"
+        window.set_status = Mock()
+        window.log = Mock()
+        window.handle_error = Mock()
+        window.set_unsaved_changes = Mock(side_effect=lambda dirty: setattr(window, "has_unsaved_changes", bool(dirty)))
+
+        with patch("app.ui.main_window_profiles.save_config"):
+            self.assertTrue(window.auto_save_theme_mode())
+        self.assertTrue(window.has_unsaved_changes)
+
+    def test_update_sidebar_width_for_language_expands_english_sidebar(self):
+        window = MainWindow.__new__(MainWindow)
+        window.current_ui_language = lambda: "en"
+        window.sidebar_scroll = SimpleNamespace(setMinimumWidth=Mock(), setMaximumWidth=Mock())
+
+        window.update_sidebar_width_for_language()
+
+        window.sidebar_scroll.setMinimumWidth.assert_called_once_with(300)
+        window.sidebar_scroll.setMaximumWidth.assert_called_once_with(376)
+
+    def test_build_about_meta_markup_compacts_english_metadata(self):
+        window = MainWindow.__new__(MainWindow)
+        translations = {
+            "about_author_label": "Author",
+            "about_repo_label": "Repo",
+        }
+        window.tr = lambda key, **kwargs: translations.get(key, key)
+        window.current_ui_language = lambda: "en"
+
+        markup = window.build_about_meta_markup()
+
+        self.assertIn("Author", markup)
+        self.assertIn("Repo", markup)
+        self.assertIn("scythenight", markup)
+        self.assertIn("OCRTranslator", markup)
+        self.assertIn("<br/>", markup)
+        self.assertIn("Author:", markup)
+        self.assertIn("Repo:", markup)
+
+    def test_refresh_shell_state_moves_profile_into_header_context(self):
+        window = MainWindow.__new__(MainWindow)
+        window.config = SimpleNamespace(mode="book_lr", hotkey="Shift+Win+X", selection_hotkey="Shift+Win+C", input_hotkey="Shift+Win+V", target_language="繁體中文", active_prompt_preset_name="翻译", api_profiles=[SimpleNamespace(name="Default Gemini")])
+        window.page_context_label = _FakeWidget()
+        window.profile_name_edit = SimpleNamespace(text=lambda: "Default Gemini")
+        window.get_active_profile = lambda: SimpleNamespace(name="Default Gemini")
+        window.current_mode = lambda: "book_lr"
+        window.current_hotkey = lambda: "Shift+Win+X"
+        window.current_selection_hotkey = lambda: "Shift+Win+C"
+        window.current_input_hotkey = lambda: "Shift+Win+V"
+        window.current_target_language = lambda: "繁體中文"
+        window.current_prompt_preset_name = lambda: "翻译"
+        translations = {
+            "header_summary": "当前配置：{profile} · {prompt} · {target} · {mode}\n{hotkeys}",
+            "header_summary_primary": "当前配置：{profile} · {prompt} · {target} · {mode}",
+            "meta_hotkeys": "快捷键：{capture} · {selection} · {input}",
+            "meta_hotkey_capture": "截图 {value}",
+            "meta_hotkey_selection": "选字 {value}",
+            "meta_hotkey_input": "输入框 {value}",
+            "mode_book_lr": "双页左右",
+            "mode_web_ud": "网页上下",
+            "untitled_profile": "未命名配置",
+        }
+        window.tr = lambda key, **kwargs: translations.get(key, key).format(**kwargs) if kwargs else translations.get(key, key)
+
+        window.refresh_shell_state()
+
+        expected_plain = "当前配置：Default Gemini · 翻译 · 繁體中文 · 双页左右\n快捷键：截图 Shift+Win+X · 选字 Shift+Win+C · 输入框 Shift+Win+V"
+        self.assertEqual(window.page_context_label.tooltip, expected_plain)
+        self.assertIn("Default Gemini", window.page_context_label.text)
+        self.assertIn("Shift+Win+X", window.page_context_label.text)
+        self.assertIn("Shift+Win+C", window.page_context_label.text)
+        self.assertIn("Shift+Win+V", window.page_context_label.text)
+        self.assertIn("快捷键：", window.page_context_label.text)
+        self.assertIn("<br/>", window.page_context_label.text)
+        self.assertIn("<span style=", window.page_context_label.text)
+
     def test_current_runtime_values_prefer_live_form_widgets(self):
         window = MainWindow.__new__(MainWindow)
         window.config = SimpleNamespace(temperature=0.2, overlay_width=440, overlay_height=520, margin=18)
@@ -77,8 +186,8 @@ class MainWindowRuntimeTests(unittest.TestCase):
             "ui_language_combo",
             "hotkey_edit",
             "hotkey_record_button",
+            "theme_mode_switch",
             "selection_hotkey_edit",
-            "theme_mode_combo",
             "selection_hotkey_record_button",
             "input_hotkey_edit",
             "input_hotkey_record_button",
@@ -114,7 +223,7 @@ class MainWindowRuntimeTests(unittest.TestCase):
         self.assertFalse(window.target_language_edit.enabled)
         self.assertFalse(window.prompt_preset_combo.enabled)
         self.assertFalse(window.close_to_tray_on_close_checkbox.enabled)
-        self.assertFalse(window.theme_mode_combo.enabled)
+        self.assertFalse(window.theme_mode_switch.enabled)
         self.assertTrue(window.hero_tray_button.enabled)
         self.assertFalse(window.profile_combo.enabled)
         self.assertFalse(window.tray_capture_action.enabled)

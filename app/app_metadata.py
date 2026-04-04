@@ -1,5 +1,5 @@
 APP_NAME = "OCRTranslator"
-APP_VERSION = "0.9.1"
+APP_VERSION = "0.9.2"
 AUTHOR_NAME_ZH = "鐮夜"
 AUTHOR_NAME_EN = "scythenight"
 REPOSITORY_NAME = "Lianye-Scythe/OCRTranslator"

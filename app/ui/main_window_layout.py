@@ -1,6 +1,9 @@
+from html import escape
+
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
+    QButtonGroup,
     QComboBox,
     QDoubleSpinBox,
     QFontComboBox,
@@ -20,7 +23,6 @@ from PySide6.QtWidgets import (
 )
 
 from ..app_metadata import APP_VERSION, AUTHOR_NAME_EN, AUTHOR_NAME_ZH, REPOSITORY_NAME, REPOSITORY_URL
-from ..profile_utils import normalize_provider_name
 from .style_utils import load_style_sheet
 from .theme_tokens import color, qcolor, set_theme_mode
 
@@ -109,19 +111,27 @@ class MainWindowLayoutMixin:
         sidebar_layout.setSpacing(10)
         sidebar_layout.setSizeConstraint(QLayout.SetMinimumSize)
 
+        self.brand_block = QFrame()
+        self.brand_block.setObjectName("BrandBlock")
+        self.brand_block.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
+        brand_layout = QVBoxLayout(self.brand_block)
+        brand_layout.setContentsMargins(6, 0, 10, 0)
+        brand_layout.setSpacing(4)
+
         self.title_label = QLabel()
         self.title_label.setObjectName("BrandTitle")
         self.title_label.setWordWrap(True)
         self.subtitle_label = QLabel()
         self.subtitle_label.setObjectName("BrandSubtitle")
         self.subtitle_label.setWordWrap(True)
-        sidebar_layout.addWidget(self.title_label)
-        sidebar_layout.addWidget(self.subtitle_label)
+        brand_layout.addWidget(self.title_label)
+        brand_layout.addWidget(self.subtitle_label)
+        sidebar_layout.addWidget(self.brand_block)
 
         self.navigation_label = QLabel()
         self.navigation_label.setObjectName("SidebarCaption")
         self.navigation_label.setWordWrap(True)
-        sidebar_layout.addSpacing(8)
+        sidebar_layout.addSpacing(14)
         sidebar_layout.addWidget(self.navigation_label)
 
         self.nav_settings_button = QPushButton()
@@ -135,7 +145,7 @@ class MainWindowLayoutMixin:
         sidebar_layout.addWidget(self.nav_settings_button)
         sidebar_layout.addWidget(self.nav_monitor_button)
 
-        sidebar_layout.addStretch(1)
+        sidebar_layout.addSpacing(24)
 
         self.quick_actions_label = QLabel()
         self.quick_actions_label.setObjectName("SidebarCaption")
@@ -148,12 +158,14 @@ class MainWindowLayoutMixin:
         sidebar_layout.addWidget(self.hero_capture_button)
         sidebar_layout.addWidget(self.hero_manual_input_button)
         sidebar_layout.addWidget(self.hero_tray_button)
+        sidebar_layout.addSpacing(16)
+        sidebar_layout.addStretch(1)
 
         self.hint_card = QFrame()
         self.hint_card.setObjectName("HintCard")
         hint_layout = QVBoxLayout(self.hint_card)
-        hint_layout.setContentsMargins(12, 12, 12, 12)
-        hint_layout.setSpacing(6)
+        hint_layout.setContentsMargins(6, 0, 10, 0)
+        hint_layout.setSpacing(8)
         self.hint_title_label = QLabel()
         self.hint_title_label.setObjectName("HintTitleLabel")
         self.hint_title_label.setWordWrap(True)
@@ -168,8 +180,8 @@ class MainWindowLayoutMixin:
         self.about_card = QFrame()
         self.about_card.setObjectName("AboutCard")
         about_layout = QVBoxLayout(self.about_card)
-        about_layout.setContentsMargins(12, 12, 12, 12)
-        about_layout.setSpacing(6)
+        about_layout.setContentsMargins(6, 0, 10, 0)
+        about_layout.setSpacing(8)
         self.about_title_label = QLabel()
         self.about_title_label.setObjectName("AboutTitleLabel")
         self.about_title_label.setWordWrap(True)
@@ -195,35 +207,35 @@ class MainWindowLayoutMixin:
         self.workspace_surface.setObjectName("WorkspaceSurface")
         workspace_layout = QVBoxLayout(self.workspace_surface)
         workspace_layout.setContentsMargins(18, 14, 18, 14)
-        workspace_layout.setSpacing(18)
+        workspace_layout.setSpacing(10)
         content_shell_layout.addWidget(self.workspace_surface, 1)
 
         self.header_card = QFrame()
         self.header_card.setObjectName("HeaderCard")
         header_layout = QHBoxLayout(self.header_card)
-        header_layout.setContentsMargins(22, 20, 22, 20)
+        header_layout.setContentsMargins(22, 20, 22, 12)
         header_layout.setSpacing(16)
 
         header_text_layout = QVBoxLayout()
-        header_text_layout.setSpacing(6)
+        header_text_layout.setSpacing(0)
         self.page_title_label = QLabel()
         self.page_title_label.setObjectName("PageTitleLabel")
         self.page_subtitle_label = QLabel()
         self.page_subtitle_label.setObjectName("PageSubtitleLabel")
         self.page_subtitle_label.setWordWrap(True)
         header_text_layout.addWidget(self.page_title_label)
+        header_text_layout.addSpacing(4)
         header_text_layout.addWidget(self.page_subtitle_label)
+        header_text_layout.addSpacing(8)
         self.page_context_label = QLabel()
         self.page_context_label.setObjectName("PageContextLabel")
         self.page_context_label.setWordWrap(True)
+        self.page_context_label.setTextFormat(Qt.RichText)
         header_text_layout.addWidget(self.page_context_label)
         header_layout.addLayout(header_text_layout, 1)
 
-        self.active_profile_badge = QLabel()
-        self.active_profile_badge.setObjectName("ActiveProfileBadge")
-        self.active_profile_badge.setAlignment(Qt.AlignCenter)
-        self.active_profile_badge.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Fixed)
-        header_layout.addWidget(self.active_profile_badge, alignment=Qt.AlignTop)
+        self.theme_mode_switch = self.create_theme_mode_switch()
+        header_layout.addWidget(self.theme_mode_switch, alignment=Qt.AlignTop)
 
         workspace_layout.addWidget(self.header_card)
 
@@ -307,6 +319,7 @@ class MainWindowLayoutMixin:
         self.setWindowTitle(f"{self.tr('window_title')} v{APP_VERSION}[*]")
         self.title_label.setText(self.tr("title"))
         self.subtitle_label.setText(self.tr("subtitle"))
+        self.update_sidebar_width_for_language()
         self.navigation_label.setText(self.tr("navigation"))
         self.quick_actions_label.setText(self.tr("sidebar_start_here"))
         self.hero_capture_button.setText(self.tr("start_capture"))
@@ -317,20 +330,7 @@ class MainWindowLayoutMixin:
         self.hint_title_label.setText(self.tr("sidebar_hint_title"))
         self.hint_label.setText(self.tr("hint"))
         self.about_title_label.setText(self.tr("sidebar_about_title"))
-        self.about_meta_label.setText(
-            f"<span style='color:{color('text_secondary')}'>"
-            f"v{APP_VERSION}</span><br/>"
-            f"<span style='color:{color('text_secondary')}'>"
-            f"{self.tr('about_author_label')}"
-            f"{':' if self.current_ui_language() == 'en' else '：'}</span>"
-            f"<span style='color:{color('text_primary')};'>{AUTHOR_NAME_ZH}</span>"
-            f" <span style='color:{color('text_tertiary')};'>/</span> "
-            f"<span style='color:{color('text_primary')};'>{AUTHOR_NAME_EN}</span>"
-            "<br/>"
-            f"<span style='color:{color('text_secondary')};'>{self.tr('about_repo_label')}"
-            f"{':' if self.current_ui_language() == 'en' else '：'}</span>"
-            f"<a href='{REPOSITORY_URL}' style='color:{color('link')}; text-decoration:none;'>{REPOSITORY_NAME.replace('/', '/&#8203;') if self.current_ui_language() == 'en' else REPOSITORY_NAME}</a>"
-        )
+        self.about_meta_label.setText(self.build_about_meta_markup())
         self.connection_group_title_label.setText(self.tr("section_connection"))
         self.connection_intro_label.setText(self.tr("section_connection_intro"))
         self.translation_group_title_label.setText(self.tr("section_translation"))
@@ -366,7 +366,8 @@ class MainWindowLayoutMixin:
         self.retry_interval_label.setText(self.tr("retry_interval"))
         self.target_language_label.setText(self.tr("target_language"))
         self.ui_language_label.setText(self.tr("ui_language"))
-        self.theme_label.setText(self.tr("theme_mode"))
+        self.theme_mode_switch.setToolTip(self.tr("theme_mode"))
+        self.theme_mode_switch.setAccessibleName(self.tr("theme_mode"))
         self.hotkey_label.setText(self.tr("capture_hotkey"))
         self.selection_hotkey_label.setText(self.tr("selection_hotkey"))
         self.input_hotkey_label.setText(self.tr("input_hotkey"))
@@ -457,37 +458,102 @@ class MainWindowLayoutMixin:
             self.page_subtitle_label.setText(self.tr("page_monitor_subtitle"))
 
     def refresh_shell_state(self):
-        if not hasattr(self, "active_profile_badge"):
-            return
         current_mode = self.current_mode() if hasattr(self, "current_mode") else self.config.mode
-        current_hotkey = self.current_hotkey() if hasattr(self, "current_hotkey") else self.config.hotkey
         current_target_language = self.current_target_language() if hasattr(self, "current_target_language") else self.config.target_language
         current_prompt_preset = self.current_prompt_preset_name() if hasattr(self, "current_prompt_preset_name") else self.config.active_prompt_preset_name
         mode_label = self.tr("mode_book_lr") if current_mode == "book_lr" else self.tr("mode_web_ud")
-        summary_text = self.tr(
+        summary_plain = self.tr(
             "header_summary",
+            profile=self.current_profile_header_label(),
             prompt=current_prompt_preset,
             target=current_target_language,
             mode=mode_label,
-            hotkey=current_hotkey,
+            hotkeys=self.build_header_hotkeys_summary(),
         )
-        self.page_context_label.setText(summary_text)
-        self.page_context_label.setToolTip(summary_text)
+
+        summary_primary_rich = self.tr(
+            "header_summary_primary",
+            profile=self.format_header_summary_value(self.current_profile_header_label(), prominent=True),
+            prompt=self.format_header_summary_value(current_prompt_preset),
+            target=self.format_header_summary_value(current_target_language),
+            mode=self.format_header_summary_value(mode_label),
+        )
+        hotkey_rich = self.build_header_hotkeys_summary(rich=True)
+        summary_rich = (
+            f"<span style='color:{color('muted_fg')};'>"
+            f"{summary_primary_rich}"
+            "</span>"
+            "<br/>"
+            f"<span style='color:{color('muted_fg')}; font-size:12px; font-weight:500;'>"
+            f"{hotkey_rich}"
+            "</span>"
+        )
+        self.page_context_label.setText(summary_rich)
+        self.page_context_label.setToolTip(summary_plain)
+
+    def build_header_hotkeys_summary(self, *, rich: bool = False) -> str:
+        value_mapper = (lambda value: self.format_header_summary_value(value, prominent=True)) if rich else str
+        capture_text = self.tr("meta_hotkey_capture", value=value_mapper(self.current_hotkey()))
+        selection_text = self.tr(
+            "meta_hotkey_selection",
+            value=value_mapper(self.current_selection_hotkey()),
+        )
+        input_text = self.tr(
+            "meta_hotkey_input",
+            value=value_mapper(self.current_input_hotkey()),
+        )
+        return self.tr(
+            "meta_hotkeys",
+            capture=capture_text,
+            selection=selection_text,
+            input=input_text,
+        )
+
+    def build_about_meta_markup(self) -> str:
+        if self.current_ui_language() == "en":
+            return (
+                f"<span style='color:{color('text_secondary')}'>v{APP_VERSION}</span><br/>"
+                f"<span style='color:{color('subtle_fg')};'>{self.tr('about_author_label')}:</span> "
+                f"<span style='color:{color('text_primary')};'>{AUTHOR_NAME_ZH}</span> <span style='color:{color('text_tertiary')};'>/</span> <span style='color:{color('text_primary')};'>{AUTHOR_NAME_EN}</span><br/>"
+                f"<span style='color:{color('subtle_fg')};'>{self.tr('about_repo_label')}:</span> "
+                f"<a href='{REPOSITORY_URL}' style='color:{color('link')}; text-decoration:none;'>{REPOSITORY_NAME.replace('/', '/&#8203;')}</a>"
+            )
+        return (
+            f"<span style='color:{color('text_secondary')}'>v{APP_VERSION}</span><br/>"
+            f"<span style='color:{color('text_secondary')};'>{self.tr('about_author_label')}：</span>"
+            f"<span style='color:{color('text_primary')};'>{AUTHOR_NAME_ZH}</span>"
+            f" <span style='color:{color('text_tertiary')};'>/</span> "
+            f"<span style='color:{color('text_primary')};'>{AUTHOR_NAME_EN}</span><br/>"
+            f"<span style='color:{color('text_secondary')};'>{self.tr('about_repo_label')}：</span>"
+            f"<a href='{REPOSITORY_URL}' style='color:{color('link')}; text-decoration:none;'>{REPOSITORY_NAME}</a>"
+        )
+
+    def update_sidebar_width_for_language(self):
+        if not hasattr(self, "sidebar_scroll"):
+            return
+        if self.current_ui_language() == "en":
+            self.sidebar_scroll.setMinimumWidth(300)
+            self.sidebar_scroll.setMaximumWidth(376)
+            return
+        self.sidebar_scroll.setMinimumWidth(280)
+        self.sidebar_scroll.setMaximumWidth(360)
+
+    def format_header_summary_value(self, value: str, *, prominent: bool = False) -> str:
+        text_color = color("text_primary") if prominent else color("text_secondary")
+        font_weight = 700 if prominent else 600
+        return (
+            f"<span style='color:{text_color}; font-weight:{font_weight};'>"
+            f"{escape(str(value))}"
+            "</span>"
+        )
+
+    def current_profile_header_label(self) -> str:
         profile = self.get_active_profile() if getattr(self.config, "api_profiles", None) else None
-        if profile and hasattr(self, "profile_name_edit") and hasattr(self, "provider_combo"):
-            profile_name = self.profile_name_edit.text().strip() or self.tr("untitled_profile")
-            provider = normalize_provider_name(self.provider_combo.currentData() or profile.provider)
-            badge_text = profile_name
-            self.active_profile_badge.setText(badge_text)
-            self.active_profile_badge.setToolTip(f"{profile_name} · {self.provider_display(provider)}")
-        elif profile:
-            badge_text = profile.name
-            self.active_profile_badge.setText(badge_text)
-            self.active_profile_badge.setToolTip(f"{profile.name} · {self.provider_display(profile.provider)}")
-        else:
-            badge_text = self.tr("untitled_profile")
-            self.active_profile_badge.setText(badge_text)
-            self.active_profile_badge.setToolTip(badge_text)
+        if profile and hasattr(self, "profile_name_edit"):
+            return self.profile_name_edit.text().strip() or self.tr("untitled_profile")
+        if profile:
+            return profile.name
+        return self.tr("untitled_profile")
 
     def create_field_block(self, label_widget, field_widget):
         block = QFrame()
@@ -498,6 +564,37 @@ class MainWindowLayoutMixin:
         layout.addWidget(label_widget)
         layout.addWidget(field_widget)
         return block
+
+    def create_theme_mode_switch(self):
+        shell = QFrame()
+        shell.setObjectName("ThemeModeSwitch")
+        shell.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+
+        layout = QHBoxLayout(shell)
+        layout.setContentsMargins(3, 3, 3, 3)
+        layout.setSpacing(3)
+
+        self.theme_mode_button_group = QButtonGroup(shell)
+        self.theme_mode_button_group.setExclusive(True)
+        self.theme_mode_buttons = {}
+        icon_font = QFont("Segoe UI Symbol", 12)
+
+        for mode in ("system", "light", "dark"):
+            button = QPushButton()
+            button.setObjectName("ThemeModeSwitchButton")
+            button.setCheckable(True)
+            button.setAutoDefault(False)
+            button.setFont(icon_font)
+            button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+            button.setFixedSize(38, 32)
+            button.clicked.connect(lambda _checked=False, value=mode: self.on_theme_mode_changed(value))
+            self.theme_mode_button_group.addButton(button)
+            self.theme_mode_buttons[mode] = button
+            layout.addWidget(button)
+
+        shell.setFixedHeight(38)
+
+        return shell
 
     def create_section_card(self, *, role: str = "settings"):
         card = QFrame()

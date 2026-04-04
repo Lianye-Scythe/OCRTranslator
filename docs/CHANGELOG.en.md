@@ -4,6 +4,24 @@
 
 This file records important OCRTranslator changes.
 
+## [0.9.2] - 2026-04-04
+
+### Added
+- Added a header-level three-state theme quick switch (`follow system / light / dark`) that applies immediately and auto-saves on click
+- Added a hotkey overview in the header summary so capture, selected-text, and input-box shortcuts are visible together
+
+### Changed
+- Replaced the advanced-settings theme dropdown with a header segmented switch and reorganized the header information hierarchy
+- Refined settings-page and sidebar layout rhythm by polishing the brand block, navigation group, start-here actions, usage tip, and author metadata alignment
+- Tightened the header title / subtitle / summary cadence and restructured current profile / preset / language / mode / hotkeys into an easier-to-scan two-line metadata block
+- Added English-specific sidebar adaptation: shorter copy, tuned width limits, and a more compact Author / Repo metadata treatment to reduce scrolling and awkward wrapping
+- Updated packaging docs so the versioned release archive example now points to `v0.9.2`
+
+### Fixed
+- Improved dark-mode readability for the header hotkey summary, which previously lacked enough contrast
+- Reduced excessive whitespace between the header hotkey row and the content area so the divider transition feels tighter
+- Fixed overcrowding and internal-scroll pressure in the English sidebar caused by overly long copy and metadata layout
+
 ## [0.9.1] - 2026-04-04
 
 ### Added
