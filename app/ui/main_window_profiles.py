@@ -359,9 +359,24 @@ class MainWindowProfilesMixin:
             line_edit.style().polish(line_edit)
             line_edit.update()
 
+    def multiline_editor_surface_for(self, widget):
+        return getattr(self, "_multiline_editor_surfaces", {}).get(widget)
+
+    def _sync_multiline_editor_surface_state(self, widget, *, focused: bool | None = None, invalid: bool | None = None):
+        surface = self.multiline_editor_surface_for(widget)
+        if surface is None:
+            return
+        if focused is not None:
+            surface.setProperty("focused", bool(focused))
+        if invalid is not None:
+            surface.setProperty("invalid", bool(invalid))
+        self._refresh_widget_style(surface)
+
     def set_widget_invalid(self, widget, invalid: bool):
         widget.setProperty("invalid", invalid)
         self._refresh_widget_style(widget)
+        if self.multiline_editor_surface_for(widget) is not None:
+            self._sync_multiline_editor_surface_state(widget, invalid=invalid)
 
     def set_validation_message(self, label, messages: list[str]):
         if messages:
@@ -605,6 +620,12 @@ class MainWindowProfilesMixin:
 
     def eventFilter(self, watched, event):
         field_key = self.hotkey_field_key_for_widget(watched)
+        if self.multiline_editor_surface_for(watched) is not None:
+            if event.type() == QEvent.Type.FocusIn:
+                self._sync_multiline_editor_surface_state(watched, focused=True)
+            elif event.type() == QEvent.Type.FocusOut:
+                self._sync_multiline_editor_surface_state(watched, focused=False)
+
         if field_key and getattr(self, "hotkey_record_target", None) == field_key:
             if event.type() == QEvent.Type.KeyPress:
                 if event.key() == Qt.Key_Escape:

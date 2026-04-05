@@ -32,6 +32,8 @@ It is not just a screenshot translator. It is a desktop AI workspace organized a
 - Pinned result overlays now preserve their previous size and position across capture, selected-text, and manual-input flows; capture hides the overlay only temporarily and restores it with the same geometry
 - Unpinned overlays now restart from the saved default size on every new request; temporary manual resizing no longer pollutes the saved default size or triggers unsaved-change prompts
 - Pinned overlay size and position changes are now auto-persisted across app restarts; once Pin is turned off, the next new request falls back to the saved default size again
+- `Save Settings` no longer auto-scrolls the form down to the target-language field just because it is temporarily blank while you are saving API/profile changes; request-time validation still enforces the required target language when needed
+- API Keys / prompt multiline editors and regular single-line fields now share clearer text-selection highlights and a cleaner focus treatment, improving edit-state visibility in both light and dark themes
 - The tray context menu and Pin button states now follow the current light / dark theme and use a more restrained Material-style presentation
 - Shutdown now includes a watchdog and error-dialog fallback path to reduce the risk of the app becoming hard to close after runtime failures or third-party hook issues
 - Message boxes and destructive confirmations now share consistent button semantics, focus handling, and Escape behavior

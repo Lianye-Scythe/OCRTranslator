@@ -225,6 +225,41 @@ QCheckBox::indicator:checked {
     border-radius:14px;
 }
 
+#InlinePanel[panelRole="apiKeys"] {
+    border-color:{{outline_variant}};
+}
+
+#MultiLineFieldSurface {
+    background:{{field_bg}};
+    border:1px solid {{field_border}};
+    border-radius:12px;
+}
+
+#MultiLineFieldSurface[focused="true"] {
+    background:{{field_focus_bg}};
+    border-color:{{field_focus_border}};
+}
+
+#MultiLineFieldSurface[invalid="true"] {
+    background:{{field_invalid_bg}};
+    border-color:{{field_invalid_border}};
+}
+
+QPlainTextEdit#FramelessFieldEditor {
+    background:transparent;
+    border:none;
+    padding:0;
+    selection-background-color:{{field_selection_bg}};
+    selection-color:{{field_selection_fg}};
+}
+
+QPlainTextEdit#FramelessFieldEditor:focus {
+    background:transparent;
+    border:none;
+    selection-background-color:{{field_selection_bg}};
+    selection-color:{{field_selection_fg}};
+}
+
 QLabel {
     color:{{window_fg}};
 }
@@ -240,8 +275,8 @@ QDoubleSpinBox {
     border-radius:12px;
     padding:10px 12px;
     color:{{field_fg}};
-    selection-background-color:{{accent_soft}};
-    selection-color:{{field_fg}};
+    selection-background-color:{{field_selection_bg}};
+    selection-color:{{field_selection_fg}};
     min-height:18px;
 }
 
@@ -268,6 +303,20 @@ QComboBox[invalid="true"],
 QFontComboBox[invalid="true"] {
     border:1px solid {{field_invalid_border}};
     background:{{field_invalid_bg}};
+}
+
+QPlainTextEdit#FramelessFieldEditor,
+QPlainTextEdit#FramelessFieldEditor:focus,
+QPlainTextEdit#FramelessFieldEditor[invalid="true"] {
+    background:transparent;
+    border:none;
+    padding:0;
+    selection-background-color:{{field_selection_bg}};
+    selection-color:{{field_selection_fg}};
+}
+
+QPlainTextEdit#FramelessFieldEditor QWidget {
+    background:transparent;
 }
 
 QComboBox::drop-down,

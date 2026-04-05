@@ -10,6 +10,8 @@ class ThemeTokenTests(unittest.TestCase):
         self.assertEqual(colors["accent_focus"], "#94a3b8")
         self.assertEqual(colors["nav_focus_border"], "#94a3b8")
         self.assertEqual(colors["field_focus_border"], "#94a3b8")
+        self.assertEqual(colors["field_selection_bg"], "#dbe7f6")
+        self.assertEqual(colors["field_selection_fg"], "#0f172a")
         self.assertEqual(colors["overlay_focus_border"], "#94a3b8")
 
     def test_dark_theme_focus_tokens_follow_primary_focus(self):
@@ -17,5 +19,7 @@ class ThemeTokenTests(unittest.TestCase):
 
         self.assertEqual(colors["accent_focus"], "#8B92A0")
         self.assertEqual(colors["nav_focus_border"], "#8B92A0")
-        self.assertEqual(colors["field_focus_border"], "#8B92A0")
+        self.assertEqual(colors["field_focus_border"], "#7D8CA3")
+        self.assertEqual(colors["field_selection_bg"], "#41516A")
+        self.assertEqual(colors["field_selection_fg"], "#F3F6FA")
         self.assertEqual(colors["overlay_focus_border"], "#8B92A0")

@@ -28,6 +28,7 @@ class MainWindowSettingsLayoutMixin:
         self._build_connection_section(content_layout)
         self._build_translation_section(content_layout)
         self._build_advanced_section(content_layout)
+        self._multiline_editor_surfaces = getattr(self, "_multiline_editor_surfaces", {})
         self._connect_settings_form_signals()
 
         self.image_prompt_edit.setTabChangesFocus(True)
@@ -132,9 +133,33 @@ class MainWindowSettingsLayoutMixin:
         self.api_validation_label.hide()
         connection_layout.addWidget(self.api_validation_label)
 
+    def _register_multiline_editor_surface(self, editor: QPlainTextEdit, surface: QFrame) -> None:
+        if not hasattr(self, "_multiline_editor_surfaces"):
+            self._multiline_editor_surfaces = {}
+        self._multiline_editor_surfaces[editor] = surface
+
+    def _build_multiline_editor_surface(self, *, minimum_height: int) -> tuple[QFrame, QPlainTextEdit]:
+        surface = QFrame()
+        surface.setObjectName("MultiLineFieldSurface")
+        surface.setProperty("focused", False)
+        surface.setProperty("invalid", False)
+        layout = QVBoxLayout(surface)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        editor = QPlainTextEdit()
+        editor.setObjectName("FramelessFieldEditor")
+        editor.setFrameShape(QFrame.NoFrame)
+        editor.setMinimumHeight(minimum_height)
+        editor.document().setDocumentMargin(10)
+        editor.installEventFilter(self)
+        layout.addWidget(editor)
+        self._register_multiline_editor_surface(editor, surface)
+        return surface, editor
+
     def _build_api_keys_panel(self):
         api_keys_shell = QFrame()
         api_keys_shell.setObjectName("InlinePanel")
+        api_keys_shell.setProperty("panelRole", "apiKeys")
         api_keys_layout = QVBoxLayout(api_keys_shell)
         api_keys_layout.setContentsMargins(14, 14, 14, 14)
         api_keys_layout.setSpacing(10)
@@ -149,8 +174,7 @@ class MainWindowSettingsLayoutMixin:
         api_keys_header.addStretch(1)
         api_keys_header.addWidget(self.api_keys_toggle_button)
 
-        self.api_keys_edit = QPlainTextEdit()
-        self.api_keys_edit.setMinimumHeight(104)
+        self.api_keys_editor_surface, self.api_keys_edit = self._build_multiline_editor_surface(minimum_height=104)
         self.api_keys_edit.textChanged.connect(self.on_api_keys_text_changed)
         self.api_keys_hint = QLabel()
         self.api_keys_hint.setObjectName("HintLabel")
@@ -158,7 +182,7 @@ class MainWindowSettingsLayoutMixin:
         self.api_keys_visible = False
 
         api_keys_layout.addLayout(api_keys_header)
-        api_keys_layout.addWidget(self.api_keys_edit)
+        api_keys_layout.addWidget(self.api_keys_editor_surface)
         api_keys_layout.addWidget(self.api_keys_hint)
         return api_keys_shell
 
@@ -233,14 +257,12 @@ class MainWindowSettingsLayoutMixin:
         translation_layout.addWidget(self.create_field_block(self.prompt_preset_name_label, self.prompt_preset_name_edit))
 
         self.image_prompt_label = QLabel()
-        self.image_prompt_edit = QPlainTextEdit()
-        self.image_prompt_edit.setMinimumHeight(120)
-        translation_layout.addWidget(self.create_field_block(self.image_prompt_label, self.image_prompt_edit))
+        self.image_prompt_surface, self.image_prompt_edit = self._build_multiline_editor_surface(minimum_height=120)
+        translation_layout.addWidget(self.create_field_block(self.image_prompt_label, self.image_prompt_surface))
 
         self.text_prompt_label = QLabel()
-        self.text_prompt_edit = QPlainTextEdit()
-        self.text_prompt_edit.setMinimumHeight(120)
-        translation_layout.addWidget(self.create_field_block(self.text_prompt_label, self.text_prompt_edit))
+        self.text_prompt_surface, self.text_prompt_edit = self._build_multiline_editor_surface(minimum_height=120)
+        translation_layout.addWidget(self.create_field_block(self.text_prompt_label, self.text_prompt_surface))
 
         self.prompt_hint_label = QLabel()
         self.prompt_hint_label.setObjectName("HintLabel")

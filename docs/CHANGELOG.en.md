@@ -4,6 +4,18 @@
 
 This file records important OCRTranslator changes.
 
+## [0.9.7] - 2026-04-05
+
+### Changed
+- Reworked the API Keys, image prompt, and text prompt multiline editors into a shared single-surface focus treatment, reducing the heavy double-border feel in dark mode
+- Unified single-line and multiline input selection colors across light / dark themes so selected text is easier to distinguish at a glance
+
+### Fixed
+- Fixed `Save Settings` auto-scrolling to the target-language field when users only wanted to save API profile / key changes while leaving `target_language` blank; request-time image / text validation still requires a target language when needed
+- Fixed the dark-theme API Keys and prompt editors showing an awkward layered focus ring, bringing focus / invalid states closer to a cleaner Material-style single-outline treatment
+- Fixed text selection highlights in both light and dark themes being too faint to clearly tell whether text was selected inside form inputs
+- Added regression coverage for save-time validation scope, theme tokens, and stylesheet rendering
+
 ## [0.9.6] - 2026-04-05
 
 ### Added

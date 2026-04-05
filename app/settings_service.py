@@ -38,7 +38,7 @@ def _validation_scope_flags(scope: str) -> dict[str, bool]:
         "validate_prompts": normalized in {"save", "image_request", "text_request"},
         "require_image_prompt": normalized in {"save", "image_request"},
         "require_text_prompt": normalized in {"save", "text_request"},
-        "require_target_language": normalized in {"save", "image_request", "text_request"},
+        "require_target_language": normalized in {"image_request", "text_request"},
         "validate_hotkeys": normalized == "save",
     }
 

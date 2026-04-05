@@ -90,6 +90,23 @@ class SettingsServiceTests(unittest.TestCase):
 
         self.assertTrue(result.is_valid)
 
+    def test_validate_save_scope_allows_blank_target_language_to_preserve_existing_value(self):
+        snapshot = self._snapshot(target_language="")
+
+        result = validate_settings_snapshot(
+            snapshot,
+            existing_profile_names={"Demo"},
+            current_profile_name="Demo",
+            existing_prompt_preset_names={"Translate"},
+            current_prompt_preset_name="Translate",
+            normalize_hotkey=lambda hotkey: hotkey.lower(),
+            hotkey_has_modifier=lambda hotkey: hotkey.lower().startswith("ctrl"),
+            tr=lambda key, **kwargs: key if not kwargs else f"{key}:{kwargs}",
+            scope="save",
+        )
+
+        self.assertTrue(result.is_valid)
+
     def test_validate_text_request_scope_requires_only_text_prompt_and_target_language(self):
         snapshot = self._snapshot(image_prompt="", text_prompt="", target_language="")
 
