@@ -35,6 +35,15 @@ class StyleSheetTests(unittest.TestCase):
         self.assertIn('selection-background-color:#41516A;', style)
         self.assertIn('selection-color:#F3F6FA;', style)
 
+    def test_api_keys_hidden_state_exposes_concealed_surface_and_reveal_pulse_styles(self):
+        style = load_style_sheet("main_window.qss", theme_name="light")
+
+        self.assertIn('#InlinePanel[panelRole="apiKeys"][concealed="true"] {', style)
+        self.assertIn('#MultiLineFieldSurface[concealed="true"] {', style)
+        self.assertIn('QPlainTextEdit#FramelessFieldEditor[concealed="true"] {', style)
+        self.assertIn('border:1px solid {{outline_variant}};'.replace('{{outline_variant}}', '#cbd5e1'), style)
+        self.assertIn('QPushButton[apiKeysRevealState="peak"]', style)
+
     def test_multiline_editor_selection_colors_are_more_distinct_in_light_theme(self):
         style = load_style_sheet("main_window.qss", theme_name="light")
 

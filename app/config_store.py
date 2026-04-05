@@ -258,6 +258,7 @@ def _migrate_legacy_config(data: dict) -> AppConfig:
         overlay_auto_expand_top_margin=_coerce_int(source.get("overlay_auto_expand_top_margin"), 42, min_value=0, max_value=200),
         overlay_auto_expand_bottom_margin=_coerce_int(source.get("overlay_auto_expand_bottom_margin"), 24, min_value=8, max_value=200),
         toast_duration_seconds=_coerce_float(source.get("toast_duration_seconds"), 1.5, min_value=0, max_value=10),
+        check_updates_on_startup=_coerce_bool(source.get("check_updates_on_startup", False), False),
         ui_language=ui_language,
         theme_mode=normalize_theme_mode(source.get("theme_mode"), default=DEFAULT_THEME_MODE),
         hotkey=_coerce_text(source.get("hotkey"), DEFAULT_CAPTURE_HOTKEY),

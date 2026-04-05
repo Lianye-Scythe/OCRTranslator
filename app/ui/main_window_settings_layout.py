@@ -164,6 +164,7 @@ class MainWindowSettingsLayoutMixin:
         api_keys_shell = QFrame()
         api_keys_shell.setObjectName("InlinePanel")
         api_keys_shell.setProperty("panelRole", "apiKeys")
+        self.api_keys_shell = api_keys_shell
         api_keys_layout = QVBoxLayout(api_keys_shell)
         api_keys_layout.setContentsMargins(14, 14, 14, 14)
         api_keys_layout.setSpacing(10)
@@ -173,22 +174,53 @@ class MainWindowSettingsLayoutMixin:
         self.api_keys_label_row = QLabel()
         self.api_keys_label_row.setObjectName("FieldLabel")
         self.api_keys_toggle_button = self.create_button(self.toggle_api_keys_visibility, accent=False, compact=True)
+        self.api_keys_toggle_button.setProperty("apiKeysRevealState", "idle")
         self.api_keys_toggle_button.setMinimumWidth(118)
         api_keys_header.addWidget(self.api_keys_label_row)
         api_keys_header.addStretch(1)
         api_keys_header.addWidget(self.api_keys_toggle_button)
 
         self.api_keys_editor_surface, self.api_keys_edit = self._build_multiline_editor_surface(minimum_height=104)
+        self.api_keys_edit.setProperty("concealed", False)
+        self.api_keys_editor_surface.setProperty("concealed", False)
+        self.api_keys_editor_surface.installEventFilter(self)
+        self.api_keys_edit.viewport().installEventFilter(self)
         self.api_keys_edit.textChanged.connect(self.on_api_keys_text_changed)
         self.api_keys_hint = QLabel()
         self.api_keys_hint.setObjectName("HintLabel")
         self.api_keys_hint.setWordWrap(True)
-        self.api_keys_visible = False
 
         api_keys_layout.addLayout(api_keys_header)
         api_keys_layout.addWidget(self.api_keys_editor_surface)
         api_keys_layout.addWidget(self.api_keys_hint)
         return api_keys_shell
+
+    def _build_update_check_panel(self):
+        update_shell = QFrame()
+        update_shell.setObjectName("InlinePanel")
+        update_shell.setProperty("panelRole", "updateCheck")
+        update_layout = QVBoxLayout(update_shell)
+        update_layout.setContentsMargins(14, 14, 14, 14)
+        update_layout.setSpacing(10)
+
+        update_row = QHBoxLayout()
+        update_row.setSpacing(10)
+        self.check_updates_on_startup_checkbox = QCheckBox()
+        self.check_updates_on_startup_checkbox.setChecked(bool(getattr(self.config, "check_updates_on_startup", False)))
+        self.check_updates_now_button = self.create_button(self.check_for_updates_now, secondary=True, compact=True)
+        update_row.addWidget(self.check_updates_on_startup_checkbox, 1)
+        update_row.addWidget(self.check_updates_now_button)
+
+        self.update_check_hint_label = QLabel()
+        self.update_check_hint_label.setObjectName("HintLabel")
+        self.update_check_hint_label.setWordWrap(True)
+        self.update_check_hint_label.setOpenExternalLinks(True)
+        self.update_check_hint_label.setTextFormat(Qt.AutoText)
+        self.update_check_hint_label.setTextInteractionFlags(Qt.TextBrowserInteraction)
+
+        update_layout.addLayout(update_row)
+        update_layout.addWidget(self.update_check_hint_label)
+        return update_shell
 
     def _build_translation_section(self, content_layout):
         self.translation_group, translation_layout, self.translation_group_title_label = self.create_section_card()
@@ -370,6 +402,7 @@ class MainWindowSettingsLayoutMixin:
         self.advanced_hint_label.setObjectName("HintLabel")
         self.advanced_hint_label.setWordWrap(True)
         advanced_content_layout.addWidget(self.advanced_hint_label)
+        advanced_content_layout.addWidget(self._build_update_check_panel())
         advanced_layout.addWidget(self.advanced_content)
         self.advanced_section_expanded = True
         self.set_advanced_section_expanded(False)
@@ -398,5 +431,7 @@ class MainWindowSettingsLayoutMixin:
         self.overlay_auto_expand_bottom_margin_spin.valueChanged.connect(self.on_form_input_changed)
         self.toast_duration_spin.valueChanged.connect(self.on_form_input_changed)
         self.toast_duration_spin.valueChanged.connect(self.handle_toast_duration_changed)
+        self.check_updates_on_startup_checkbox.stateChanged.connect(self.on_form_input_changed)
+        self.check_updates_on_startup_checkbox.stateChanged.connect(self.on_update_check_preference_changed)
         self.close_to_tray_on_close_checkbox.stateChanged.connect(self.on_form_input_changed)
         self.retry_interval_spin.valueChanged.connect(self.on_form_input_changed)

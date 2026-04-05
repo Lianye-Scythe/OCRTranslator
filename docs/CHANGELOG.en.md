@@ -6,6 +6,22 @@ This file records important OCRTranslator changes.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-04-05
+
+### Added
+- Added optional GitHub Releases update checks; advanced settings now support both delayed background checks after startup and on-demand manual checks, with direct links to Releases when a newer version is found
+- Added explicit guidance for concealed API Keys fields so clicking a masked editor nudges the user toward `Show Keys` without auto-revealing sensitive values
+
+### Changed
+- Refined the concealed API Keys interaction to feel more Material-like: the field surface stays visually stable, while only the reveal button and helper copy pulse for guidance
+- Reordered the advanced-settings information flow so the overlay / Pin behavior note appears before the update-check block, making the section easier to scan
+- Update-check helper text now renders a clickable GitHub Releases link while still staying quiet when startup checks find nothing new or fail
+
+### Fixed
+- Fixed the concealed API Keys `eventFilter()` path crashing during early main-window initialization when the visibility state had not been created yet, preventing startup-time crash-log cascades
+- Fixed main-thread crash handling writing repeated crash reports for nested or rapid duplicate exceptions by adding reentry and short-window duplicate suppression
+- Fixed concealed API Keys guidance pulses leaving mismatched focus / highlight states across light and dark themes
+
 ## [1.0.0] - 2026-04-05
 
 ### Added

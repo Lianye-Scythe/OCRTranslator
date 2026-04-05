@@ -229,10 +229,24 @@ QCheckBox::indicator:checked {
     border-color:{{outline_variant}};
 }
 
+#InlinePanel[panelRole="apiKeys"][concealed="true"] {
+    background:{{panel_bg}};
+    border-color:{{panel_border}};
+}
+
 #MultiLineFieldSurface {
     background:{{field_bg}};
     border:1px solid {{field_border}};
     border-radius:12px;
+}
+
+#MultiLineFieldSurface[concealed="true"] {
+    background:{{field_bg}};
+    border:1px solid {{outline_variant}};
+}
+
+QPlainTextEdit#FramelessFieldEditor[concealed="true"] {
+    color:{{text_secondary}};
 }
 
 #CommitPanel {
@@ -536,6 +550,13 @@ QPushButton[variant="danger"] {
 
 QPushButton[variant="danger"]:hover {
     background:{{button_danger_bg}};
+}
+
+QPushButton[apiKeysRevealState="peak"],
+QPushButton[apiKeysRevealState="peak"][variant="neutral"] {
+    background:{{accent_soft}};
+    color:{{accent_text}};
+    border:1px solid {{accent_focus}};
 }
 
 QMessageBox[messageBox="true"] {

@@ -316,6 +316,89 @@ class MainWindowRuntimeTests(unittest.TestCase):
 
         window.toast_service.hide_message.assert_called_once_with()
 
+    def test_start_update_check_uses_background_worker_without_freezing_main_actions(self):
+        window = MainWindow.__new__(MainWindow)
+        window.update_check_in_progress = False
+        window.update_check_service = SimpleNamespace(check_latest_release=Mock(return_value="result"))
+        window.refresh_update_check_ui = Mock()
+        window.set_status = Mock()
+        window.log = Mock()
+        window.run_worker = Mock()
+        window.current_app_version = lambda: "1.0.0"
+
+        result = window.start_update_check(manual=True)
+
+        self.assertTrue(result)
+        self.assertTrue(window.update_check_in_progress)
+        window.refresh_update_check_ui.assert_called_once_with()
+        window.set_status.assert_called_once_with("update_checking_status")
+        window.run_worker.assert_called_once()
+
+    def test_handle_update_check_result_keeps_startup_up_to_date_checks_silent(self):
+        window = MainWindow.__new__(MainWindow)
+        window.update_check_in_progress = True
+        window.refresh_update_check_ui = Mock()
+        window.set_status = Mock()
+        window.log = Mock()
+        result = SimpleNamespace(kind="up_to_date", has_update=False, is_up_to_date=True, current_version="1.0.0", latest_version="1.0.0", release_url="https://example.test", error="")
+
+        window._handle_update_check_result(result, manual=False)
+
+        self.assertFalse(window.update_check_in_progress)
+        self.assertIsNone(window._last_update_check_result)
+        window.set_status.assert_not_called()
+        window.refresh_update_check_ui.assert_called_once_with()
+
+    @patch("app.ui.main_window.QTimer.singleShot")
+    def test_schedule_startup_update_check_runs_once_and_respects_toggle(self, mock_single_shot):
+        window = MainWindow.__new__(MainWindow)
+        window._startup_update_check_scheduled = False
+        window.is_quitting = False
+        window.update_check_in_progress = False
+        window.should_check_updates_on_startup = lambda: True
+        window.start_update_check = Mock()
+
+        window.schedule_startup_update_check(delay_ms=3456)
+        window.schedule_startup_update_check(delay_ms=9999)
+
+        mock_single_shot.assert_called_once()
+        delay, callback = mock_single_shot.call_args.args
+        self.assertEqual(delay, 3456)
+        callback()
+        window.start_update_check.assert_called_once_with(manual=False)
+
+    def test_refresh_update_check_hint_uses_result_when_manual_check_found_new_release(self):
+        window = MainWindow.__new__(MainWindow)
+        window.update_check_in_progress = False
+        window._last_update_check_result = SimpleNamespace(kind="available", latest_version="1.1.0", current_version="1.0.0", release_url="https://example.test/release")
+        window.check_updates_on_startup_checkbox = SimpleNamespace(isChecked=lambda: False)
+        window.update_check_hint_label = _FakeWidget()
+        window.current_app_version = lambda: "1.0.0"
+        window.effective_theme_name = lambda: "light"
+        window.tr = lambda key, **kwargs: key if not kwargs else f"{key}:{kwargs}"
+
+        window.refresh_update_check_hint()
+
+        self.assertIn("update_check_hint_available", window.update_check_hint_label.text)
+        self.assertIn("1.1.0", window.update_check_hint_label.text)
+        self.assertIn("<a href='https://example.test/release'", window.update_check_hint_label.text)
+
+    def test_handle_update_check_result_skips_ui_updates_while_quitting(self):
+        window = MainWindow.__new__(MainWindow)
+        window.is_quitting = True
+        window.update_check_in_progress = True
+        window.refresh_update_check_ui = Mock()
+        window.set_status = Mock()
+        window.log = Mock()
+        result = SimpleNamespace(kind="available", has_update=True, is_up_to_date=False, current_version="1.0.0", latest_version="1.1.0", release_url="https://example.test/release", error="")
+
+        window._handle_update_check_result(result, manual=True)
+
+        self.assertFalse(window.update_check_in_progress)
+        self.assertIs(window._last_update_check_result, result)
+        window.refresh_update_check_ui.assert_not_called()
+        window.set_status.assert_not_called()
+
     def test_close_event_can_redirect_to_tray_even_before_startup_services_finish(self):
         window = MainWindow.__new__(MainWindow)
         event = SimpleNamespace(ignore=Mock(), accept=Mock())

@@ -373,8 +373,6 @@ class MainWindowLayoutMixin:
         self.prompt_preset_name_label.setText(self.tr("prompt_preset_name"))
         self.base_url_label.setText(self.tr("base_url"))
         self.model_label.setText(self.tr("model"))
-        self.api_keys_label_row.setText(self.tr("api_keys_hidden") if not self.api_keys_visible else self.tr("api_keys"))
-        self.api_keys_hint.setText(self.tr("api_keys_mask_hint") if not self.api_keys_visible else self.tr("api_keys_hint"))
         self.retry_count_label.setText(self.tr("retry_count"))
         self.temperature_label.setText(self.tr("temperature"))
         self.overlay_width_label.setText(self.tr("overlay_width"))
@@ -406,7 +404,8 @@ class MainWindowLayoutMixin:
         self.hotkey_record_button.setText(self.tr("recording_hotkey") if active_record_target == "capture" else self.tr("record_hotkey"))
         self.selection_hotkey_record_button.setText(self.tr("recording_hotkey") if active_record_target == "selection" else self.tr("record_hotkey"))
         self.input_hotkey_record_button.setText(self.tr("recording_hotkey") if active_record_target == "input" else self.tr("record_hotkey"))
-        self.api_keys_edit.setPlaceholderText(self.tr("api_keys_placeholder"))
+        if hasattr(self, "refresh_api_keys_editor"):
+            self.refresh_api_keys_editor()
         self.image_prompt_edit.setPlaceholderText(self.tr("prompt_template_placeholder"))
         self.text_prompt_edit.setPlaceholderText(self.tr("prompt_template_placeholder"))
         model_line_edit = self.model_combo.lineEdit()
@@ -421,6 +420,8 @@ class MainWindowLayoutMixin:
         if hasattr(self, "discard_changes_button"):
             self.discard_changes_button.setToolTip(self.tr("unsaved_changes_discard"))
         self.save_button.setToolTip(self.tr("save_settings"))
+        self.check_updates_now_button.setToolTip(self.tr("check_updates_now"))
+        self.check_updates_on_startup_checkbox.setToolTip(self.tr("check_updates_on_startup_hint"))
         self.toast_duration_spin.setToolTip(self.tr("toast_duration_hint"))
         self.mode_label.setText(self.tr("display_mode"))
         self.fetch_models_button.setText(self.tr("fetch_models_action"))
@@ -431,7 +432,8 @@ class MainWindowLayoutMixin:
         self.save_button.setText(self.tr("save_settings_action"))
         self.set_advanced_section_expanded(getattr(self, "advanced_section_expanded", False))
         self.close_to_tray_on_close_checkbox.setText(self.tr("close_to_tray_on_close"))
-        self.api_keys_toggle_button.setText(self.tr("show_api_keys") if not self.api_keys_visible else self.tr("hide_api_keys"))
+        self.check_updates_on_startup_checkbox.setText(self.tr("check_updates_on_startup"))
+        self.check_updates_now_button.setText(self.tr("check_updates_now_busy") if getattr(self, "update_check_in_progress", False) else self.tr("check_updates_now"))
         self.export_logs_button.setText(self.tr("export_logs"))
         self.update_provider_options()
         self.update_mode_options()
@@ -446,6 +448,8 @@ class MainWindowLayoutMixin:
         overlay = self.existing_translation_overlay() if hasattr(self, "existing_translation_overlay") else None
         if overlay is not None:
             overlay.refresh_language()
+        if hasattr(self, "refresh_update_check_ui"):
+            self.refresh_update_check_ui()
         self.set_status(self.current_status_key, **self.current_status_kwargs)
         if hasattr(self, "update_action_states"):
             self.update_action_states()

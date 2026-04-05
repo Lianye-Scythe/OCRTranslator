@@ -245,6 +245,7 @@ def build_candidate_config(
     candidate_config.overlay_auto_expand_top_margin = int(snapshot.overlay_auto_expand_top_margin)
     candidate_config.overlay_auto_expand_bottom_margin = int(snapshot.overlay_auto_expand_bottom_margin)
     candidate_config.toast_duration_seconds = float(snapshot.toast_duration_seconds)
+    candidate_config.check_updates_on_startup = bool(snapshot.check_updates_on_startup)
     candidate_config.close_to_tray_on_close = bool(snapshot.close_to_tray_on_close)
     candidate_config.mode = snapshot.mode or "book_lr"
     candidate_config.active_prompt_preset_name = prompt_preset.name

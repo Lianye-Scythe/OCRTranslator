@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from html import escape
 import os
 import sys
 import threading
@@ -12,6 +13,7 @@ from PySide6.QtGui import QGuiApplication, QPixmap
 from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QWidget
 
 from ..app_defaults import DEFAULT_UI_LANGUAGE, normalize_theme_mode
+from ..app_metadata import APP_VERSION
 from ..config_store import load_config, save_config
 from ..hotkey_utils import find_hotkey_conflicts, hotkey_has_primary_key, hotkey_unsupported_parts, normalize_hotkey_text
 from ..i18n import I18N, normalize_ui_language
@@ -28,8 +30,9 @@ from ..services.runtime_log import RuntimeLogStore
 from ..services.startup_timing import StartupTimingTracker
 from ..services.system_tray import SystemTrayService
 from ..services.transient_toast import TransientToastService
+from ..services.update_checker import UpdateCheckService
 from ..workers import AppBridge, WorkerThread
-from .theme_tokens import resolve_theme_name, set_theme_mode
+from .theme_tokens import color, resolve_theme_name, set_theme_mode
 from .main_window_layout import MainWindowLayoutMixin
 from .main_window_settings_layout import MainWindowSettingsLayoutMixin
 from .main_window_prompts import MainWindowPromptPresetsMixin
@@ -93,6 +96,10 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self.icon = self.create_app_icon()
         self.has_unsaved_changes = False
         self._suppress_form_tracking = False
+        self.api_keys_visible = False
+        self.api_keys_actual_text = ""
+        self._api_keys_hint_override_key = None
+        self._api_keys_reveal_pulse_id = 0
         if self._style_hints and hasattr(self._style_hints, "colorSchemeChanged"):
             self._style_hints.colorSchemeChanged.connect(self.handle_system_color_scheme_changed)
         self._active_error_dialogs = []
@@ -131,6 +138,10 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self.tray_quit_action = None
         self.tray_service = SystemTrayService(self, self.icon, log_func=self.log)
         self.toast_service = TransientToastService(self, log_func=self.log)
+        self.update_check_service = UpdateCheckService(log_func=self.log)
+        self.update_check_in_progress = False
+        self._startup_update_check_scheduled = False
+        self._last_update_check_result = None
 
         self._install_startup_interaction_tracker()
         self.build_ui()
@@ -415,6 +426,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self.startup_timing.mark("startup_services_ready")
         self.log_tr("log_application_started")
         self._log_startup_summary_if_ready()
+        self.schedule_startup_update_check()
         self.schedule_idle_prewarm()
 
     def tr(self, key: str, **kwargs) -> str:
@@ -516,6 +528,119 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
     def current_toast_duration_ms(self) -> int:
         duration_seconds = max(0.0, self.current_toast_duration_seconds())
         return int(round(duration_seconds * 1000))
+
+    def current_app_version(self) -> str:
+        return APP_VERSION
+
+    def should_check_updates_on_startup(self) -> bool:
+        if hasattr(self, "check_updates_on_startup_checkbox"):
+            return bool(self.check_updates_on_startup_checkbox.isChecked())
+        config = getattr(self, "config", None)
+        return bool(getattr(config, "check_updates_on_startup", False))
+
+    def on_update_check_preference_changed(self, _state=None):
+        self.refresh_update_check_ui()
+
+    def refresh_update_check_controls(self):
+        if hasattr(self, "check_updates_now_button"):
+            self.check_updates_now_button.setEnabled(not self.update_check_in_progress)
+            self.check_updates_now_button.setText(self.tr("check_updates_now_busy") if self.update_check_in_progress else self.tr("check_updates_now"))
+        if hasattr(self, "check_updates_on_startup_checkbox"):
+            self.check_updates_on_startup_checkbox.setEnabled(not self.update_check_in_progress)
+
+    def _format_update_check_release_link(self, url: str) -> str:
+        safe_url = escape(str(url or ""), quote=True)
+        if not safe_url:
+            return ""
+        link_color = color("link", theme_name=self.effective_theme_name())
+        display_url = safe_url.replace("/", "/&#8203;")
+        return (
+            f"<a href='{safe_url}' style='color:{link_color}; text-decoration:none;'>{display_url}</a>"
+        )
+
+    def refresh_update_check_hint(self):
+        if not hasattr(self, "update_check_hint_label"):
+            return
+        text = self.tr(
+            "update_check_hint_enabled" if self.should_check_updates_on_startup() else "update_check_hint_disabled",
+            version=self.current_app_version(),
+        )
+        result = getattr(self, "_last_update_check_result", None)
+        if self.update_check_in_progress:
+            text = self.tr("update_check_hint_checking")
+        elif result is not None:
+            if getattr(result, "kind", "") == "available":
+                release_link = self._format_update_check_release_link(getattr(result, "release_url", "")) or escape(
+                    str(getattr(result, "release_url", ""))
+                )
+            elif getattr(result, "kind", "") == "up_to_date":
+                text = self.tr("update_check_hint_latest", version=result.current_version)
+            elif getattr(result, "kind", "") == "error":
+                text = self.tr("update_check_hint_failed", error=result.error)
+            if getattr(result, "kind", "") == "available":
+                text = self.tr(
+                    "update_check_hint_available",
+                    current=self.current_app_version(),
+                    version=result.latest_version,
+                    url=release_link,
+                )
+        self.update_check_hint_label.setText(text)
+
+    def refresh_update_check_ui(self):
+        self.refresh_update_check_controls()
+        self.refresh_update_check_hint()
+
+    def check_for_updates_now(self):
+        self.start_update_check(manual=True)
+
+    def schedule_startup_update_check(self, delay_ms: int = 4200):
+        if getattr(self, "_startup_update_check_scheduled", False):
+            return
+        self._startup_update_check_scheduled = True
+
+        def run():
+            self._startup_update_check_scheduled = False
+            if getattr(self, "is_quitting", False) or self.update_check_in_progress:
+                return
+            if not self.should_check_updates_on_startup():
+                return
+            self.start_update_check(manual=False)
+
+        QTimer.singleShot(max(0, int(delay_ms)), run)
+
+    def start_update_check(self, *, manual: bool) -> bool:
+        if self.update_check_in_progress:
+            return False
+        self.update_check_in_progress = True
+        self.refresh_update_check_ui()
+        if manual:
+            self.set_status("update_checking_status")
+        self.log(f"Checking GitHub releases for updates | manual={manual}")
+        self.run_worker(
+            lambda: self.update_check_service.check_latest_release(current_version=self.current_app_version()),
+            lambda result, manual=manual: self._handle_update_check_result(result, manual=manual),
+        )
+        return True
+
+    def _handle_update_check_result(self, result, *, manual: bool):
+        self.update_check_in_progress = False
+        should_keep_result = manual or getattr(result, "has_update", False)
+        self._last_update_check_result = result if should_keep_result else None
+        if getattr(self, "is_quitting", False):
+            return
+        self.refresh_update_check_ui()
+        if should_keep_result and getattr(result, "has_update", False):
+            self.set_status("update_available_status", version=result.latest_version)
+            self.log(f"Update available | current={result.current_version} | latest={result.latest_version} | url={result.release_url}")
+            return
+        if getattr(result, "is_up_to_date", False):
+            if manual:
+                self.set_status("update_up_to_date_status", version=result.current_version)
+            self.log(f"Already up to date | current={result.current_version} | latest={result.latest_version or result.current_version}")
+            return
+        if manual:
+            self.set_status("update_check_failed_status")
+        self.log(f"Update check failed: {getattr(result, 'error', 'unknown error')}")
 
     def current_overlay_font_family(self) -> str:
         if hasattr(self, "overlay_font_combo"):
@@ -642,6 +767,8 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             self.tray_cancel_action.setEnabled(cancel_available)
         if hasattr(self, "refresh_prompt_preset_actions"):
             self.refresh_prompt_preset_actions()
+        if hasattr(self, "refresh_update_check_controls"):
+            self.refresh_update_check_controls()
         if not any_background_busy and not self.capture_workflow_active:
             self.schedule_idle_prewarm(delay_ms=220)
 

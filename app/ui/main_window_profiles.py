@@ -300,16 +300,88 @@ class MainWindowProfilesMixin:
         self.api_keys_edit.setPlainText(text)
         self._updating_api_keys = False
 
+    def _default_api_keys_hint_key(self) -> str:
+        if self.api_keys_visible:
+            return "api_keys_hint"
+        return "api_keys_mask_hint_empty" if not getattr(self, "api_keys_actual_text", "").strip() else "api_keys_mask_hint"
+
+    def _apply_api_keys_hint_text(self) -> None:
+        hint_key = getattr(self, "_api_keys_hint_override_key", None) or self._default_api_keys_hint_key()
+        self.api_keys_hint.setText(self.tr(hint_key))
+
+    def _set_api_keys_reveal_pulse(self, state: str | None) -> None:
+        normalized_state = "peak" if state == "peak" else "idle"
+        if hasattr(self, "api_keys_toggle_button"):
+            self.api_keys_toggle_button.setProperty("apiKeysRevealState", normalized_state)
+            self._refresh_widget_style(self.api_keys_toggle_button)
+
+    def nudge_api_keys_visibility_affordance(self) -> None:
+        if self.api_keys_visible:
+            return
+        self._api_keys_hint_override_key = "api_keys_reveal_nudge_hint"
+        self._apply_api_keys_hint_text()
+        pulse_id = int(getattr(self, "_api_keys_reveal_pulse_id", 0)) + 1
+        self._api_keys_reveal_pulse_id = pulse_id
+        self._set_api_keys_reveal_pulse("peak")
+
+        def idle_pulse(window=self, expected_id=pulse_id):
+            try:
+                if getattr(window, "_api_keys_reveal_pulse_id", 0) != expected_id:
+                    return
+                window._set_api_keys_reveal_pulse("idle")
+            except (RuntimeError, ReferenceError, TypeError):
+                return
+
+        def finish_pulse(window=self, expected_id=pulse_id):
+            try:
+                if getattr(window, "_api_keys_reveal_pulse_id", 0) != expected_id:
+                    return
+                if getattr(window, "_api_keys_hint_override_key", None) == "api_keys_reveal_nudge_hint":
+                    window._api_keys_hint_override_key = None
+                    window._apply_api_keys_hint_text()
+            except (RuntimeError, ReferenceError, TypeError):
+                return
+
+        QTimer.singleShot(240, idle_pulse)
+        QTimer.singleShot(1450, finish_pulse)
+
+    def is_hidden_api_keys_interaction_target(self, watched) -> bool:
+        editor = getattr(self, "api_keys_edit", None)
+        surface = getattr(self, "api_keys_editor_surface", None)
+        if editor is None:
+            return False
+        viewport = editor.viewport() if hasattr(editor, "viewport") else None
+        return watched is editor or watched is surface or watched is viewport
+
     def refresh_api_keys_editor(self):
         masked_lines = [self.mask_api_key_line(line) for line in self.api_keys_actual_text.splitlines() if line.strip()]
         display_text = self.api_keys_actual_text if self.api_keys_visible else "\n".join(masked_lines)
         self.set_api_keys_editor_text(display_text)
         self.api_keys_edit.setReadOnly(not self.api_keys_visible)
+        self.api_keys_edit.setFocusPolicy(Qt.StrongFocus if self.api_keys_visible else Qt.NoFocus)
+        self.api_keys_edit.setProperty("concealed", not self.api_keys_visible)
+        self._refresh_widget_style(self.api_keys_edit)
+        if self.api_keys_visible:
+            self._sync_multiline_editor_surface_state(self.api_keys_edit, focused=self.api_keys_edit.hasFocus())
+        else:
+            clear_focus_if_alive(self.api_keys_edit)
+            self._sync_multiline_editor_surface_state(self.api_keys_edit, focused=False)
+        self.api_keys_edit.setPlaceholderText(
+            self.tr("api_keys_placeholder")
+            if self.api_keys_visible
+            else ("" if self.api_keys_actual_text.strip() else self.tr("api_keys_hidden_empty_placeholder"))
+        )
+        if hasattr(self, "api_keys_shell"):
+            self.api_keys_shell.setProperty("concealed", not self.api_keys_visible)
+            self._refresh_widget_style(self.api_keys_shell)
+        if hasattr(self, "api_keys_editor_surface"):
+            self.api_keys_editor_surface.setProperty("concealed", not self.api_keys_visible)
+            self._refresh_widget_style(self.api_keys_editor_surface)
         self.api_keys_label_row.setText(self.tr("api_keys") if self.api_keys_visible else self.tr("api_keys_hidden"))
         self.api_keys_toggle_button.setText(
             self.tr("hide_api_keys") if self.api_keys_visible else self.tr("show_api_keys")
         )
-        self.api_keys_hint.setText(self.tr("api_keys_hint") if self.api_keys_visible else self.tr("api_keys_mask_hint"))
+        self._apply_api_keys_hint_text()
 
     def on_api_keys_text_changed(self):
         if getattr(self, "_updating_api_keys", False) or self.is_form_tracking_suppressed():
@@ -324,7 +396,14 @@ class MainWindowProfilesMixin:
             self.api_keys_visible = False
         else:
             self.api_keys_visible = True
+        self._api_keys_hint_override_key = None
+        self._set_api_keys_reveal_pulse("idle")
         self.refresh_api_keys_editor()
+        if self.api_keys_visible:
+            try:
+                self.api_keys_edit.setFocus(Qt.OtherFocusReason)
+            except Exception:  # noqa: BLE001
+                pass
         self.validate_form_inputs()
 
     def get_api_keys_text(self) -> str:
@@ -392,6 +471,7 @@ class MainWindowProfilesMixin:
             overlay_auto_expand_top_margin=self.overlay_auto_expand_top_margin_spin.value(),
             overlay_auto_expand_bottom_margin=self.overlay_auto_expand_bottom_margin_spin.value(),
             toast_duration_seconds=self.toast_duration_spin.value(),
+            check_updates_on_startup=self.check_updates_on_startup_checkbox.isChecked(),
             close_to_tray_on_close=self.close_to_tray_on_close_checkbox.isChecked(),
             mode=self.mode_combo.currentData() or self.config.mode,
             prompt_preset_name=self.prompt_preset_name_edit.text().strip() or current_prompt_preset.name,
@@ -715,6 +795,16 @@ class MainWindowProfilesMixin:
             elif event.type() == QEvent.Type.FocusOut:
                 self._sync_multiline_editor_surface_state(watched, focused=False)
 
+        if self.is_hidden_api_keys_interaction_target(watched) and not getattr(self, "api_keys_visible", False):
+            if event.type() in {QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonDblClick}:
+                if (
+                    hasattr(self, "api_keys_toggle_button")
+                    and hasattr(self, "api_keys_hint")
+                    and hasattr(self, "api_keys_editor_surface")
+                ):
+                    self.nudge_api_keys_visibility_affordance()
+                return True
+
         if field_key and getattr(self, "hotkey_record_target", None) == field_key:
             if event.type() == QEvent.Type.KeyPress:
                 if event.key() == Qt.Key_Escape:
@@ -742,6 +832,8 @@ class MainWindowProfilesMixin:
             self.model_combo.addItems(unique_non_empty(self.display_model_name(m, profile.provider) for m in (profile.available_models or [profile.model])))
             self.model_combo.setCurrentText(self.display_model_name(profile.model, profile.provider))
             self.api_keys_actual_text = "\n".join(profile.api_keys)
+            self._api_keys_hint_override_key = None
+            self._set_api_keys_reveal_pulse("idle")
             self.refresh_api_keys_editor()
             self.retry_count_spin.setValue(profile.retry_count)
             self.retry_interval_spin.setValue(profile.retry_interval)
@@ -760,6 +852,7 @@ class MainWindowProfilesMixin:
             self.overlay_auto_expand_top_margin_spin.setValue(int(getattr(self.config, "overlay_auto_expand_top_margin", 42)))
             self.overlay_auto_expand_bottom_margin_spin.setValue(int(getattr(self.config, "overlay_auto_expand_bottom_margin", 24)))
             self.toast_duration_spin.setValue(float(getattr(self.config, "toast_duration_seconds", 1.5)))
+            self.check_updates_on_startup_checkbox.setChecked(bool(getattr(self.config, "check_updates_on_startup", False)))
             self.close_to_tray_on_close_checkbox.setChecked(bool(getattr(self.config, "close_to_tray_on_close", False)))
             self.update_mode_options(self.config.mode)
         finally:

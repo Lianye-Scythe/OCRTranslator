@@ -4,6 +4,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+from PySide6.QtCore import QEvent, Qt
 from PySide6.QtWidgets import QMessageBox
 
 if "pynput" not in sys.modules:
@@ -15,6 +16,13 @@ from app.ui.main_window_profiles import MainWindowProfilesMixin
 
 
 class MainWindowProfilesDialogTests(unittest.TestCase):
+    class _EventFilterBase:
+        def eventFilter(self, watched, event):
+            return (watched, event)
+
+    class _EventFilterHarness(MainWindowProfilesMixin, _EventFilterBase):
+        pass
+
     def test_delete_current_profile_uses_destructive_confirmation(self):
         window = MainWindowProfilesMixin.__new__(MainWindowProfilesMixin)
         profile = SimpleNamespace(name="Demo")
@@ -165,3 +173,81 @@ class MainWindowProfilesDialogTests(unittest.TestCase):
         self.assertEqual(profile.name, "Default Gemini")
         self.assertEqual(len(window.config.api_profiles), 1)
         self.assertEqual(window.config.active_profile_name, "Default Gemini")
+
+    def test_refresh_api_keys_editor_uses_hidden_empty_guidance_when_no_keys_exist(self):
+        window = MainWindowProfilesMixin.__new__(MainWindowProfilesMixin)
+        window.api_keys_actual_text = ""
+        window.api_keys_visible = False
+        window._api_keys_hint_override_key = None
+        window.set_api_keys_editor_text = Mock()
+        window._refresh_widget_style = Mock()
+        window._sync_multiline_editor_surface_state = Mock()
+        window.tr = lambda key, **kwargs: key
+        window.api_keys_edit = SimpleNamespace(setReadOnly=Mock(), setFocusPolicy=Mock(), setPlaceholderText=Mock(), setProperty=Mock())
+        window.api_keys_label_row = SimpleNamespace(setText=Mock())
+        window.api_keys_toggle_button = SimpleNamespace(setText=Mock())
+        window.api_keys_hint = SimpleNamespace(setText=Mock())
+        window.api_keys_shell = SimpleNamespace(setProperty=Mock())
+        window.api_keys_editor_surface = SimpleNamespace(setProperty=Mock())
+
+        MainWindowProfilesMixin.refresh_api_keys_editor(window)
+
+        window.set_api_keys_editor_text.assert_called_once_with("")
+        window.api_keys_edit.setReadOnly.assert_called_once_with(True)
+        window.api_keys_edit.setFocusPolicy.assert_called_once_with(Qt.NoFocus)
+        window._sync_multiline_editor_surface_state.assert_called_once_with(window.api_keys_edit, focused=False)
+        window.api_keys_edit.setProperty.assert_called_once_with("concealed", True)
+        window.api_keys_edit.setPlaceholderText.assert_called_once_with("api_keys_hidden_empty_placeholder")
+        window.api_keys_label_row.setText.assert_called_once_with("api_keys_hidden")
+        window.api_keys_toggle_button.setText.assert_called_once_with("show_api_keys")
+        window.api_keys_hint.setText.assert_called_once_with("api_keys_mask_hint_empty")
+        window.api_keys_shell.setProperty.assert_any_call("concealed", True)
+        window.api_keys_editor_surface.setProperty.assert_called_once_with("concealed", True)
+        self.assertGreaterEqual(window._refresh_widget_style.call_count, 3)
+
+    def test_is_hidden_api_keys_interaction_target_matches_editor_surface_and_viewport(self):
+        window = MainWindowProfilesMixin.__new__(MainWindowProfilesMixin)
+        viewport = object()
+        window.api_keys_edit = SimpleNamespace(viewport=lambda: viewport)
+        window.api_keys_editor_surface = object()
+
+        self.assertTrue(MainWindowProfilesMixin.is_hidden_api_keys_interaction_target(window, viewport))
+        self.assertTrue(MainWindowProfilesMixin.is_hidden_api_keys_interaction_target(window, window.api_keys_editor_surface))
+        self.assertFalse(MainWindowProfilesMixin.is_hidden_api_keys_interaction_target(window, object()))
+
+    def test_event_filter_handles_api_keys_click_before_api_keys_visible_is_initialized(self):
+        window = self._EventFilterHarness()
+        viewport = object()
+        event = SimpleNamespace(type=lambda: QEvent.Type.MouseButtonPress)
+        window.api_keys_edit = SimpleNamespace(viewport=lambda: viewport)
+        window.api_keys_editor_surface = object()
+        window.api_keys_toggle_button = object()
+        window.api_keys_hint = object()
+        window.multiline_editor_surface_for = lambda watched: None
+        window.hotkey_field_key_for_widget = lambda watched: None
+        window.nudge_api_keys_visibility_affordance = Mock()
+
+        result = window.eventFilter(viewport, event)
+
+        self.assertTrue(result)
+        window.nudge_api_keys_visibility_affordance.assert_called_once_with()
+        self.assertFalse(hasattr(window, "api_keys_visible"))
+
+    @patch("app.ui.main_window_profiles.QTimer.singleShot")
+    def test_nudge_api_keys_visibility_affordance_tolerates_late_timer_on_disposed_widgets(self, mock_single_shot):
+        window = MainWindowProfilesMixin.__new__(MainWindowProfilesMixin)
+        window.api_keys_visible = False
+        window._api_keys_hint_override_key = None
+        window._api_keys_reveal_pulse_id = 0
+        window._apply_api_keys_hint_text = Mock()
+        window._set_api_keys_reveal_pulse = Mock(side_effect=[None, RuntimeError("wrapped C/C++ object has been deleted")])
+
+        MainWindowProfilesMixin.nudge_api_keys_visibility_affordance(window)
+
+        self.assertEqual(mock_single_shot.call_count, 2)
+        _, idle_callback = mock_single_shot.call_args_list[0].args
+        _, finish_callback = mock_single_shot.call_args_list[1].args
+        idle_callback()
+        finish_callback()
+        self.assertEqual(window._api_keys_reveal_pulse_id, 1)
+        self.assertEqual(window._set_api_keys_reveal_pulse.call_count, 2)

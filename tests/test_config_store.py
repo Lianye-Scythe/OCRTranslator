@@ -185,6 +185,22 @@ class ConfigStoreMigrationTests(unittest.TestCase):
 
         self.assertEqual(config.toast_duration_seconds, 0.0)
 
+    def test_migrate_check_updates_on_startup_flag(self):
+        config = _migrate_legacy_config(
+            {
+                "check_updates_on_startup": "true",
+                "api_profiles": [
+                    {
+                        "name": "Default Gemini",
+                        "provider": "gemini",
+                        "api_keys": ["demo-key"],
+                    }
+                ],
+            }
+        )
+
+        self.assertTrue(config.check_updates_on_startup)
+
     def test_load_config_reads_existing_portable_config_from_root(self):
         with TemporaryDirectory() as temp_dir:
             config_path = Path(temp_dir) / "config.json"

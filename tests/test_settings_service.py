@@ -38,6 +38,7 @@ class SettingsServiceTests(unittest.TestCase):
             "overlay_auto_expand_top_margin": 56,
             "overlay_auto_expand_bottom_margin": 18,
             "toast_duration_seconds": 1.5,
+            "check_updates_on_startup": True,
             "close_to_tray_on_close": True,
             "mode": "web_ud",
             "prompt_preset_name": "Translate",
@@ -210,6 +211,7 @@ class SettingsServiceTests(unittest.TestCase):
         self.assertEqual(candidate_config.overlay_auto_expand_top_margin, 56)
         self.assertEqual(candidate_config.overlay_auto_expand_bottom_margin, 18)
         self.assertEqual(candidate_config.toast_duration_seconds, 1.5)
+        self.assertTrue(candidate_config.check_updates_on_startup)
 
 
 if __name__ == "__main__":

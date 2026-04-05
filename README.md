@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml/badge.svg)](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D6)](docs/packaging.md)
-[![Release](https://img.shields.io/badge/release-v1.0.0-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
+[![Release](https://img.shields.io/badge/release-v1.0.1-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
 [![License](https://img.shields.io/badge/license-GPLv3-4F46E5)](LICENSE)
 
 OCRTranslator 是一款以 **桌面即時閱讀** 為核心的 **便攜式 OCR / AI 請求工具**。
@@ -49,6 +49,9 @@ OCRTranslator 是一款以 **桌面即時閱讀** 為核心的 **便攜式 OCR /
 - API Keys / Prompt 多行輸入框與一般單行欄位現在共用更清楚的選取高亮與更乾淨的焦點輪廓，提升淺色 / 深色模式下的編輯辨識度
 - 快捷鍵錄製完成後現在會立即套用到執行期 listener；設定頁也新增「捨棄變更」按鈕，方便快速回到已儲存狀態
 - 前台請求提示改為應用內短時氣泡，進階設定可調整顯示秒數，設為 `0` 時可直接停用提示氣泡
+- API Keys 預設維持遮罩顯示；在隱藏狀態點擊編輯區時，只會以按鈕與說明文引導先按「顯示 Key」，不會自動揭露敏感內容
+- 進階設定現在支援可選 GitHub Releases 更新檢查，可在啟動後背景檢查或手動立即檢查；有新版本時可直接點開 Releases 連結
+- 主執行緒 crash handling 現在會抑制巢狀與短時間重複 crash report，降低單一啟動期錯誤刷出整排 crash log 的風險
 - 系統匣右鍵選單與 Pin 按鈕狀態現在會跟隨淺色 / 深色主題，並持續以較低存在感的 Material 風格呈現
 - 退出流程新增 watchdog 與錯誤提示 fallback，降低程式因錯誤或第三方 hook 狀態而無法正常關閉的風險
 - 支援全域快捷鍵、系統匣、單實例保護

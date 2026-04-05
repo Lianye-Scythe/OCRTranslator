@@ -11,7 +11,7 @@ def clear_focus_if_alive(widget) -> None:
         if not isValid(widget):
             return
         widget.clearFocus()
-    except (RuntimeError, TypeError):
+    except (RuntimeError, TypeError, AttributeError):
         return
 
 
