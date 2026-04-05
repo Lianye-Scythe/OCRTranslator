@@ -24,31 +24,6 @@ It is not just a screenshot translator. It is a desktop AI workspace organized a
 - `Gemini Compatible` and `OpenAI Compatible` providers
 - API key rotation and retry support
 - Light / dark / follow-system theme modes
-- Screen capture now sends the original PNG bytes directly after selection completes, reducing the wait from capture to result overlay
-- Screen capture itself now runs off the UI thread while keeping original PNG bytes on the direct image-request path, reducing the chance of synchronous capture stalls dragging the main window down
-- Runtime logs now report `capture / request / total / png` timing so you can tell whether latency comes from local processing or the model side
-- Global hotkeys now include modifier-release pairing and state resynchronization safeguards to reduce stuck-looking `Shift / Ctrl / Win` behavior
-- A workflow-first settings page organized as `Connection and model → Translation workflow → Appearance and advanced`
-- Advanced settings now include configurable overlay auto-expand top / bottom safe margins so you can tune how close the popup grows toward the taskbar
-- Selected-text capture now runs as a non-blocking flow, shows a single processing toast only when the request is submitted, and supports cancellation during capture
-- Result overlay supports copy, a pushpin-style keep-visible toggle, surface-only opacity control, direct opacity input, drag to move, corner resize, and `Ctrl + mouse wheel` font zoom
-- Pinned result overlays now preserve their previous size and position across capture, selected-text, and manual-input flows; capture hides the overlay only temporarily and restores it with the same geometry
-- Unpinned overlays now restart from the saved default size on every new request; temporary manual resizing no longer pollutes the saved default size or triggers unsaved-change prompts
-- Pinned overlay size and position changes are now auto-persisted across app restarts; once Pin is turned off, the next new request falls back to the saved default size again
-- `Save Settings` no longer auto-scrolls the form down to the target-language field just because it is temporarily blank while you are saving API/profile changes; request-time validation still enforces the required target language when needed
-- API Keys / prompt multiline editors and regular single-line fields now share clearer text-selection highlights and a cleaner focus treatment, improving edit-state visibility in both light and dark themes
-- Recorded shortcuts now apply to the runtime listener immediately, and the settings page now includes a discard-changes action for quickly reverting to the saved state
-- Foreground request feedback now uses app-managed transient toasts, and advanced settings let you tune the toast duration or disable it entirely by setting it to `0`
-- API Keys stay masked by default; clicking a concealed editor only nudges the user toward `Show Keys` through the button and helper copy, without auto-revealing secrets
-- Advanced settings now support optional GitHub Releases update checks, either delayed after startup or on demand, with direct links to Releases when an update is available
-- Main-thread crash handling now suppresses nested and short-window duplicate crash reports, reducing crash-log storms from a single startup exception
-- The tray context menu and Pin button states now follow the current light / dark theme and use a more restrained Material-style presentation
-- Shutdown now includes a watchdog and error-dialog fallback path to reduce the risk of the app becoming hard to close after runtime failures or third-party hook issues
-- `--capture` launches no longer flash the main window first; if capture cannot start because of validation or runtime-state checks, the app now falls back to the main window with an explicit status message
-- If the app is minimized to tray immediately after startup, it continues only lightweight prewarm work while pausing heavier overlay-instance prewarm so readiness improves without making tray mode noisy
-- Message boxes and destructive confirmations now share consistent button semantics, focus handling, and Escape behavior
-- Global hotkeys, system tray, and single-instance protection
-- Config resolution prefers a portable `config.json` next to the project root or packaged exe, and now falls back to a user-level config directory when the portable location is unavailable and not writable
 
 ## Screenshots
 
