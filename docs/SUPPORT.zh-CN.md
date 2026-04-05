@@ -75,4 +75,4 @@
 
 - https://github.com/Lianye-Scythe/OCRTranslator/releases
 
-当前公开 Windows 发布包仍属于 **未签名** 状态；正式代码签名流程仍在规划中。
+当前公开 Windows 发布包仍属于 **未签名** 状态；Release 会附上 `SHA256SUMS.txt` 供手动校验，正式代码签名流程仍在规划中。

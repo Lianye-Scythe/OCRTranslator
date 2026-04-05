@@ -14,6 +14,7 @@ set "ARCHIVE_SUFFIX=windows-x64"
 set "APP_VERSION="
 set "ARCHIVE_NAME="
 set "ARCHIVE_PATH="
+set "CHECKSUM_PATH=%RELEASE_DIR%\SHA256SUMS.txt"
 set "VERSION_INFO_FILE=%BUILD_DIR%\%DIST_NAME%.version-info.txt"
 set "SIGNTOOL_EXE=%SIGNTOOL_PATH%"
 set "APP_VERSION_FILE=%TEMP%\%DIST_NAME%.app-version.%RANDOM%.txt"
@@ -102,10 +103,15 @@ if errorlevel 1 goto :archive_failed
 
 if not exist "%ARCHIVE_PATH%" goto :archive_failed
 
+echo [OCRTranslator] Generating SHA256SUMS.txt ...
+"%PYTHON_EXE%" tools\generate_sha256sums.py --output "%CHECKSUM_PATH%" "%ARCHIVE_PATH%"
+if errorlevel 1 goto :checksum_failed
+
 echo.
 echo [SUCCESS] Build complete.
 echo [SUCCESS] EXE: %RELEASE_DIR%\%DIST_NAME%.exe
 echo [SUCCESS] ZIP: %ARCHIVE_PATH%
+echo [SUCCESS] SHA256: %CHECKSUM_PATH%
 call :maybe_pause
 exit /b 0
 
@@ -221,6 +227,12 @@ exit /b 0
 echo.
 echo [ERROR] Failed to create release archive.
 echo Expected archive: %ARCHIVE_PATH%
+call :maybe_pause
+exit /b 1
+
+:checksum_failed
+echo.
+echo [ERROR] Failed to generate %CHECKSUM_PATH%.
 call :maybe_pause
 exit /b 1
 

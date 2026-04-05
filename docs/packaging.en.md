@@ -93,10 +93,11 @@ If those values are not configured yet, the workflow still completes the unsigne
 
 ## Recommended distribution contents
 
-Prefer uploading the versioned archive first. The file name should include the project name, version, and platform, for example: `OCRTranslator-v0.9.9-windows-x64.zip`.
+Prefer uploading the versioned archive first. The file name should include the project name, version, and platform, for example: `OCRTranslator-v0.9.9-windows-x64.zip`, and attach a companion `SHA256SUMS.txt` file for manual verification.
 
 ```text
 release\OCRTranslator-v<version>-windows-x64.zip
+release\SHA256SUMS.txt
 ```
 
 ## Optional code signing

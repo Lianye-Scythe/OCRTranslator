@@ -75,4 +75,4 @@ Please treat the GitHub Releases page as the canonical public release channel:
 
 - https://github.com/Lianye-Scythe/OCRTranslator/releases
 
-The current public Windows package is still **unsigned**; formal code signing is planned for a future release.
+The current public Windows package is still **unsigned**; Releases also attach `SHA256SUMS.txt` for manual verification, and formal code signing is planned for a future release.

@@ -4,6 +4,20 @@
 
 本文件用于记录 OCRTranslator 的重要变更。
 
+## [Unreleased]
+
+### Added
+- 新增 `tools/generate_sha256sums.py`，用于本地打包与 GitHub Release 流程生成 `SHA256SUMS.txt`
+
+### Changed
+- Release workflow 中的 `actions/upload-artifact` 升级到 `v7`，与 Dependabot 提示保持一致
+- README / packaging / support 文档补充 `SHA256SUMS.txt` 校验文件说明
+
+### Fixed
+- Release workflow 现在会在最终 ZIP 产出后重新生成 `SHA256SUMS.txt`，并一并上传到 artifact / GitHub Release
+- `release-build.yml` 生成 release notes 时改为使用 UTF-8 **无 BOM** 输出，避免 release body 开头出现 BOM 痕迹
+- `build_exe.bat` 现在会在本地打包完成后同步生成 `release\SHA256SUMS.txt`
+
 ## [0.9.9] - 2026-04-05
 
 ### Added

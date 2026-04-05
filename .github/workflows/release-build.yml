@@ -81,7 +81,7 @@ jobs:
       - name: Upload unsigned files for SignPath
         if: ${{ steps.signpath_gate.outputs.enabled == 'true' }}
         id: upload_unsigned
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: unsigned-windows-package
           if-no-files-found: error
@@ -122,12 +122,29 @@ jobs:
             'release\config.example.json'
           ) -DestinationPath $zipPath -Force
 
+      - name: Generate SHA256SUMS.txt
+        id: checksum
+        shell: powershell
+        run: |
+          $zipPath = '${{ steps.release_archive.outputs.path }}'
+          if (-not (Test-Path $zipPath)) {
+            throw "Release ZIP not found: $zipPath"
+          }
+          $checksumPath = Join-Path $PWD 'release\SHA256SUMS.txt'
+          python tools\generate_sha256sums.py --output $checksumPath $zipPath
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to generate SHA256SUMS.txt"
+          }
+          "path=$checksumPath" >> $env:GITHUB_OUTPUT
+
       - name: Upload final release ZIP artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: OCRTranslator-windows-x64-${{ github.ref_name }}
           if-no-files-found: error
-          path: ${{ steps.release_archive.outputs.path }}
+          path: |
+            ${{ steps.release_archive.outputs.path }}
+            ${{ steps.checksum.outputs.path }}
 
       - name: Extract release notes from annotated tag
         if: startsWith(github.ref, 'refs/tags/')
@@ -145,13 +162,17 @@ jobs:
               '- Current public Windows package is unsigned.',
               '- Code signing is planned via SignPath / Trusted Build.'
             ) -join "`r`n"
+          } else {
+            $notes = $notes.Trim()
           }
-          Set-Content -Path $notesPath -Value $notes -Encoding utf8
+          [System.IO.File]::WriteAllText($notesPath, $notes + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
           "path=$notesPath" >> $env:GITHUB_OUTPUT
 
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ steps.release_archive.outputs.path }}
+          files: |
+            ${{ steps.release_archive.outputs.path }}
+            ${{ steps.checksum.outputs.path }}
           body_path: ${{ steps.release_notes.outputs.path }}

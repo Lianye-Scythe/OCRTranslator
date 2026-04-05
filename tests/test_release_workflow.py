@@ -11,12 +11,17 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertIn('uses: actions/checkout@v6', workflow)
         self.assertIn('uses: actions/setup-python@v6', workflow)
         self.assertIn('cache: "pip"', workflow)
+        self.assertIn('uses: actions/upload-artifact@v7', workflow)
         self.assertIn('id: signpath_gate', workflow)
         self.assertIn("if: ${{ steps.signpath_gate.outputs.enabled == 'true' }}", workflow)
-        self.assertIn('files: ${{ steps.release_archive.outputs.path }}', workflow)
+        self.assertIn('id: checksum', workflow)
+        self.assertIn('python tools\\generate_sha256sums.py --output $checksumPath $zipPath', workflow)
+        self.assertIn('${{ steps.checksum.outputs.path }}', workflow)
         self.assertIn("'release\\LICENSE'", workflow)
         self.assertIn('id: release_notes', workflow)
         self.assertIn("git tag -l --format='%(contents)' $tagName", workflow)
+        self.assertIn('[System.IO.File]::WriteAllText', workflow)
+        self.assertIn('[System.Text.UTF8Encoding]::new($false)', workflow)
         self.assertIn('body_path: ${{ steps.release_notes.outputs.path }}', workflow)
         self.assertNotIn('files: |\n            release/OCRTranslator.exe', workflow)
         self.assertNotIn("if: ${{ secrets.SIGNPATH_API_TOKEN != ''", workflow)
@@ -26,6 +31,7 @@ class ReleaseWorkflowTests(unittest.TestCase):
         script = Path('build_exe.bat').read_text(encoding='utf-8')
         self.assertIn('copy /y "LICENSE" "%RELEASE_DIR%\\LICENSE" >nul', script)
         self.assertIn("'%RELEASE_DIR%\\LICENSE'", script)
+        self.assertIn('tools\\generate_sha256sums.py --output "%CHECKSUM_PATH%" "%ARCHIVE_PATH%"', script)
 
     def test_signpath_artifact_configuration_targets_executable_inside_zip_artifact(self):
         config = Path('packaging/signpath/artifact-configurations/default.xml').read_text(encoding='utf-8')
@@ -41,6 +47,13 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertIn('uses: actions/checkout@v6', workflow)
         self.assertIn('uses: actions/setup-python@v6', workflow)
         self.assertIn('cache: "pip"', workflow)
+
+    def test_sha256_generator_script_uses_release_style_output(self):
+        script = Path('tools/generate_sha256sums.py').read_text(encoding='utf-8')
+        self.assertIn('hashlib.sha256()', script)
+        self.assertIn('output_path.write_text', script)
+        self.assertIn('encoding="utf-8"', script)
+        self.assertIn('newline="\\n"', script)
 
 
 if __name__ == '__main__':

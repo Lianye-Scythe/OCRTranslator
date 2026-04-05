@@ -83,6 +83,7 @@ OCRTranslator 是一款以 **桌面即时阅读** 为核心的 **便携式 OCR /
 - Release 由 `v*` annotated tag 触发 GitHub Actions 自动构建；Release 正文默认会优先使用 tag annotation 文案
 - 当前公开 Windows 发布包 **尚未签名**；仓库已预留 SignPath / Trusted Build 集成，后续计划导入正式签名流程
 - 公开 Release 不会额外上传独立 `.exe`，而是只提供版本化 ZIP 与 GitHub 自带 source archives
+- Release 也会额外附上 `SHA256SUMS.txt`，方便手动校验下载的 ZIP 文件
 - 若要私下回报敏感安全问题，请发送邮件到 `po12017po@gmail.com`
 
 ## 默认快捷键

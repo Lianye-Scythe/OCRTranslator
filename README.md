@@ -88,6 +88,7 @@ OCRTranslator 是一款以 **桌面即時閱讀** 為核心的 **便攜式 OCR /
 - Release 由 `v*` annotated tag 觸發 GitHub Actions 自動建置；Release 正文預設會優先使用 tag annotation 文案
 - 目前公開 Windows 發佈包 **尚未簽名**；倉庫已預留 SignPath / Trusted Build 整合，後續計畫導入正式簽名流程
 - 公開 Release 不會額外上傳獨立 `.exe`，而是只提供版本化 ZIP 與 GitHub 自帶 source archives
+- Release 也會額外附上 `SHA256SUMS.txt`，方便手動校驗下載的 ZIP 檔案
 - 若要私下回報敏感安全問題，請寄信到 `po12017po@gmail.com`
 
 ## 預設快捷鍵

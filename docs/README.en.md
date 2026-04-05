@@ -79,6 +79,7 @@ Current visuals for the main workspace and translation overlay:
 - Releases are built automatically from `v*` annotated tags through GitHub Actions, and the Release body is intended to prefer the tag annotation text
 - The current public Windows package is **unsigned**; the repository already includes SignPath / Trusted Build groundwork and code signing is planned
 - Public Releases do not upload a standalone `.exe`; they publish the versioned ZIP plus GitHub's built-in source archives instead
+- Releases also attach `SHA256SUMS.txt` so the ZIP can be verified manually after download
 - For sensitive security reports, contact the maintainer privately at `po12017po@gmail.com`
 
 ## Default hotkeys

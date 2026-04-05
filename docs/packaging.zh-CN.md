@@ -93,10 +93,11 @@ build_exe.bat
 
 ## 推荐分发内容
 
-建议优先上传带版本号的压缩包，文件名包含项目名称、版本号与平台信息，例如：`OCRTranslator-v0.9.9-windows-x64.zip`。
+建议优先上传带版本号的压缩包，文件名包含项目名称、版本号与平台信息，例如：`OCRTranslator-v0.9.9-windows-x64.zip`，并额外附上一份 `SHA256SUMS.txt` 供手动校验。
 
 ```text
 release\OCRTranslator-v<version>-windows-x64.zip
+release\SHA256SUMS.txt
 ```
 
 ## 可选代码签名
