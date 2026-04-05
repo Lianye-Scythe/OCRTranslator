@@ -3,9 +3,9 @@
 [繁體中文](../README.md)｜简体中文｜[English](README.en.md)
 
 [![CI](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml/badge.svg)](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/Lianye-Scythe/OCRTranslator?display_name=tag)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
-[![License](https://img.shields.io/github/license/Lianye-Scythe/OCRTranslator)](../LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D6)](packaging.zh-CN.md)
+[![Release](https://img.shields.io/badge/release-v0.9.8-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
+[![License](https://img.shields.io/badge/license-GPLv3-4F46E5)](../LICENSE)
 
 OCRTranslator 是一款以 **桌面即时阅读** 为核心的 **便携式 OCR / AI 请求工具**。
 

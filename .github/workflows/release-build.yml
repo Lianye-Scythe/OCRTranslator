@@ -136,17 +136,17 @@ jobs:
         run: |
           $notesPath = Join-Path $PWD 'release-notes.md'
           $tagName = $env:GITHUB_REF_NAME
-          $notes = git tag -l --format='%(contents)' $tagName | Out-String
+          $notes = (git tag -l --format='%(contents)' $tagName | Out-String).Trim()
           if ([string]::IsNullOrWhiteSpace($notes)) {
-            $notes = @"
-$tagName
-
-- Automated release build.
-- Current public Windows package is unsigned.
-- Code signing is planned via SignPath / Trusted Build.
-"@
+            $notes = @(
+              $tagName,
+              '',
+              '- Automated release build.',
+              '- Current public Windows package is unsigned.',
+              '- Code signing is planned via SignPath / Trusted Build.'
+            ) -join "`r`n"
           }
-          Set-Content -Path $notesPath -Value $notes.Trim() -Encoding utf8
+          Set-Content -Path $notesPath -Value $notes -Encoding utf8
           "path=$notesPath" >> $env:GITHUB_OUTPUT
 
       - name: Publish GitHub Release
