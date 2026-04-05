@@ -18,16 +18,21 @@ OCRTranslator 是一款以 **桌面即时阅读** 为核心的 **便携式 OCR /
 ## 特性总览
 
 - 支持 **截图 / 选中文本 / 手动输入** 三种请求入口
-- 支持 **Prompt Preset** 方案系统
-- 内建四组预设方案：
-  - `翻译 (Translate)`
-  - `解答 (Answer)`
-  - `润色 (Polish)`
-  - `OCR 原文 (Raw OCR)`
-- 支持多个 API Profile
-- 支持 `Gemini Compatible` / `OpenAI Compatible`
-- 支持多 Key 轮替与失败重试
+- 支持 **Prompt Preset** 方案系统，内建 `翻译 (Translate)`、`解答 (Answer)`、`润色 (Polish)`、`OCR 原文 (Raw OCR)` 四组预设方案
+- 支持多个 API Profile，可接入 `Gemini Compatible` / `OpenAI Compatible`
+- 支持多 Key 轮替、失败重试与模型切换
+- 设置页采用“连接与模型 → 翻译方式与快捷键 → 界面与进阶”三段式流程，更容易完成首次配置
+- 请求流程尽量保持非阻塞，并通过应用内短时气泡 / 系统托盘通知反馈当前状态
+- 结果浮窗支持：
+  - 复制、图钉固定 / 取消固定
+  - 仅调整表面背景的透明度（文字保持清晰）
+  - 直接输入透明度百分比
+  - 拖拽移动与角落拖拽改尺寸
+  - `Ctrl + 鼠标滚轮` 缩放字体
+- 已 Pin 的结果浮窗可保留位置与尺寸；未 Pin 状态则会从默认尺寸重新展开
 - 支持 `浅色 / 深色 / 跟随系统` 三态主题切换
+- 支持全局快捷键、系统托盘、单实例唤回与 `--capture` 快速启动
+- 提供版本化 ZIP 发布、`SHA256SUMS.txt` 校验与完整三语文档
 
 ## 界面预览
 
@@ -62,7 +67,7 @@ OCRTranslator 是一款以 **桌面即时阅读** 为核心的 **便携式 OCR /
 ## 发布与信任信息
 
 - 官方桌面发布以 GitHub Releases 中的版本化 ZIP 为准：`OCRTranslator-v<version>-windows-x64.zip`
-- Release 由 `v*` annotated tag 触发 GitHub Actions 自动构建；Release 正文默认会优先使用 tag annotation 文案
+- 推送 `v*` annotated tag 后，GitHub Actions 会自动构建 Release，并优先沿用 tag annotation 作为 Release 正文
 - 当前公开 Windows 发布包 **尚未签名**；仓库已预留 SignPath / Trusted Build 集成，后续计划导入正式签名流程
 - 公开 Release 不会额外上传独立 `.exe`，而是只提供版本化 ZIP 与 GitHub 自带 source archives
 - Release 也会额外附上 `SHA256SUMS.txt`，方便手动校验下载的 ZIP 文件
@@ -294,6 +299,15 @@ python -m compileall app tests launcher.pyw
 - [贡献指南](CONTRIBUTING.zh-CN.md)
 - [安全性回报](SECURITY.zh-CN.md)
 - [变更记录](CHANGELOG.zh-CN.md)
+
+## 已知边界
+
+- 识别与输出质量高度依赖所接入的多模态模型
+- 当前不内建离线 OCR 引擎
+- 选中文本流程采用“模拟复制并尽量还原剪贴板”策略，少数应用可能不响应标准复制行为
+- 工程与启动脚本主要面向 Windows 使用场景
+- 浮窗定位以“尽量不遮挡阅读”为优先，而不是严格排版系统
+- 运行日志默认不作为长期审计记录保存
 
 ## 许可证
 

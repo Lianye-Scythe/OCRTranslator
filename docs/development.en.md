@@ -30,7 +30,7 @@ or:
 python -m app.main
 ```
 
-## Config path note
+### Config path note
 
 When running from source, the app prefers `config.json` in the project root. If no portable config exists yet and the current directory is not writable, it falls back to:
 

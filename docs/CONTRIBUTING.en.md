@@ -27,3 +27,33 @@ Before participating, please read and follow the repository-root `CODE_OF_CONDUC
 4. Update README / docs / comments when needed
 5. Open a Pull Request
 6. By contributing code, you agree that the contribution may be included in this project under **GPLv3**
+
+## Pull Request suggestions
+
+Your PR should ideally include at least:
+
+- a short summary of the change
+- how you verified it
+- any notable risk or compatibility impact
+- screenshots or a short explanation for UI changes
+- notes about boundary changes if you adjusted the architecture
+
+## Issue reporting suggestions
+
+When opening a bug report, include as much of the following as possible:
+
+- reproduction steps
+- runtime type (source / exe)
+- operating system and Python version
+- runtime logs
+- a crash log if the app produced one
+
+## Files you should not commit directly
+
+- `config.json`
+- `.venv/`
+- `build/`
+- `dist/`
+- `release/`
+- `ocrtranslator-crash-*.log`
+- `ocrtranslator-log-*.txt`

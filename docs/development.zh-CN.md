@@ -30,7 +30,7 @@ python launcher.pyw
 python -m app.main
 ```
 
-## 配置路径提示
+### 配置路径提示
 
 源码运行时，程序会优先使用项目根目录的 `config.json`；如果根目录没有配置文件且当前目录不可写，则会自动回退到：
 

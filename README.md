@@ -18,24 +18,21 @@ OCRTranslator 是一款以 **桌面即時閱讀** 為核心的 **便攜式 OCR /
 ## 特色總覽
 
 - 支援 **截圖 / 選取文字 / 手動輸入** 三種請求入口
-- 支援 **Prompt Preset** 方案系統
-- 內建四組預設方案：
-  - `翻譯 (Translate)`
-  - `解答 (Answer)`
-  - `潤色 (Polish)`
-  - `OCR 原文 (Raw OCR)`
-- 支援多個 API Profile
-- 支援 `Gemini Compatible` / `OpenAI Compatible`
-- 支援多 Key 輪替與失敗重試
-- 支援 `淺色 / 深色 / 跟隨系統` 三態主題切換
+- 支援 **Prompt Preset** 方案系統，內建 `翻譯 (Translate)`、`解答 (Answer)`、`潤色 (Polish)`、`OCR 原文 (Raw OCR)` 四組預設方案
+- 支援多個 API Profile，可接入 `Gemini Compatible` / `OpenAI Compatible`
+- 支援多 Key 輪替、失敗重試與模型切換
+- 設定頁採用「連線與模型 → 翻譯方式與快捷鍵 → 介面與進階」三段式流程，較容易完成首次配置
+- 請求流程盡量維持非阻塞，並以應用內短時氣泡 / 系統匣通知回饋目前狀態
 - 結果浮窗支援：
   - 複製、圖釘固定 / 取消固定
   - 只調整表面背景的透明度（文字保持清晰）
   - 直接輸入透明度百分比
   - 拖曳移動與角落拖曳改尺寸
   - `Ctrl + 滑鼠滾輪` 縮放字體
-- 設定頁改為「連線與模型 → 翻譯方式與快捷鍵 → 介面與進階」三段式流程，降低第一次使用的理解成本
-- 進階設定新增浮窗自動擴展頂部 / 底部安全邊距，可依桌面與 Taskbar 習慣調整自動擴展的極限
+- 已 Pin 的結果浮窗可保留位置與尺寸；未 Pin 狀態則會從預設尺寸重新展開
+- 支援 `淺色 / 深色 / 跟隨系統` 三態主題切換
+- 支援全域快捷鍵、系統匣、單實例喚回與 `--capture` 快速啟動
+- 提供版本化 ZIP 發佈、`SHA256SUMS.txt` 校驗與完整三語文件
 
 ## 介面預覽
 
@@ -70,7 +67,7 @@ OCRTranslator 是一款以 **桌面即時閱讀** 為核心的 **便攜式 OCR /
 ## 發佈與信任資訊
 
 - 官方桌面發佈以 GitHub Releases 的版本化 ZIP 為準：`OCRTranslator-v<version>-windows-x64.zip`
-- Release 由 `v*` annotated tag 觸發 GitHub Actions 自動建置；Release 正文預設會優先使用 tag annotation 文案
+- 推送 `v*` annotated tag 後，GitHub Actions 會自動建置 Release，並優先沿用 tag annotation 作為 Release 正文
 - 目前公開 Windows 發佈包 **尚未簽名**；倉庫已預留 SignPath / Trusted Build 整合，後續計畫導入正式簽名流程
 - 公開 Release 不會額外上傳獨立 `.exe`，而是只提供版本化 ZIP 與 GitHub 自帶 source archives
 - Release 也會額外附上 `SHA256SUMS.txt`，方便手動校驗下載的 ZIP 檔案
@@ -297,7 +294,7 @@ python -m unittest discover -v
 python -m compileall app tests launcher.pyw
 ```
 
-## 文檔導覽
+## 文件導覽
 
 - [文件總覽](docs/index.md)
 - [架構說明](docs/architecture.md)

@@ -18,12 +18,21 @@ It is not just a screenshot translator. It is a desktop AI workspace organized a
 ## Highlights
 
 - Three request entry points: capture / selected text / manual input
-- Prompt preset system
-- Four built-in presets
-- Multiple API profiles
-- `Gemini Compatible` and `OpenAI Compatible` providers
-- API key rotation and retry support
+- Prompt preset system with four built-in presets: `Translate`, `Answer`, `Polish`, and `Raw OCR`
+- Multiple API profiles for `Gemini Compatible` and `OpenAI Compatible` providers
+- API key rotation, retry, and model-switching support
+- A workflow-first settings layout: `Connection and model → Translation workflow → Appearance and advanced`
+- Request flows stay as non-blocking as possible, with app-managed toasts and tray notifications for status feedback
+- Result overlay supports:
+  - copy, pin / unpin
+  - surface-only opacity changes so text stays clear
+  - direct opacity percentage input
+  - drag to move and corner resize
+  - `Ctrl + mouse wheel` font zoom
+- Pinned overlays keep their size and position; unpinned overlays reopen from the saved default size
 - Light / dark / follow-system theme modes
+- Global hotkeys, system tray, single-instance forwarding, and quick `--capture` launch support
+- Versioned ZIP releases, `SHA256SUMS.txt`, and trilingual documentation
 
 ## Screenshots
 
@@ -58,7 +67,7 @@ Current visuals for the main workspace and translation overlay:
 ## Release and trust information
 
 - The official desktop distribution is the versioned ZIP published on GitHub Releases: `OCRTranslator-v<version>-windows-x64.zip`
-- Releases are built automatically from `v*` annotated tags through GitHub Actions, and the Release body is intended to prefer the tag annotation text
+- Pushing a `v*` annotated tag triggers GitHub Actions to build the Release and reuse the tag annotation as the Release body when available
 - The current public Windows package is **unsigned**; the repository already includes SignPath / Trusted Build groundwork and code signing is planned
 - Public Releases do not upload a standalone `.exe`; they publish the versioned ZIP plus GitHub's built-in source archives instead
 - Releases also attach `SHA256SUMS.txt` so the ZIP can be verified manually after download
@@ -71,6 +80,8 @@ Current visuals for the main workspace and translation overlay:
 | Screen capture | `Shift + Win + X` |
 | Selected text | `Shift + Win + C` |
 | Manual input | `Shift + Win + Z` |
+
+> If `config.json` already exists, the app uses the hotkeys stored there instead of these defaults.
 
 ## Quick start
 
@@ -96,6 +107,13 @@ Run:
 
 - `start.bat`
 
+It will automatically:
+
+1. check `.venv`
+2. install runtime dependencies when needed
+3. launch the GUI through `launcher.pyw`
+4. show a startup error dialog first if the app fails early
+
 #### Option B: command-line startup
 
 ```bash
@@ -113,6 +131,12 @@ python -m app.main
 ```bash
 python -m app.main --capture
 ```
+
+Supported arguments:
+
+- `--capture`
+- `/capture`
+- `capture`
 
 ## Basic workflow
 
@@ -164,7 +188,18 @@ Supported variable:
 
 - `{target_language}`
 
-Built-in presets cannot be deleted directly. Duplicate one first if you want a removable custom version.
+Text requests automatically append the source text after the prompt, so you only need to maintain the instruction part.
+
+Built-in presets:
+
+| Preset | Purpose |
+|---|---|
+| `Translate` | Translate image or text content into the target language |
+| `Answer` | Answer or explain a question, prompt, or problem directly |
+| `Polish` | Rewrite text into more natural, polished target-language output |
+| `Raw OCR` | Return OCR text only, without translation or polishing |
+
+> Built-in presets cannot be deleted directly. Duplicate one first if you want a removable custom version.
 
 ## Config storage
 
@@ -189,7 +224,18 @@ Typical contents include:
 > `config.json` may contain API keys and private base URLs. Do not share it directly.
 > Crash logs still default to the project root or the executable directory instead of following the fallback config path.
 
-## Tray and selected-text behavior
+## Tray, single-instance, and error handling
+
+### Single-instance behavior
+
+The app uses a lock file and a local server to keep a single running instance.
+
+When you launch it again:
+
+- a normal launch reactivates the existing main window
+- `--capture` asks the existing instance to jump directly into capture
+
+### Tray menu
 
 The tray menu provides:
 
@@ -199,8 +245,23 @@ The tray menu provides:
 - Cancel Action
 - Quit
 
-> The selected-text flow works best as a global-hotkey action.
-> If you click it from the main window or tray, the app will usually steal focus first and break the original selection state in the external application.
+> Selected-text capture works best as a global hotkey action.
+> If you trigger it from the main window or tray, the app will usually steal focus first and break the original selection in the external app.
+
+By default, clicking the window `X` exits the app.
+Enable the corresponding setting if you want `X` to minimize to the system tray instead.
+
+### Logs and crash logs
+
+- runtime activity stays in memory by default
+- the latest 100 entries are kept
+- logs can be viewed or exported from the UI
+
+Unhandled exceptions create a crash log in the project root or next to the executable:
+
+```text
+ocrtranslator-crash-YYYYMMDD-HHMMSS-xxxxxxxxx.log
+```
 
 ## Checks
 
@@ -221,6 +282,15 @@ python -m compileall app tests launcher.pyw
 - [Contributing](CONTRIBUTING.en.md)
 - [Security Policy](SECURITY.en.md)
 - [Changelog](CHANGELOG.en.md)
+
+## Known limitations
+
+- recognition and output quality depend heavily on the multimodal model you connect
+- there is currently no built-in offline OCR engine
+- the selected-text flow relies on simulated copy plus clipboard restoration, so some apps may not respond to standard copy behavior
+- the engineering setup and startup scripts are primarily tuned for Windows
+- overlay positioning prioritizes readability and minimal obstruction instead of strict layout rules
+- runtime logs are not intended to be a long-term audit trail
 
 ## License
 

@@ -27,3 +27,33 @@
 4. 补充必要的 README / docs 或注释
 5. 提交 Pull Request
 6. 若提交代码贡献，默认同意该贡献以 **GPLv3** 纳入本项目
+
+## Pull Request 建议
+
+PR 内容最好至少包含：
+
+- 变更摘要
+- 验证方式
+- 风险说明
+- 若有 UI 变更，附上截图或简短说明
+- 若有架构调整，请说明分层边界改动
+
+## Issue 回报建议
+
+建立 bug issue 时，请尽量附上：
+
+- 复现步骤
+- 运行方式（源码 / exe）
+- 操作系统与 Python 版本
+- 运行记录
+- crash log（若程序有写出）
+
+## 不建议直接提交的内容
+
+- `config.json`
+- `.venv/`
+- `build/`
+- `dist/`
+- `release/`
+- `ocrtranslator-crash-*.log`
+- `ocrtranslator-log-*.txt`

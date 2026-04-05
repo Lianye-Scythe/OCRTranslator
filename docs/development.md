@@ -30,7 +30,7 @@ python launcher.pyw
 python -m app.main
 ```
 
-## 設定檔路徑提示
+### 設定檔路徑提示
 
 原始碼執行時，程式會優先使用專案根目錄的 `config.json`；若根目錄沒有設定檔且目前目錄不可寫，則會自動回退到：
 
