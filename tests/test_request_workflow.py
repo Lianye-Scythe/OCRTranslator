@@ -10,9 +10,15 @@ class _FakeOverlay:
         self.manual_positioned = False
         self.is_pinned = False
         self.last_geometry = None
+        self.last_text = ""
+        self._visible = False
+        self.restore_last_overlay = Mock()
 
     def isVisible(self):
-        return False
+        return self._visible
+
+    def setVisible(self, value: bool):
+        self._visible = bool(value)
 
 
 class _FakeSignal:
@@ -84,6 +90,11 @@ class RequestWorkflowControllerTests(unittest.TestCase):
             bridge=SimpleNamespace(invoke_main_thread=SimpleNamespace(emit=lambda callback, payload: callback(payload))),
             handle_error=Mock(),
             tr=lambda key, **kwargs: key,
+            restore_window_after_capture=False,
+            restore_pinned_overlay_after_capture=False,
+            pending_capture_profile=None,
+            pending_capture_target_language="English",
+            pending_capture_prompt_preset=None,
         )
         window.background_busy = (
             lambda: window.fetch_models_in_progress
@@ -91,6 +102,7 @@ class RequestWorkflowControllerTests(unittest.TestCase):
             or window.translation_in_progress
             or window.selected_text_capture_in_progress
         )
+        window.show_main_window = Mock()
         return window
 
     def test_profile_request_signature_can_include_model(self):
@@ -207,6 +219,47 @@ class RequestWorkflowControllerTests(unittest.TestCase):
         window.run_worker.assert_not_called()
         window.show_tray_toast.assert_called_once_with("request_cancelled")
         self.assertEqual(window.set_status.call_args_list[-1].args[0], "request_cancelled")
+
+    def test_handle_capture_ready_restores_pinned_overlay_while_request_continues(self):
+        window = self._build_window()
+        controller = RequestWorkflowController(window)
+        overlay = window.translation_overlay
+        overlay.is_pinned = True
+        overlay.last_text = "previous"
+        overlay.setVisible(True)
+        window.capture_workflow_active = True
+        window.restore_window_after_capture = True
+        window.restore_pinned_overlay_after_capture = True
+        window.pending_capture_profile = object()
+        window.pending_capture_prompt_preset = object()
+        window.screen_capture_service = SimpleNamespace(build_preview_pixmap_from_bytes=Mock(return_value="preview-pixmap"))
+        window.update_preview = Mock()
+
+        controller._handle_capture_ready(b"png-data")
+
+        window.update_preview.assert_called_once_with(preview_pixmap="preview-pixmap")
+        self.assertFalse(window.capture_workflow_active)
+        self.assertTrue(window.restore_window_after_capture)
+        overlay.restore_last_overlay.assert_called_once_with()
+        window.show_main_window.assert_not_called()
+
+    def test_handle_capture_ready_keeps_unpinned_overlay_hidden(self):
+        window = self._build_window()
+        controller = RequestWorkflowController(window)
+        overlay = window.translation_overlay
+        overlay.is_pinned = False
+        overlay.last_text = "previous"
+        overlay.setVisible(True)
+        window.capture_workflow_active = True
+        window.restore_pinned_overlay_after_capture = False
+        window.screen_capture_service = SimpleNamespace(build_preview_pixmap_from_bytes=Mock(return_value="preview-pixmap"))
+        window.update_preview = Mock()
+
+        controller._handle_capture_ready(b"png-data")
+
+        window.update_preview.assert_called_once_with(preview_pixmap="preview-pixmap")
+        overlay.restore_last_overlay.assert_not_called()
+        self.assertFalse(window.capture_workflow_active)
 
     @patch("app.services.request_workflow.build_image_request_prompt", return_value="image-prompt")
     def test_handle_selection_captures_in_worker_and_dispatches_preview(self, _mock_prompt):

@@ -48,6 +48,7 @@ class AppConfig:
     margin: int = 18
     overlay_auto_expand_top_margin: int = 42
     overlay_auto_expand_bottom_margin: int = 24
+    toast_duration_seconds: float = 1.5
     ui_language: str = DEFAULT_UI_LANGUAGE
     theme_mode: str = DEFAULT_THEME_MODE
     hotkey: str = DEFAULT_CAPTURE_HOTKEY

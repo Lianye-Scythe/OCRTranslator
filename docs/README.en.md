@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml/badge.svg)](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D6)](packaging.en.md)
-[![Release](https://img.shields.io/badge/release-v0.9.9-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
+[![Release](https://img.shields.io/badge/release-v1.0.0-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
 [![License](https://img.shields.io/badge/license-GPLv3-4F46E5)](../LICENSE)
 
 OCRTranslator is a **portable OCR / AI request tool** built around **desktop reading workflows**.
@@ -37,6 +37,8 @@ It is not just a screenshot translator. It is a desktop AI workspace organized a
 - Pinned overlay size and position changes are now auto-persisted across app restarts; once Pin is turned off, the next new request falls back to the saved default size again
 - `Save Settings` no longer auto-scrolls the form down to the target-language field just because it is temporarily blank while you are saving API/profile changes; request-time validation still enforces the required target language when needed
 - API Keys / prompt multiline editors and regular single-line fields now share clearer text-selection highlights and a cleaner focus treatment, improving edit-state visibility in both light and dark themes
+- Recorded shortcuts now apply to the runtime listener immediately, and the settings page now includes a discard-changes action for quickly reverting to the saved state
+- Foreground request feedback now uses app-managed transient toasts, and advanced settings let you tune the toast duration or disable it entirely by setting it to `0`
 - The tray context menu and Pin button states now follow the current light / dark theme and use a more restrained Material-style presentation
 - Shutdown now includes a watchdog and error-dialog fallback path to reduce the risk of the app becoming hard to close after runtime failures or third-party hook issues
 - Message boxes and destructive confirmations now share consistent button semantics, focus handling, and Escape behavior

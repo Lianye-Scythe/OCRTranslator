@@ -76,6 +76,22 @@ class MainStartupTests(unittest.TestCase):
         window.show.assert_called_once_with()
         mock_single_shot.assert_called_once_with(0, window.start_selection)
 
+    @patch("app.main.create_ui_application")
+    @patch("app.main.request_existing_instance_action", return_value=True)
+    @patch("app.main.acquire_single_instance_lock", return_value=None)
+    @patch("app.main.should_forward_capture_request", return_value=False)
+    def test_run_app_skips_qapplication_creation_when_existing_instance_acknowledges_request(
+        self,
+        _mock_pending_capture,
+        _mock_lock,
+        _mock_forward,
+        mock_create_ui_application,
+    ):
+        from app.main import run_app
+
+        run_app()
+
+        mock_create_ui_application.assert_not_called()
 
 if __name__ == "__main__":
     unittest.main()

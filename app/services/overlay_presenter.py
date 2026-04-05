@@ -15,9 +15,12 @@ from ..ui.overlay_positioning import (
 
 
 class OverlayPresenter:
-    def __init__(self, window, overlay):
+    def __init__(self, window):
         self.window = window
-        self.overlay = overlay
+
+    @property
+    def overlay(self):
+        return self.window.translation_overlay
 
     def _overlay_config(self):
         return SimpleNamespace(
@@ -99,6 +102,8 @@ class OverlayPresenter:
 
         self.overlay.remember_context(bbox, text, anchor_point=anchor_point, preset_name=preset_name)
         self.overlay.show_text(text, x, y, width, height, keep_manual_position=preserve_manual_position or bool(preserved_geometry and self.overlay.manual_positioned))
+        if hasattr(self.window, "toast_service"):
+            self.window.toast_service.hide_message()
         if complete_capture_flow and not reflow_only:
             self.window.finish_capture_workflow()
             self.window.restore_pinned_overlay_after_capture = False

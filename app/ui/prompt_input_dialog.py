@@ -1,6 +1,8 @@
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, Qt
 from PySide6.QtGui import QKeySequence, QShortcut
-from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPlainTextEdit, QPushButton, QVBoxLayout
+from PySide6.QtWidgets import QDialog, QFrame, QHBoxLayout, QLabel, QVBoxLayout
+
+from .ime_aware_text_edit import ImeAwarePlainTextEdit
 
 
 class PromptInputDialog(QDialog):
@@ -44,10 +46,22 @@ class PromptInputDialog(QDialog):
         self.hint_label.setWordWrap(True)
         layout.addWidget(self.hint_label)
 
-        self.text_edit = QPlainTextEdit()
+        self.text_surface = QFrame()
+        self.text_surface.setObjectName("MultiLineFieldSurface")
+        self.text_surface.setProperty("focused", False)
+        self.text_surface.setProperty("invalid", False)
+        text_surface_layout = QVBoxLayout(self.text_surface)
+        text_surface_layout.setContentsMargins(0, 0, 0, 0)
+        text_surface_layout.setSpacing(0)
+        self.text_edit = ImeAwarePlainTextEdit()
+        self.text_edit.setObjectName("FramelessFieldEditor")
+        self.text_edit.setFrameShape(QFrame.NoFrame)
+        self.text_edit.document().setDocumentMargin(10)
         self.text_edit.setPlaceholderText(self.app_window.tr("manual_input_placeholder"))
         self.text_edit.textChanged.connect(self._refresh_send_state)
-        layout.addWidget(self.text_edit, 1)
+        self.text_edit.installEventFilter(self)
+        text_surface_layout.addWidget(self.text_edit)
+        layout.addWidget(self.text_surface, 1)
 
         button_row = QHBoxLayout()
         button_row.setSpacing(10)
@@ -78,3 +92,23 @@ class PromptInputDialog(QDialog):
             return
         self.last_anchor_point = self.frameGeometry().center()
         super().accept()
+
+    @staticmethod
+    def _refresh_widget_style(widget):
+        if widget is None or not hasattr(widget, "style"):
+            return
+        style = widget.style()
+        if style is not None:
+            style.unpolish(widget)
+            style.polish(widget)
+        widget.update()
+
+    def eventFilter(self, watched, event):
+        if watched is getattr(self, "text_edit", None):
+            if event.type() == QEvent.Type.FocusIn:
+                self.text_surface.setProperty("focused", True)
+                self._refresh_widget_style(self.text_surface)
+            elif event.type() == QEvent.Type.FocusOut:
+                self.text_surface.setProperty("focused", False)
+                self._refresh_widget_style(self.text_surface)
+        return super().eventFilter(watched, event)

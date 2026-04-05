@@ -7,6 +7,7 @@
   "margin": 18,
   "overlay_auto_expand_top_margin": 42,
   "overlay_auto_expand_bottom_margin": 24,
+  "toast_duration_seconds": 1.5,
   "ui_language": "zh-TW",
   "theme_mode": "system",
   "hotkey": "Shift+Win+X",

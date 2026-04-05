@@ -1,7 +1,7 @@
 from copy import deepcopy
 
 from .app_defaults import DEFAULT_CAPTURE_HOTKEY, DEFAULT_INPUT_HOTKEY, DEFAULT_SELECTION_HOTKEY, DEFAULT_THEME_MODE
-from .hotkey_listener import find_hotkey_conflicts
+from .hotkey_utils import find_hotkey_conflicts, hotkey_has_primary_key, hotkey_unsupported_parts
 from .models import ApiProfile, AppConfig, PromptPreset
 from .profile_utils import default_base_url_for_provider, default_model_for_provider, normalize_model_value, normalize_provider_name, unique_non_empty
 from .settings_models import SettingsFormSnapshot, SettingsValidationResult, ValidationIssue
@@ -39,7 +39,7 @@ def _validation_scope_flags(scope: str) -> dict[str, bool]:
         "require_image_prompt": normalized in {"save", "image_request"},
         "require_text_prompt": normalized in {"save", "text_request"},
         "require_target_language": normalized in {"image_request", "text_request"},
-        "validate_hotkeys": normalized == "save",
+        "validate_hotkeys": normalized in {"save", "hotkeys"},
     }
 
 
@@ -111,10 +111,17 @@ def validate_settings_snapshot(
                 add_issue(field_key, "reading", tr("validation_hotkey_required"))
                 continue
             try:
-                normalized = normalize_hotkey(hotkey_value)
                 if not hotkey_has_modifier(hotkey_value):
                     add_issue(field_key, "reading", tr("validation_hotkey_requires_modifier"))
                     continue
+                unsupported_parts = hotkey_unsupported_parts(hotkey_value)
+                if unsupported_parts:
+                    add_issue(field_key, "reading", tr("validation_hotkey_unsupported_key", token=unsupported_parts[0]))
+                    continue
+                if not hotkey_has_primary_key(hotkey_value):
+                    add_issue(field_key, "reading", tr("validation_hotkey_requires_primary"))
+                    continue
+                normalized = normalize_hotkey(hotkey_value)
                 if normalized in normalized_hotkeys:
                     add_issue(field_key, "reading", tr("validation_hotkey_duplicate", hotkey=hotkey_value))
                     add_issue(normalized_hotkeys[normalized], "reading", tr("validation_hotkey_duplicate", hotkey=hotkey_value))
@@ -237,6 +244,7 @@ def build_candidate_config(
     candidate_config.margin = int(snapshot.overlay_margin)
     candidate_config.overlay_auto_expand_top_margin = int(snapshot.overlay_auto_expand_top_margin)
     candidate_config.overlay_auto_expand_bottom_margin = int(snapshot.overlay_auto_expand_bottom_margin)
+    candidate_config.toast_duration_seconds = float(snapshot.toast_duration_seconds)
     candidate_config.close_to_tray_on_close = bool(snapshot.close_to_tray_on_close)
     candidate_config.mode = snapshot.mode or "book_lr"
     candidate_config.active_prompt_preset_name = prompt_preset.name

@@ -159,6 +159,7 @@ class MainWindowLayoutMixin:
 
         self.hero_capture_button = self.create_button(self.start_selection)
         self.hero_manual_input_button = self.create_button(self.open_prompt_input_dialog, secondary=True)
+        self.hero_manual_input_button.setProperty("sidebarHeroTonal", True)
         self.hero_tray_button = self.create_button(self.minimize_to_tray, accent=False, compact=True)
         sidebar_layout.addWidget(self.hero_capture_button)
         sidebar_layout.addWidget(self.hero_manual_input_button)
@@ -309,8 +310,9 @@ class MainWindowLayoutMixin:
     def apply_styles(self):
         theme_name = set_theme_mode(self.current_theme_mode() if hasattr(self, "current_theme_mode") else getattr(self.config, "theme_mode", "system"))
         self.setStyleSheet(load_style_sheet("main_window.qss", theme_name=theme_name))
-        if hasattr(self, "translation_overlay"):
-            self.translation_overlay.apply_styles()
+        overlay = self.existing_translation_overlay() if hasattr(self, "existing_translation_overlay") else None
+        if overlay is not None:
+            overlay.apply_styles()
         if hasattr(self, "selection_overlay"):
             self.selection_overlay.apply_theme()
         if hasattr(self, "refresh_workspace_shadow"):
@@ -323,6 +325,9 @@ class MainWindowLayoutMixin:
         if hasattr(self, "tray_service"):
             self.tray_service.apply_styles()
             self.tray_service.icon = self.icon
+        if hasattr(self, "toast_service"):
+            self.toast_service.widget.apply_styles()
+            self.toast_service.reposition()
         if getattr(self, "tray", None):
             self.tray.setIcon(self.icon)
 
@@ -377,6 +382,7 @@ class MainWindowLayoutMixin:
         self.overlay_margin_label.setText(self.tr("overlay_margin"))
         self.overlay_auto_expand_top_margin_label.setText(self.tr("overlay_auto_expand_top_margin"))
         self.overlay_auto_expand_bottom_margin_label.setText(self.tr("overlay_auto_expand_bottom_margin"))
+        self.toast_duration_label.setText(self.tr("toast_duration_seconds"))
         self.retry_interval_label.setText(self.tr("retry_interval"))
         self.target_language_label.setText(self.tr("target_language"))
         self.ui_language_label.setText(self.tr("ui_language"))
@@ -412,12 +418,17 @@ class MainWindowLayoutMixin:
         self.export_logs_button.setToolTip(self.tr("export_logs"))
         self.test_button.setToolTip(self.tr("test_api"))
         self.cancel_button.setToolTip(self.tr("cancel_request"))
+        if hasattr(self, "discard_changes_button"):
+            self.discard_changes_button.setToolTip(self.tr("unsaved_changes_discard"))
         self.save_button.setToolTip(self.tr("save_settings"))
+        self.toast_duration_spin.setToolTip(self.tr("toast_duration_hint"))
         self.mode_label.setText(self.tr("display_mode"))
-        self.fetch_models_button.setText(self.tr("fetch_models"))
-        self.test_button.setText(self.tr("test_api"))
-        self.cancel_button.setText(self.tr("cancel_request"))
-        self.save_button.setText(self.tr("save_settings"))
+        self.fetch_models_button.setText(self.tr("fetch_models_action"))
+        self.test_button.setText(self.tr("test_api_action"))
+        self.cancel_button.setText(self.tr("cancel_request_action"))
+        if hasattr(self, "discard_changes_button"):
+            self.discard_changes_button.setText(self.tr("unsaved_changes_discard_action"))
+        self.save_button.setText(self.tr("save_settings_action"))
         self.set_advanced_section_expanded(getattr(self, "advanced_section_expanded", False))
         self.close_to_tray_on_close_checkbox.setText(self.tr("close_to_tray_on_close"))
         self.api_keys_toggle_button.setText(self.tr("show_api_keys") if not self.api_keys_visible else self.tr("hide_api_keys"))
@@ -432,7 +443,9 @@ class MainWindowLayoutMixin:
             self.update_tray_texts()
         if hasattr(self, "selection_overlay"):
             self.selection_overlay.set_hint_text(self.tr("selection_hint"))
-        self.translation_overlay.refresh_language()
+        overlay = self.existing_translation_overlay() if hasattr(self, "existing_translation_overlay") else None
+        if overlay is not None:
+            overlay.refresh_language()
         self.set_status(self.current_status_key, **self.current_status_kwargs)
         if hasattr(self, "update_action_states"):
             self.update_action_states()
@@ -665,6 +678,8 @@ class MainWindowLayoutMixin:
     def refresh_save_button_emphasis(self):
         if hasattr(self, "save_button"):
             self.set_button_variant(self.save_button, "primary" if getattr(self, "has_unsaved_changes", False) else "neutral")
+        if hasattr(self, "discard_changes_button"):
+            self.set_button_variant(self.discard_changes_button, "secondary" if getattr(self, "has_unsaved_changes", False) else "neutral")
 
     def workspace_shadow_spec(self) -> dict[str, int]:
         theme_name = self.effective_theme_name() if hasattr(self, "effective_theme_name") else "dark"

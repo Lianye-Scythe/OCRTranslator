@@ -1,3 +1,4 @@
+from collections.abc import Iterator, Mapping
 import json
 from functools import lru_cache
 from importlib import resources
@@ -71,9 +72,23 @@ def load_locale(language: str) -> dict[str, str]:
     return json.loads(content)
 
 
+class LazyTranslations(Mapping[str, dict[str, str]]):
+    def __getitem__(self, language: str) -> dict[str, str]:
+        return load_locale(language)
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(SUPPORTED_UI_LANGUAGES)
+
+    def __len__(self) -> int:
+        return len(SUPPORTED_UI_LANGUAGES)
+
+    def materialize(self) -> dict[str, dict[str, str]]:
+        return {language: load_locale(language) for language in SUPPORTED_UI_LANGUAGES}
+
+
 @lru_cache(maxsize=1)
 def load_translations() -> dict[str, dict[str, str]]:
-    return {language: load_locale(language) for language in SUPPORTED_UI_LANGUAGES}
+    return LazyTranslations().materialize()
 
 
-I18N = load_translations()
+I18N: Mapping[str, dict[str, str]] = LazyTranslations()

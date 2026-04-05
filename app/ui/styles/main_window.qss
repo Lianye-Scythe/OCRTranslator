@@ -235,6 +235,43 @@ QCheckBox::indicator:checked {
     border-radius:12px;
 }
 
+#CommitPanel {
+    background:transparent;
+    border:none;
+}
+
+#ActionClusterPanel {
+    background:transparent;
+    border:none;
+}
+
+#ActionClusterPanel QPushButton {
+    border-radius:10px;
+    min-height:11px;
+    padding:8px 13px;
+    font-size:12px;
+    font-weight:600;
+    min-width:0px;
+}
+
+#CommitPanel QPushButton {
+    min-width:84px;
+    border-radius:11px;
+    min-height:12px;
+    padding:8px 14px;
+    font-size:12px;
+    font-weight:600;
+}
+
+#CommitPanel QPushButton[commitSecondary="true"] {
+    min-width:84px;
+}
+
+#CommitPanel QPushButton[variant="primary"] {
+    padding-left:15px;
+    padding-right:15px;
+}
+
 #MultiLineFieldSurface[focused="true"] {
     background:{{field_focus_bg}};
     border-color:{{field_focus_border}};
@@ -433,6 +470,25 @@ QPushButton[variant="secondary"] {
 QPushButton[variant="secondary"]:hover {
     background:{{surface_selected}};
     color:{{accent_text}};
+}
+
+QPushButton[sidebarHeroTonal="true"] {
+    background:{{hero_tonal_bg}};
+    color:{{hero_tonal_fg}};
+    border:1px solid {{hero_tonal_border}};
+}
+
+QPushButton[sidebarHeroTonal="true"]:hover,
+QPushButton[sidebarHeroTonal="true"]:pressed {
+    background:{{hero_tonal_hover_bg}};
+    color:{{hero_tonal_hover_fg}};
+    border:1px solid {{hero_tonal_hover_border}};
+}
+
+QPushButton[sidebarHeroTonal="true"]:focus {
+    background:{{hero_tonal_hover_bg}};
+    color:{{hero_tonal_hover_fg}};
+    border:1px solid {{nav_focus_border}};
 }
 
 QPushButton[variant="neutral"] {

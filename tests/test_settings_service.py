@@ -37,6 +37,7 @@ class SettingsServiceTests(unittest.TestCase):
             "overlay_margin": 20,
             "overlay_auto_expand_top_margin": 56,
             "overlay_auto_expand_bottom_margin": 18,
+            "toast_duration_seconds": 1.5,
             "close_to_tray_on_close": True,
             "mode": "web_ud",
             "prompt_preset_name": "Translate",
@@ -64,6 +65,58 @@ class SettingsServiceTests(unittest.TestCase):
         self.assertFalse(result.is_valid)
         self.assertTrue(any(issue.field_key == "selection" for issue in result.issues))
         self.assertTrue(any(issue.field_key == "input" for issue in result.issues))
+
+    def test_validate_settings_snapshot_rejects_unsupported_hotkey_primary(self):
+        snapshot = self._snapshot(hotkey="Ctrl+Foo")
+
+        result = validate_settings_snapshot(
+            snapshot,
+            existing_profile_names={"Demo"},
+            current_profile_name="Demo",
+            existing_prompt_preset_names={"Translate"},
+            current_prompt_preset_name="Translate",
+            normalize_hotkey=lambda hotkey: hotkey.lower(),
+            hotkey_has_modifier=lambda hotkey: hotkey.lower().startswith("ctrl"),
+            tr=lambda key, **kwargs: key if not kwargs else f"{key}:{kwargs}",
+        )
+
+        self.assertFalse(result.is_valid)
+        self.assertTrue(any(issue.field_key == "capture" and issue.message.startswith("validation_hotkey_unsupported_key") for issue in result.issues))
+
+    def test_validate_settings_snapshot_rejects_modifier_only_hotkey(self):
+        snapshot = self._snapshot(hotkey="Ctrl+Shift")
+
+        result = validate_settings_snapshot(
+            snapshot,
+            existing_profile_names={"Demo"},
+            current_profile_name="Demo",
+            existing_prompt_preset_names={"Translate"},
+            current_prompt_preset_name="Translate",
+            normalize_hotkey=lambda hotkey: hotkey.lower(),
+            hotkey_has_modifier=lambda hotkey: hotkey.lower().startswith("ctrl"),
+            tr=lambda key, **kwargs: key if not kwargs else f"{key}:{kwargs}",
+        )
+
+        self.assertFalse(result.is_valid)
+        self.assertTrue(any(issue.field_key == "capture" and issue.message == "validation_hotkey_requires_primary" for issue in result.issues))
+
+    def test_validate_settings_snapshot_uses_runtime_virtual_key_semantics_for_conflicts(self):
+        snapshot = self._snapshot(hotkey="Ctrl+Foo", selection_hotkey="Ctrl+Bar")
+
+        result = validate_settings_snapshot(
+            snapshot,
+            existing_profile_names={"Demo"},
+            current_profile_name="Demo",
+            existing_prompt_preset_names={"Translate"},
+            current_prompt_preset_name="Translate",
+            normalize_hotkey=lambda hotkey: hotkey.lower(),
+            hotkey_has_modifier=lambda hotkey: hotkey.lower().startswith("ctrl"),
+            tr=lambda key, **kwargs: key if not kwargs else f"{key}:{kwargs}",
+        )
+
+        self.assertFalse(result.is_valid)
+        self.assertTrue(any(issue.field_key == "capture" and issue.message.startswith("validation_hotkey_unsupported_key") for issue in result.issues))
+        self.assertTrue(any(issue.field_key == "selection" and issue.message.startswith("validation_hotkey_unsupported_key") for issue in result.issues))
 
     def test_validate_fetch_models_scope_skips_unrelated_prompt_target_and_hotkey_rules(self):
         snapshot = self._snapshot(
@@ -156,6 +209,7 @@ class SettingsServiceTests(unittest.TestCase):
         self.assertEqual(candidate_config.api_profiles[0].api_keys, ["key-1", "key-2"])
         self.assertEqual(candidate_config.overlay_auto_expand_top_margin, 56)
         self.assertEqual(candidate_config.overlay_auto_expand_bottom_margin, 18)
+        self.assertEqual(candidate_config.toast_duration_seconds, 1.5)
 
 
 if __name__ == "__main__":

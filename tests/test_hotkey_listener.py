@@ -9,7 +9,7 @@ if "pynput" not in sys.modules:
     pynput_stub.keyboard = types.SimpleNamespace(Listener=object)
     sys.modules["pynput"] = pynput_stub
 
-from app.hotkey_listener import HotkeyListener, VK_CONTROL, VK_SHIFT, VK_LWIN, WM_KEYDOWN, WM_KEYUP, find_hotkey_conflicts
+from app.hotkey_listener import HotkeyListener, VK_CONTROL, VK_SHIFT, VK_LWIN, WM_KEYDOWN, WM_KEYUP, find_hotkey_conflicts, hotkey_to_virtual_keys
 
 
 class _FakePynputListener:
@@ -34,6 +34,17 @@ class HotkeyListenerTests(unittest.TestCase):
         )
 
         self.assertIn(("subset", "capture", "selection"), conflicts)
+
+    def test_find_hotkey_conflicts_uses_same_virtual_key_semantics_as_runtime_listener(self):
+        conflicts = find_hotkey_conflicts(
+            {
+                "capture": "Ctrl+Foo",
+                "selection": "Ctrl+Bar",
+            }
+        )
+
+        self.assertEqual(hotkey_to_virtual_keys("Ctrl+Foo"), {VK_CONTROL})
+        self.assertIn(("duplicate", "capture", "selection"), conflicts)
 
     def test_refresh_active_state_prefers_most_specific_action(self):
         listener = HotkeyListener({}, lambda action: None)

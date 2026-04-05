@@ -6,17 +6,26 @@ This file records important OCRTranslator changes.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-04-05
+
 ### Added
-- Added `tools/generate_sha256sums.py` so both local packaging and GitHub Releases can generate `SHA256SUMS.txt`
+- Added `startup_timing` marks plus an `OCRTRANSLATOR_STARTUP_TIMING_VERBOSE=1` detailed mode for cold-start and post-show prewarm analysis
+- Added a shared IME-aware multiline editor to fix placeholder overlap with Chinese IME preedit text in both the manual-input dialog and settings editors
+- Added app-managed transient request toasts with configurable display duration; advanced settings can now set the toast duration to `0` to disable them entirely
 
 ### Changed
-- Upgraded `actions/upload-artifact` to `v7` in the release workflow to match the current Dependabot guidance
-- Expanded the README / packaging / support docs with `SHA256SUMS.txt` verification guidance
+- Reworked the startup path into a lighter bootstrap with delayed UI creation, broader lazy service initialization, and idle prewarm, while keeping single-instance IPC forwarding reliable for rapid relaunches
+- Unified global-hotkey conflict detection with the runtime listener's virtual-key semantics, added unknown-primary / modifier-only guardrails, and made recorded shortcuts apply immediately at runtime; the settings page also gained a discard-changes action
+- Foreground request feedback now prefers app-managed toasts, while background or minimized scenarios fall back to system-tray notifications with duplicate-message throttling
+- Refreshed the main window, sidebar action buttons, direct-input dialog, and the latest screenshots / social preview so the visuals and interaction details feel more cohesive
+- Windows packaging keeps the lighter cold-start configuration, including disabled PyInstaller `UPX` plus synchronized versioned assets and `SHA256SUMS.txt` guidance
 
 ### Fixed
-- The release workflow now regenerates `SHA256SUMS.txt` after the final ZIP is produced and uploads it to both workflow artifacts and GitHub Releases
-- `release-build.yml` now writes release notes as UTF-8 **without BOM**, preventing the release body from starting with a BOM marker
-- `build_exe.bat` now generates `release\SHA256SUMS.txt` for local packaging output as well
+- Pinned translation overlays now restore their previous content and geometry immediately after screenshot capture instead of waiting for the request result
+- Fixed startup-optimization regressions including early tray attribute access, a missing `QTimer` import, and the inability to minimize to tray immediately after the first main-window show
+- Fixed request feedback bubbles sticking on screen in some flows, and made success / failure / cancellation paths dismiss short-lived notifications more consistently
+- Fixed several manual-input, selected-text, and screenshot workflow edge cases so cancellation, failure handling, and pinned-overlay restoration behave more consistently
+
 
 ## [0.9.9] - 2026-04-05
 

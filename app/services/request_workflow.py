@@ -7,13 +7,39 @@ from PySide6.QtWidgets import QApplication
 from ..prompt_utils import build_image_request_prompt, build_text_request_prompt
 from ..profile_utils import normalize_model_value, unique_non_empty
 from ..operation_control import RequestCancelledError
-from ..selected_text_capture import SelectedTextCaptureSession
-from ..ui.prompt_input_dialog import PromptInputDialog
+
+SelectedTextCaptureSession = None
+PromptInputDialog = None
 
 
 class RequestWorkflowController:
     def __init__(self, window):
         self.window = window
+
+    def _existing_translation_overlay(self):
+        getter = getattr(self.window, "existing_translation_overlay", None)
+        if callable(getter):
+            return getter()
+        return getattr(self.window, "translation_overlay", None)
+
+    @staticmethod
+    def _selected_text_capture_session_class():
+        global SelectedTextCaptureSession
+        if SelectedTextCaptureSession is None:
+            from ..selected_text_capture import SelectedTextCaptureSession as _SelectedTextCaptureSession
+            SelectedTextCaptureSession = _SelectedTextCaptureSession
+        return SelectedTextCaptureSession
+
+    @staticmethod
+    def _prompt_input_dialog_class():
+        global PromptInputDialog
+        if PromptInputDialog is None:
+            from ..ui.prompt_input_dialog import PromptInputDialog as _PromptInputDialog
+            PromptInputDialog = _PromptInputDialog
+        return PromptInputDialog
+
+    def preload_support_classes(self):
+        return self._selected_text_capture_session_class(), self._prompt_input_dialog_class()
 
     def prepare_request_context(self, *, focus_first_invalid: bool = True, validation_scope: str = "image_request"):
         if self.window.capture_workflow_active:
@@ -127,10 +153,11 @@ class RequestWorkflowController:
         self.window.set_status(source_key)
         self.window.log_tr("log_text_request_submitted", preset=prompt_preset.name, chars=len(text))
         self.window.show_tray_toast(self.window.tr(source_key))
-        overlay = self.window.translation_overlay
-        preserve_pinned_geometry = bool(overlay.is_pinned)
+        overlay = self._existing_translation_overlay()
+        preserve_pinned_geometry = bool(overlay.is_pinned) if overlay is not None else False
         preserve_manual_position = bool(
-            overlay.isVisible()
+            overlay is not None
+            and overlay.isVisible()
             and overlay.manual_positioned
             and not preserve_pinned_geometry
         )
@@ -208,6 +235,7 @@ class RequestWorkflowController:
         if not request_context:
             return
         anchor_point = QCursor.pos()
+        SelectedTextCaptureSession = self._selected_text_capture_session_class()
         self.window.log_tr("log_selected_text_capture_started")
         self.window.set_status("selected_text_capturing")
         session = SelectedTextCaptureSession(hotkey_text=self.window.current_selection_hotkey(), parent=self.window)
@@ -228,6 +256,7 @@ class RequestWorkflowController:
         request_context = self.prepare_request_context(focus_first_invalid=True, validation_scope="text_request")
         if not request_context:
             return
+        PromptInputDialog = self._prompt_input_dialog_class()
         dialog = PromptInputDialog(self.window, request_context["prompt_preset"].name, request_context["target_language"])
         if not dialog.exec():
             return
@@ -248,23 +277,27 @@ class RequestWorkflowController:
         self.window.pending_capture_profile = request_context["profile"]
         self.window.pending_capture_target_language = request_context["target_language"]
         self.window.pending_capture_prompt_preset = request_context["prompt_preset"]
+        overlay = self._existing_translation_overlay()
         self.window.restore_pinned_overlay_after_capture = bool(
-            self.window.translation_overlay.isVisible()
-            and self.window.translation_overlay.is_pinned
-            and self.window.translation_overlay.last_text.strip()
+            overlay is not None
+            and overlay.isVisible()
+            and overlay.is_pinned
+            and overlay.last_text.strip()
         )
         self.window.log_tr("log_capture_started", preset=self.window.pending_capture_prompt_preset.name, target=self.window.pending_capture_target_language)
         self.window.capture_workflow_active = True
         self.window.restore_window_after_capture = restore_window_after_capture
         self.window.update_action_states()
         self.window.hide()
-        self.window.translation_overlay.hide()
+        if overlay is not None:
+            overlay.hide()
         self.window.selection_overlay.show_overlay()
 
-    def finish_capture_workflow(self, restore_window: bool = False):
+    def finish_capture_workflow(self, restore_window: bool = False, *, clear_restore_window_state: bool = True):
         should_restore = restore_window and self.window.restore_window_after_capture
         self.window.capture_workflow_active = False
-        self.window.restore_window_after_capture = False
+        if clear_restore_window_state:
+            self.window.restore_window_after_capture = False
         self.window.pending_capture_profile = None
         self.window.pending_capture_target_language = self.window.current_target_language()
         self.window.pending_capture_prompt_preset = None
@@ -272,21 +305,31 @@ class RequestWorkflowController:
         if should_restore:
             self.window.show_main_window()
 
+    def _handle_capture_ready(self, png_bytes: bytes):
+        self._update_preview_from_png_bytes(png_bytes)
+        if self.window.capture_workflow_active:
+            self.finish_capture_workflow(restore_window=False, clear_restore_window_state=False)
+        overlay = self._existing_translation_overlay()
+        if self.window.restore_pinned_overlay_after_capture and overlay is not None:
+            overlay.restore_last_overlay()
+
     def handle_capture_cancelled(self):
         self.window.log_tr("log_capture_cancelled")
         self.finish_capture_workflow(restore_window=True)
-        if self.window.restore_pinned_overlay_after_capture:
-            self.window.translation_overlay.restore_last_overlay()
+        overlay = self._existing_translation_overlay()
+        if self.window.restore_pinned_overlay_after_capture and overlay is not None:
+            overlay.restore_last_overlay()
             self.window.restore_pinned_overlay_after_capture = False
         self.window.set_status("capture_cancelled")
         self.window.show_tray_toast(self.window.tr("capture_cancelled"))
 
     def _handle_image_translation_success(self, text: str, *, bbox, preset_name: str, capture_started_at: float, request_started_at: float, capture_elapsed: float, payload_bytes: int):
+        overlay = self._existing_translation_overlay()
         self.window.overlay_presenter.show_translation(
             bbox,
             text,
             preset_name=preset_name,
-            preserve_geometry=bool(self.window.translation_overlay.is_pinned),
+            preserve_geometry=bool(overlay.is_pinned) if overlay is not None else False,
         )
         request_elapsed = time.perf_counter() - request_started_at
         total_elapsed = time.perf_counter() - capture_started_at
@@ -317,7 +360,9 @@ class RequestWorkflowController:
             png_bytes = self.window.screen_capture_service.capture_bbox_png_bytes_threadsafe(bbox)
             capture_elapsed = time.perf_counter() - capture_started_at
             self.window.log(f"截圖已就緒｜capture={capture_elapsed * 1000:.0f}ms｜png={len(png_bytes) / 1024:.1f}KB")
-            self.window.bridge.invoke_main_thread.emit(self._update_preview_from_png_bytes, png_bytes)
+            self.window.bridge.invoke_main_thread.emit(self._handle_capture_ready, png_bytes)
+            if request_context is not None and request_context.is_cancelled():
+                raise RequestCancelledError()
             request_started_at = time.perf_counter()
             text = self.window.api_client.request_image_png(
                 png_bytes,

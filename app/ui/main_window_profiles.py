@@ -73,6 +73,7 @@ class MainWindowProfilesMixin:
 
     def _restore_post_save_view_state(self, scroll_value: int | None) -> None:
         clear_focus_if_alive(getattr(self, "save_button", None))
+        clear_focus_if_alive(getattr(self, "discard_changes_button", None))
         try:
             self.setFocus(Qt.OtherFocusReason)
         except Exception:  # noqa: BLE001
@@ -113,6 +114,21 @@ class MainWindowProfilesMixin:
         self.config = load_config()
         self.load_profile_to_form(self.config.active_profile_name)
         self.load_prompt_preset_to_form(self.config.active_prompt_preset_name)
+        try:
+            self.setup_hotkey_listener(initial=True, config=self.config, raise_on_error=True)
+        except Exception as exc:  # noqa: BLE001
+            self.log(f"Failed to restore saved hotkeys: {exc}")
+            self.handle_error(exc)
+
+    def discard_unsaved_changes(self):
+        if not getattr(self, "has_unsaved_changes", False):
+            return False
+        scroll_value = self.current_settings_scroll_value()
+        self.reload_saved_config()
+        self.restore_post_save_view_state(scroll_value)
+        self.set_status("changes_discarded")
+        self.log("Discarded unsaved changes and restored saved settings")
+        return True
 
     def prompt_unsaved_changes(self) -> QMessageBox.StandardButton:
         return show_custom_message_box(
@@ -342,6 +358,13 @@ class MainWindowProfilesMixin:
             values[key] = edit.text().strip()
         return values
 
+    def runtime_hotkey_actions_from_form(self) -> dict[str, str]:
+        return self.build_hotkey_actions(
+            config=AppConfig(
+                hotkey=self.hotkey_edit.text().strip(), selection_hotkey=self.selection_hotkey_edit.text().strip(), input_hotkey=self.input_hotkey_edit.text().strip()
+            )
+        )
+
     def capture_settings_snapshot(self) -> SettingsFormSnapshot:
         current_profile = self.get_active_profile()
         current_prompt_preset = self.get_active_prompt_preset()
@@ -368,6 +391,7 @@ class MainWindowProfilesMixin:
             overlay_margin=self.overlay_margin_spin.value(),
             overlay_auto_expand_top_margin=self.overlay_auto_expand_top_margin_spin.value(),
             overlay_auto_expand_bottom_margin=self.overlay_auto_expand_bottom_margin_spin.value(),
+            toast_duration_seconds=self.toast_duration_spin.value(),
             close_to_tray_on_close=self.close_to_tray_on_close_checkbox.isChecked(),
             mode=self.mode_combo.currentData() or self.config.mode,
             prompt_preset_name=self.prompt_preset_name_edit.text().strip() or current_prompt_preset.name,
@@ -533,7 +557,11 @@ class MainWindowProfilesMixin:
         if not field_key:
             if restore_hotkey_listener and getattr(self, "hotkey_listener_paused_for_recording", False):
                 self.hotkey_listener_paused_for_recording = False
-                self.setup_hotkey_listener(initial=True)
+                active_runtime_hotkeys = dict(getattr(self, "registered_hotkeys", {}))
+                if active_runtime_hotkeys:
+                    self.setup_hotkey_listener(initial=True, hotkey_actions=active_runtime_hotkeys)
+                else:
+                    self.setup_hotkey_listener(initial=True)
             else:
                 self.hotkey_listener_paused_for_recording = False
             return
@@ -545,7 +573,11 @@ class MainWindowProfilesMixin:
             button.setText(self.tr("record_hotkey"))
         if restore_hotkey_listener and getattr(self, "hotkey_listener_paused_for_recording", False):
             self.hotkey_listener_paused_for_recording = False
-            self.setup_hotkey_listener(initial=True)
+            active_runtime_hotkeys = dict(getattr(self, "registered_hotkeys", {}))
+            if active_runtime_hotkeys:
+                self.setup_hotkey_listener(initial=True, hotkey_actions=active_runtime_hotkeys)
+            else:
+                self.setup_hotkey_listener(initial=True)
         else:
             self.hotkey_listener_paused_for_recording = False
         self.validate_form_inputs()
@@ -658,8 +690,22 @@ class MainWindowProfilesMixin:
         widget, _ = field
         widget.setText(hotkey_text)
         self.stop_hotkey_recording(cancelled=False)
-        self.validate_form_inputs()
-        self.set_status("hotkey_recorded", hotkey=hotkey_text)
+        valid, first_error = self.validate_form_inputs(scope="hotkeys")
+        if not valid:
+            self.set_status("hotkey_register_failed", error=first_error)
+            self.log(f"Recorded hotkey kept in form but not applied: {first_error}")
+            return
+        try:
+            self.setup_hotkey_listener(initial=True, hotkey_actions=self.runtime_hotkey_actions_from_form(), raise_on_error=True)
+        except Exception as exc:  # noqa: BLE001
+            self.set_status("hotkey_register_failed", error=exc)
+            self.log(f"Recorded hotkey kept in form but runtime apply failed: {exc}")
+            return
+        self.set_status("hotkeys_registered_pending_save")
+        self.log(
+            "Hotkeys applied from current form; save settings to persist them | "
+            f"capture={self.hotkey_edit.text().strip()} | selection={self.selection_hotkey_edit.text().strip()} | input={self.input_hotkey_edit.text().strip()}"
+        )
 
     def eventFilter(self, watched, event):
         field_key = self.hotkey_field_key_for_widget(watched)
@@ -679,7 +725,7 @@ class MainWindowProfilesMixin:
                 return True
         return super().eventFilter(watched, event)
 
-    def load_profile_to_form(self, profile_name: str):
+    def load_profile_to_form(self, profile_name: str, *, refresh_ui: bool = True, validate_form: bool = True, mark_clean: bool = True, refresh_shell: bool = True):
         self.stop_hotkey_recording(cancelled=False)
         self.ensure_profile_list()
         profile = self.get_profile_by_name(profile_name)
@@ -713,14 +759,18 @@ class MainWindowProfilesMixin:
             self.overlay_margin_spin.setValue(self.config.margin)
             self.overlay_auto_expand_top_margin_spin.setValue(int(getattr(self.config, "overlay_auto_expand_top_margin", 42)))
             self.overlay_auto_expand_bottom_margin_spin.setValue(int(getattr(self.config, "overlay_auto_expand_bottom_margin", 24)))
+            self.toast_duration_spin.setValue(float(getattr(self.config, "toast_duration_seconds", 1.5)))
             self.close_to_tray_on_close_checkbox.setChecked(bool(getattr(self.config, "close_to_tray_on_close", False)))
             self.update_mode_options(self.config.mode)
         finally:
             self._suppress_form_tracking = False
-        self.apply_language()
-        self.validate_form_inputs()
-        self.set_unsaved_changes(False)
-        if hasattr(self, "refresh_shell_state"):
+        if refresh_ui:
+            self.apply_language()
+        if validate_form:
+            self.validate_form_inputs()
+        if mark_clean:
+            self.set_unsaved_changes(False)
+        if refresh_shell and hasattr(self, "refresh_shell_state"):
             self.refresh_shell_state()
 
     def next_profile_name(self) -> str:

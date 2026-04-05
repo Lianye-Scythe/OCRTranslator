@@ -92,7 +92,7 @@ class MainWindowPromptPresetsMixin:
         except ValueError as exc:
             raise ValueError(self.tr("prompt_preset_name_exists", name=str(exc))) from exc
 
-    def load_prompt_preset_to_form(self, preset_name: str):
+    def load_prompt_preset_to_form(self, preset_name: str, *, refresh_ui: bool = True, validate_form: bool = True, mark_clean: bool = True, refresh_shell: bool = True):
         self.ensure_prompt_preset_list()
         preset = self.get_prompt_preset_by_name(preset_name)
         self._suppress_form_tracking = True
@@ -104,11 +104,14 @@ class MainWindowPromptPresetsMixin:
             self.text_prompt_edit.setPlainText(preset.text_prompt)
         finally:
             self._suppress_form_tracking = False
-        self.apply_language()
-        self.validate_form_inputs()
-        self.set_unsaved_changes(False)
+        if refresh_ui:
+            self.apply_language()
+        if validate_form:
+            self.validate_form_inputs()
+        if mark_clean:
+            self.set_unsaved_changes(False)
         self.refresh_prompt_preset_actions()
-        if hasattr(self, "refresh_shell_state"):
+        if refresh_shell and hasattr(self, "refresh_shell_state"):
             self.refresh_shell_state()
 
     def build_prompt_preset_from_form(self, *, validate_name: bool = True) -> PromptPreset:

@@ -6,17 +6,26 @@
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-04-05
+
 ### Added
-- 新增 `tools/generate_sha256sums.py`，用于本地打包与 GitHub Release 流程生成 `SHA256SUMS.txt`
+- 新增 `startup_timing` 埋点与 `OCRTRANSLATOR_STARTUP_TIMING_VERBOSE=1` 详细模式，方便分析冷启动与首屏后预热耗时
+- 新增 IME-aware 多行输入控件，修复手动输入与设置页多行编辑器在中文输入法预编辑期间的 placeholder 重叠问题
+- 新增应用内短时请求提示气泡与可配置显示秒数；进阶设置现在可将气泡时长设为 `0` 直接禁用
 
 ### Changed
-- Release workflow 中的 `actions/upload-artifact` 升级到 `v7`，与 Dependabot 提示保持一致
-- README / packaging / support 文档补充 `SHA256SUMS.txt` 校验文件说明
+- 启动链路改为更轻量的 bootstrap：延后 UI 创建、统一 lazy service 初始化、补充 idle prewarm，同时保留单实例 IPC 与快速二次启动转发的稳定性
+- 全局快捷键冲突判定改为与底层 listener 共用相同的虚拟键语义，并新增未知主键 / 纯修饰键防呆；快捷键录制完成后会即时套用到运行时，设置页也新增“放弃更改”操作
+- 前台请求提示现在优先使用应用内 toast，后台或最小化场景才回退系统托盘通知，并加入重复消息节流
+- 主窗口、侧边动作按钮、直接输入对话框以及最新截图 / social preview 已同步更新，整体视觉与交互细节更加一致
+- Windows 打包持续采用更轻量的冷启动配置，包括关闭 PyInstaller `UPX` 并同步维护版本化资源与 `SHA256SUMS.txt` 说明
 
 ### Fixed
-- Release workflow 现在会在最终 ZIP 产出后重新生成 `SHA256SUMS.txt`，并一并上传到 artifact / GitHub Release
-- `release-build.yml` 生成 release notes 时改为使用 UTF-8 **无 BOM** 输出，避免 release body 开头出现 BOM 痕迹
-- `build_exe.bat` 现在会在本地打包完成后同步生成 `release\SHA256SUMS.txt`
+- 已固定的翻译浮窗在截图完成后，现在会立即恢复旧内容与原位置，而不必一直等到请求结果返回才重新显示
+- 修复启动优化过程中引入的回归问题，包括 tray 属性初始化、`QTimer` 漏导入，以及主窗口首次显示后不能立即最小化到系统托盘
+- 修复请求提示气泡在部分场景下卡在屏幕上的问题，并让成功 / 失败 / 取消路径都能更一致地收回短时提示
+- 修复手动输入、选字与截图翻译流程中的多个边界状态，让取消、失败与已 pin 浮窗还原行为更加一致
+
 
 ## [0.9.9] - 2026-04-05
 

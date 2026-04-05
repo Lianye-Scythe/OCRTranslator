@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml/badge.svg)](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D6)](docs/packaging.md)
-[![Release](https://img.shields.io/badge/release-v0.9.9-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
+[![Release](https://img.shields.io/badge/release-v1.0.0-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
 [![License](https://img.shields.io/badge/license-GPLv3-4F46E5)](LICENSE)
 
 OCRTranslator 是一款以 **桌面即時閱讀** 為核心的 **便攜式 OCR / AI 請求工具**。
@@ -47,6 +47,8 @@ OCRTranslator 是一款以 **桌面即時閱讀** 為核心的 **便攜式 OCR /
 - Pin 狀態下調整過的浮窗位置與尺寸會自動保存並可跨重啟沿用；取消 Pin 後，下次新請求會回到預設尺寸重新開始
 - `Save Settings` 現在不會再因目標語言暫時留空就把畫面自動捲到「目標語言」欄位；真正送出請求時仍會保留必要驗證
 - API Keys / Prompt 多行輸入框與一般單行欄位現在共用更清楚的選取高亮與更乾淨的焦點輪廓，提升淺色 / 深色模式下的編輯辨識度
+- 快捷鍵錄製完成後現在會立即套用到執行期 listener；設定頁也新增「捨棄變更」按鈕，方便快速回到已儲存狀態
+- 前台請求提示改為應用內短時氣泡，進階設定可調整顯示秒數，設為 `0` 時可直接停用提示氣泡
 - 系統匣右鍵選單與 Pin 按鈕狀態現在會跟隨淺色 / 深色主題，並持續以較低存在感的 Material 風格呈現
 - 退出流程新增 watchdog 與錯誤提示 fallback，降低程式因錯誤或第三方 hook 狀態而無法正常關閉的風險
 - 支援全域快捷鍵、系統匣、單實例保護

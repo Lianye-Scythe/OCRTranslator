@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+import time
 import unittest
 import sys
 import types
@@ -223,6 +224,182 @@ class MainWindowRuntimeTests(unittest.TestCase):
         window.persist_runtime_overlay_state.assert_called_once_with()
         window.set_status.assert_called_once_with("overlay_resized", width=900, height=640)
 
+    def test_complete_startup_services_runs_once_and_schedules_idle_prewarm(self):
+        window = MainWindow.__new__(MainWindow)
+        window.startup_timing = SimpleNamespace(mark=Mock(), measure=lambda _name, callback: callback())
+        window._startup_services_initialized = False
+        window.tray_service = SimpleNamespace(setup=Mock())
+        window.setup_hotkey_listener = Mock()
+        window.update_action_states = Mock()
+        window.log_tr = Mock()
+        window.schedule_idle_prewarm = Mock()
+        window._log_startup_summary_if_ready = Mock()
+
+        window.complete_startup_services()
+        window.complete_startup_services()
+
+        window.tray_service.setup.assert_called_once_with()
+        window.setup_hotkey_listener.assert_called_once_with(initial=True)
+        window.update_action_states.assert_called_once_with()
+        window.log_tr.assert_called_once_with("log_application_started")
+        window.schedule_idle_prewarm.assert_called_once_with()
+
+    def test_show_tray_toast_prefers_transient_toast_for_visible_window(self):
+        window = MainWindow.__new__(MainWindow)
+        window.toast_service = SimpleNamespace(show_message=Mock(return_value=True), hide_message=Mock())
+        window.tray_service = SimpleNamespace(show_message=Mock(return_value=True))
+        window.isVisible = lambda: True
+        window.isMinimized = lambda: False
+
+        result = window.show_tray_toast("request submitted")
+
+        self.assertTrue(result)
+        window.toast_service.show_message.assert_called_once_with("request submitted", duration_ms=1500)
+        window.tray_service.show_message.assert_not_called()
+
+    def test_show_tray_toast_uses_system_tray_when_window_is_hidden(self):
+        window = MainWindow.__new__(MainWindow)
+        window.toast_service = SimpleNamespace(show_message=Mock(return_value=True), hide_message=Mock())
+        window.tray_service = SimpleNamespace(show_message=Mock(return_value=True))
+        window.isVisible = lambda: False
+        window.isMinimized = lambda: False
+
+        result = window.show_tray_toast("background request")
+
+        self.assertTrue(result)
+        window.toast_service.show_message.assert_not_called()
+        window.toast_service.hide_message.assert_called_once_with()
+        window.tray_service.show_message.assert_called_once_with("background request", duration_ms=1500)
+
+    def test_show_tray_toast_uses_system_tray_when_requested(self):
+        window = MainWindow.__new__(MainWindow)
+        window.toast_service = SimpleNamespace(show_message=Mock(return_value=True), hide_message=Mock())
+        window.tray_service = SimpleNamespace(show_message=Mock(return_value=True))
+        window.isVisible = lambda: True
+        window.isMinimized = lambda: False
+
+        result = window.show_tray_toast("tray only", prefer_system=True)
+
+        self.assertTrue(result)
+        window.toast_service.hide_message.assert_called_once_with()
+        window.tray_service.show_message.assert_called_once_with("tray only", duration_ms=1500)
+
+    def test_show_tray_toast_uses_configured_duration_and_can_be_disabled(self):
+        window = MainWindow.__new__(MainWindow)
+        window.toast_service = SimpleNamespace(show_message=Mock(return_value=True), hide_message=Mock())
+        window.tray_service = SimpleNamespace(show_message=Mock(return_value=True))
+        window.toast_duration_spin = _ValueWidget(1.5)
+        window.isVisible = lambda: True
+        window.isMinimized = lambda: False
+
+        result = window.show_tray_toast("timed toast")
+
+        self.assertTrue(result)
+        window.toast_service.show_message.assert_called_once_with("timed toast", duration_ms=1500)
+
+        window.toast_service.show_message.reset_mock()
+        window.toast_duration_spin = _ValueWidget(0)
+
+        result = window.show_tray_toast("disabled toast")
+
+        self.assertFalse(result)
+        window.toast_service.hide_message.assert_called_once_with()
+        window.toast_service.show_message.assert_not_called()
+        window.tray_service.show_message.assert_not_called()
+
+    def test_handle_toast_duration_changed_hides_existing_toast_when_disabled(self):
+        window = MainWindow.__new__(MainWindow)
+        window.toast_service = SimpleNamespace(hide_message=Mock())
+        window.toast_duration_spin = _ValueWidget(0)
+
+        window.handle_toast_duration_changed()
+
+        window.toast_service.hide_message.assert_called_once_with()
+
+    def test_close_event_can_redirect_to_tray_even_before_startup_services_finish(self):
+        window = MainWindow.__new__(MainWindow)
+        event = SimpleNamespace(ignore=Mock(), accept=Mock())
+        window.is_quitting = False
+        window.config = SimpleNamespace(close_to_tray_on_close=True)
+        window.tray = None
+        window._startup_services_initialized = False
+        window.complete_startup_services = Mock(side_effect=lambda: setattr(window, "tray", object()))
+        window.log_tr = Mock()
+        window.minimize_to_tray = Mock()
+
+        window.closeEvent(event)
+
+        window.complete_startup_services.assert_called_once_with()
+        window.minimize_to_tray.assert_called_once_with()
+        event.ignore.assert_called_once_with()
+
+    @patch("app.ui.main_window.QTimer.singleShot")
+    def test_schedule_idle_prewarm_arms_single_shot_only_once(self, mock_single_shot):
+        window = MainWindow.__new__(MainWindow)
+        window._startup_prewarm_completed = False
+        window._startup_prewarm_pending = False
+        window._startup_services_initialized = True
+
+        window.schedule_idle_prewarm(delay_ms=123)
+        window.schedule_idle_prewarm(delay_ms=456)
+
+        mock_single_shot.assert_called_once()
+        delay, callback = mock_single_shot.call_args.args
+        self.assertEqual(delay, 123)
+        self.assertTrue(callable(callback))
+        self.assertTrue(window._startup_prewarm_pending)
+
+    def test_idle_prewarm_waits_for_user_idle_before_running_step(self):
+        window = MainWindow.__new__(MainWindow)
+        window.is_quitting = False
+        window._startup_prewarm_started = False
+        window._startup_prewarm_completed = False
+        window._startup_prewarm_pending = False
+        window.isVisible = lambda: True
+        window.capture_workflow_active = False
+        window.background_busy = lambda: False
+        window.log = Mock()
+        window.schedule_idle_prewarm = Mock()
+        window.startup_timing = SimpleNamespace(mark=Mock(), measure=lambda _name, callback: callback())
+        window._startup_prewarm_steps = lambda: [{"name": "api", "callback": Mock(), "min_idle_ms": 600, "next_delay_ms": 90}]
+        window._last_user_interaction_at = time.perf_counter()
+
+        window._run_idle_prewarm_step()
+
+        window.schedule_idle_prewarm.assert_called_once()
+        self.assertFalse(window._startup_prewarm_completed)
+
+    def test_idle_prewarm_runs_steps_incrementally_without_blocking(self):
+        window = MainWindow.__new__(MainWindow)
+        calls = []
+        window.is_quitting = False
+        window._startup_prewarm_started = False
+        window._startup_prewarm_completed = False
+        window._startup_prewarm_pending = False
+        window.isVisible = lambda: True
+        window.capture_workflow_active = False
+        window.background_busy = lambda: False
+        window.log = Mock()
+        window.schedule_idle_prewarm = Mock()
+        window._remove_startup_interaction_tracker = Mock()
+        window._log_startup_prewarm_summary_if_ready = Mock()
+        window.startup_timing = SimpleNamespace(mark=Mock(), measure=lambda _name, callback: callback())
+        window._last_user_interaction_at = time.perf_counter() - 10
+        window._startup_prewarm_steps = lambda: [
+            {"name": "api", "callback": lambda: calls.append("api"), "min_idle_ms": 0, "next_delay_ms": 90},
+            {"name": "overlay_class", "callback": lambda: calls.append("overlay_class"), "min_idle_ms": 0, "next_delay_ms": 0},
+        ]
+
+        window._run_idle_prewarm_step()
+        self.assertEqual(calls, ["api"])
+        self.assertFalse(window._startup_prewarm_completed)
+        window.schedule_idle_prewarm.assert_called_once_with(delay_ms=90)
+
+        window._run_idle_prewarm_step()
+        self.assertEqual(calls, ["api", "overlay_class"])
+        self.assertTrue(window._startup_prewarm_completed)
+        window._remove_startup_interaction_tracker.assert_called_once_with()
+
     def test_workspace_shadow_spec_uses_lighter_material_elevation_in_light_mode(self):
         window = MainWindow.__new__(MainWindow)
         window.effective_theme_name = lambda: "light"
@@ -331,6 +508,30 @@ class MainWindowRuntimeTests(unittest.TestCase):
         self.assertTrue(result)
         window.request_workflow.cancel_selected_text_capture.assert_called_once_with()
 
+    def test_cancel_background_operation_restores_capture_origin_state_while_request_is_pending(self):
+        window = MainWindow.__new__(MainWindow)
+        overlay = SimpleNamespace(restore_last_overlay=Mock())
+        window.operation_manager = SimpleNamespace(current_active=lambda order: "translation", cancel=Mock())
+        window.capture_workflow_active = False
+        window.restore_window_after_capture = True
+        window.restore_pinned_overlay_after_capture = True
+        window.finish_capture_workflow = Mock()
+        window.existing_translation_overlay = lambda: overlay
+        window.show_tray_toast = Mock()
+        window.tr = lambda key, **kwargs: key
+        window.set_status = Mock()
+        window.log = Mock()
+
+        result = window.cancel_background_operation()
+
+        self.assertTrue(result)
+        window.operation_manager.cancel.assert_called_once_with("translation")
+        window.finish_capture_workflow.assert_called_once_with(restore_window=True)
+        overlay.restore_last_overlay.assert_called_once_with()
+        self.assertFalse(window.restore_pinned_overlay_after_capture)
+        window.show_tray_toast.assert_called_once_with("request_cancelled")
+        window.set_status.assert_called_once_with("request_cancelled")
+
     def test_save_settings_aborts_when_hotkey_registration_fails(self):
         window = MainWindow.__new__(MainWindow)
         window.tr = lambda key, **kwargs: f"{key}: {kwargs.get('error')}" if kwargs else key
@@ -387,7 +588,8 @@ class MainWindowRuntimeTests(unittest.TestCase):
 
         self.assertTrue(result)
         self.assertGreaterEqual(scrollbar.setValue.call_count, 2)
-        mock_clear_focus.assert_called_with(window.save_button)
+        mock_clear_focus.assert_any_call(window.save_button)
+        mock_clear_focus.assert_any_call(None)
         window.setFocus.assert_called()
 
     def test_validate_hotkey_actions_rejects_subset_conflicts(self):
@@ -398,6 +600,24 @@ class MainWindowRuntimeTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             window.validate_hotkey_actions({"capture": "Ctrl+X", "selection_text": "Ctrl+Shift+X", "manual_input": "Ctrl+Z"})
+
+    def test_validate_hotkey_actions_rejects_unsupported_primary_tokens(self):
+        window = MainWindow.__new__(MainWindow)
+        window.tr = lambda key, **kwargs: f"{key}: {kwargs}"
+        window.hotkey_has_modifier = lambda hotkey_text: True
+        window.normalize_hotkey = lambda hotkey_text: hotkey_text.lower()
+
+        with self.assertRaisesRegex(ValueError, "validation_hotkey_unsupported_key"):
+            window.validate_hotkey_actions({"capture": "Ctrl+Foo", "selection_text": "Ctrl+Shift+C", "manual_input": "Ctrl+Z"})
+
+    def test_validate_hotkey_actions_rejects_modifier_only_shortcuts(self):
+        window = MainWindow.__new__(MainWindow)
+        window.tr = lambda key, **kwargs: f"{key}: {kwargs}"
+        window.hotkey_has_modifier = lambda hotkey_text: True
+        window.normalize_hotkey = lambda hotkey_text: hotkey_text.lower()
+
+        with self.assertRaisesRegex(ValueError, "validation_hotkey_requires_primary"):
+            window.validate_hotkey_actions({"capture": "Ctrl+Shift", "selection_text": "Ctrl+Shift+C", "manual_input": "Ctrl+Z"})
 
     @patch("app.ui.main_window.show_critical_message")
     @patch("app.ui.main_window.show_non_blocking_critical_message", side_effect=RuntimeError("dialog failed"))
@@ -423,6 +643,36 @@ class MainWindowRuntimeTests(unittest.TestCase):
         window.set_status.assert_called_once_with("operation_failed")
         window.log.assert_called()
         self.assertFalse(window._handling_error)
+
+    def test_handle_error_restores_pinned_overlay_after_translation_failure_even_after_capture_ui_has_closed(self):
+        class _TranslationFailure(RuntimeError):
+            operation = "translation"
+            task_id = None
+
+        window = MainWindow.__new__(MainWindow)
+        overlay = SimpleNamespace(restore_last_overlay=Mock())
+        window._handling_error = False
+        window._safe_write_stderr = Mock()
+        window._handle_stale_operation_error = Mock(return_value=False)
+        window.capture_workflow_active = False
+        window.restore_pinned_overlay_after_capture = True
+        window.is_quitting = False
+        window.status_label = object()
+        window.isVisible = lambda: True
+        window.finish_capture_workflow = Mock()
+        window.set_status = Mock()
+        window.log = Mock()
+        window.tr = lambda key, **kwargs: key
+        window.effective_theme_name = lambda: "light"
+        window._show_error_dialog_safe = Mock()
+        window.operation_manager = SimpleNamespace(finish=Mock())
+        window.existing_translation_overlay = lambda: overlay
+
+        window.handle_error(_TranslationFailure("boom"))
+
+        window.finish_capture_workflow.assert_called_once_with(restore_window=True)
+        overlay.restore_last_overlay.assert_called_once_with()
+        self.assertFalse(window.restore_pinned_overlay_after_capture)
 
     def test_handle_error_suppresses_recursive_reentry(self):
         window = MainWindow.__new__(MainWindow)

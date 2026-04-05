@@ -169,6 +169,22 @@ class ConfigStoreMigrationTests(unittest.TestCase):
 
         self.assertTrue(config.close_to_tray_on_close)
 
+    def test_migrate_toast_duration_defaults_and_allows_zero_to_disable(self):
+        config = _migrate_legacy_config(
+            {
+                "toast_duration_seconds": 0,
+                "api_profiles": [
+                    {
+                        "name": "Default Gemini",
+                        "provider": "gemini",
+                        "api_keys": ["demo-key"],
+                    }
+                ],
+            }
+        )
+
+        self.assertEqual(config.toast_duration_seconds, 0.0)
+
     def test_load_config_reads_existing_portable_config_from_root(self):
         with TemporaryDirectory() as temp_dir:
             config_path = Path(temp_dir) / "config.json"

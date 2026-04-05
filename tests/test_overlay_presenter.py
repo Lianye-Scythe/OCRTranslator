@@ -72,6 +72,7 @@ class OverlayPresenterTests(unittest.TestCase):
             config=SimpleNamespace(overlay_font_size=12),
             _suppress_form_tracking=False,
             overlay_font_size_spin=SimpleNamespace(setValue=Mock()),
+            toast_service=SimpleNamespace(hide_message=Mock()),
             note_runtime_preference_changed=Mock(),
         )
 
@@ -79,7 +80,8 @@ class OverlayPresenterTests(unittest.TestCase):
     def test_show_response_preserves_existing_geometry_when_requested(self, _mock_clamp_rect):
         window = self._build_window()
         overlay = _FakeOverlay()
-        presenter = OverlayPresenter(window, overlay)
+        window.translation_overlay = overlay
+        presenter = OverlayPresenter(window)
 
         presenter.show_response(
             "new text",
@@ -103,12 +105,14 @@ class OverlayPresenterTests(unittest.TestCase):
         self.assertEqual(overlay.context_calls[-1]["anchor_point"], QPoint(30, 40))
         window.set_status.assert_called_once_with("translated")
         window.log_tr.assert_called_once_with("log_request_finished", preset="Translate")
+        window.toast_service.hide_message.assert_called_once_with()
 
     @patch("app.services.overlay_presenter.clamp_rect_to_visible_screen", side_effect=lambda rect: QRect(rect))
     def test_show_translation_keeps_pinned_geometry_for_capture_results(self, _mock_clamp_rect):
         window = self._build_window()
         overlay = _FakeOverlay()
-        presenter = OverlayPresenter(window, overlay)
+        window.translation_overlay = overlay
+        presenter = OverlayPresenter(window)
 
         presenter.show_translation(
             (10, 20, 110, 120),
@@ -131,7 +135,8 @@ class OverlayPresenterTests(unittest.TestCase):
         overlay.last_geometry = None
         overlay.manual_positioned = False
         overlay.resolved_pinned_geometry = lambda: QRect(210, 180, 460, 330)
-        presenter = OverlayPresenter(window, overlay)
+        window.translation_overlay = overlay
+        presenter = OverlayPresenter(window)
 
         presenter.show_response(
             "restored text",

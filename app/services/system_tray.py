@@ -1,3 +1,5 @@
+import time
+
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon
 
@@ -16,6 +18,8 @@ class SystemTrayService:
         self.cancel_action: QAction | None = None
         self.quit_action: QAction | None = None
         self.menu: QMenu | None = None
+        self._last_message = ""
+        self._last_message_at = 0.0
 
     def _theme_name(self) -> str:
         if hasattr(self.window, "effective_theme_name"):
@@ -97,14 +101,25 @@ class SystemTrayService:
         self.cancel_action.setText(self.window.tr("cancel_request"))
         self.quit_action.setText(self.window.tr("tray_quit"))
 
-    def show_message(self, message: str):
-        if self.tray:
-            self.tray.showMessage(self.window.tr("tray_title"), message, self.icon, 2500)
+    def show_message(self, message: str, *, duration_ms: int = 1500) -> bool:
+        text = str(message or "").strip()
+        if not self.tray or not text:
+            return False
+        now = time.monotonic()
+        if text == self._last_message and (now - self._last_message_at) < 1.6:
+            self.log(f"Suppressed duplicate tray message: {text}")
+            return False
+        self._last_message = text
+        self._last_message_at = now
+        self.tray.showMessage(self.window.tr("tray_title"), text, self.icon, int(duration_ms))
+        return True
 
     def close(self):
         if self.tray:
             self.tray.hide()
         self.menu = None
+        self._last_message = ""
+        self._last_message_at = 0.0
 
     def _on_activated(self, reason):
         if not self.tray:

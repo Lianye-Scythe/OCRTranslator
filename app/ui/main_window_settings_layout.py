@@ -2,6 +2,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QCheckBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QScrollArea, QVBoxLayout, QWidget
 
+from .ime_aware_text_edit import ImeAwarePlainTextEdit
 from .main_window_layout import ScrollSafeComboBox, ScrollSafeDoubleSpinBox, ScrollSafeFontComboBox, ScrollSafeSpinBox
 
 
@@ -103,13 +104,14 @@ class MainWindowSettingsLayoutMixin:
         runtime_actions_shell = QFrame()
         runtime_actions_shell.setObjectName("ActionClusterPanel")
         runtime_actions_layout = QHBoxLayout(runtime_actions_shell)
-        runtime_actions_layout.setContentsMargins(12, 10, 12, 10)
-        runtime_actions_layout.setSpacing(10)
+        runtime_actions_layout.setContentsMargins(0, 0, 0, 0)
+        runtime_actions_layout.setSpacing(8)
 
-        self.fetch_models_button = self.create_button(self.fetch_models, accent=False)
-        self.test_button = self.create_button(self.test_profile, accent=False)
+        self.fetch_models_button = self.create_button(self.fetch_models, accent=False, compact=True)
+        self.test_button = self.create_button(self.test_profile, accent=False, compact=True)
         self.cancel_button = self.create_button(self.cancel_background_operation, accent=False, warning=True, compact=True)
-        self.save_button = self.create_button(self.save_settings, accent=True)
+        self.discard_changes_button = self.create_button(self.discard_unsaved_changes, secondary=True, compact=True)
+        self.save_button = self.create_button(self.save_settings, accent=True, compact=True)
 
         for button in [self.fetch_models_button, self.test_button, self.cancel_button]:
             runtime_actions_layout.addWidget(button)
@@ -118,8 +120,9 @@ class MainWindowSettingsLayoutMixin:
         save_actions_shell.setObjectName("CommitPanel")
         save_actions_layout = QHBoxLayout(save_actions_shell)
         save_actions_layout.setContentsMargins(0, 0, 0, 0)
-        save_actions_layout.setSpacing(0)
-        self.save_button.setMinimumWidth(108)
+        save_actions_layout.setSpacing(6)
+        self.discard_changes_button.setProperty("commitSecondary", True)
+        save_actions_layout.addWidget(self.discard_changes_button)
         self.save_button.setProperty("commit", True)
         save_actions_layout.addWidget(self.save_button)
 
@@ -147,7 +150,7 @@ class MainWindowSettingsLayoutMixin:
         layout = QVBoxLayout(surface)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        editor = QPlainTextEdit()
+        editor = ImeAwarePlainTextEdit()
         editor.setObjectName("FramelessFieldEditor")
         editor.setFrameShape(QFrame.NoFrame)
         editor.setMinimumHeight(minimum_height)
@@ -344,6 +347,11 @@ class MainWindowSettingsLayoutMixin:
         self.overlay_auto_expand_bottom_margin_spin = ScrollSafeSpinBox()
         self.overlay_auto_expand_bottom_margin_spin.setRange(8, 200)
         self.overlay_auto_expand_bottom_margin_spin.setValue(int(getattr(self.config, "overlay_auto_expand_bottom_margin", 24)))
+        self.toast_duration_label = QLabel()
+        self.toast_duration_spin = ScrollSafeDoubleSpinBox()
+        self.toast_duration_spin.setRange(0.0, 10.0)
+        self.toast_duration_spin.setSingleStep(0.1)
+        self.toast_duration_spin.setValue(float(getattr(self.config, "toast_duration_seconds", 1.5)))
         self.close_to_tray_on_close_checkbox = QCheckBox()
         self.close_to_tray_on_close_checkbox.setChecked(bool(getattr(self.config, "close_to_tray_on_close", False)))
 
@@ -356,6 +364,7 @@ class MainWindowSettingsLayoutMixin:
         advanced_grid.addWidget(self.create_field_block(self.overlay_auto_expand_top_margin_label, self.overlay_auto_expand_top_margin_spin), 3, 0)
         advanced_grid.addWidget(self.create_field_block(self.overlay_auto_expand_bottom_margin_label, self.overlay_auto_expand_bottom_margin_spin), 3, 1)
         advanced_grid.addWidget(self.create_field_block(self.overlay_margin_label, self.overlay_margin_spin), 4, 0)
+        advanced_grid.addWidget(self.create_field_block(self.toast_duration_label, self.toast_duration_spin), 4, 1)
         advanced_content_layout.addWidget(self.close_to_tray_on_close_checkbox)
         self.advanced_hint_label = QLabel()
         self.advanced_hint_label.setObjectName("HintLabel")
@@ -387,5 +396,7 @@ class MainWindowSettingsLayoutMixin:
         self.overlay_margin_spin.valueChanged.connect(self.on_form_input_changed)
         self.overlay_auto_expand_top_margin_spin.valueChanged.connect(self.on_form_input_changed)
         self.overlay_auto_expand_bottom_margin_spin.valueChanged.connect(self.on_form_input_changed)
+        self.toast_duration_spin.valueChanged.connect(self.on_form_input_changed)
+        self.toast_duration_spin.valueChanged.connect(self.handle_toast_duration_changed)
         self.close_to_tray_on_close_checkbox.stateChanged.connect(self.on_form_input_changed)
         self.retry_interval_spin.valueChanged.connect(self.on_form_input_changed)

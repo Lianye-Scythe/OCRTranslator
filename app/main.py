@@ -5,28 +5,31 @@ from .crash_handling import install_crash_hooks
 
 install_crash_hooks()
 
-from PySide6.QtCore import QLockFile, Qt, QTimer
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtCore import QLockFile, QTimer
 from PySide6.QtNetwork import QLocalSocket
-from PySide6.QtWidgets import QApplication
 
-from .app_defaults import DEFAULT_UI_LANGUAGE
-from .config_store import load_config
-from .i18n import I18N, normalize_ui_language
 from .runtime_paths import APP_LOCK_PATH, APP_SERVER_NAME, LOCK_STALE_MS
-from .ui.message_boxes import show_information_message
-from .ui.theme_tokens import resolve_theme_name
-from .ui.main_window import MainWindow
+from .services.startup_timing import StartupTimingTracker
+
+_CRASH_AWARE_APPLICATION_CLASS = None
 
 
-class CrashAwareApplication(QApplication):
-    def notify(self, receiver, event):
-        try:
-            return super().notify(receiver, event)
-        except Exception as exc:  # noqa: BLE001
-            sys.excepthook(type(exc), exc, exc.__traceback__)
-            self.quit()
-            return False
+def crash_aware_application_class():
+    global _CRASH_AWARE_APPLICATION_CLASS
+    if _CRASH_AWARE_APPLICATION_CLASS is None:
+        from PySide6.QtWidgets import QApplication
+
+        class CrashAwareApplication(QApplication):
+            def notify(self, receiver, event):
+                try:
+                    return super().notify(receiver, event)
+                except Exception as exc:  # noqa: BLE001
+                    sys.excepthook(type(exc), exc, exc.__traceback__)
+                    self.quit()
+                    return False
+
+        _CRASH_AWARE_APPLICATION_CLASS = CrashAwareApplication
+    return _CRASH_AWARE_APPLICATION_CLASS
 
 
 def acquire_single_instance_lock() -> QLockFile | None:
@@ -77,21 +80,39 @@ def schedule_initial_window_action(window, *, pending_capture: bool) -> None:
     QTimer.singleShot(0, window.show_main_window)
 
 
-def run_app():
+def create_ui_application():
+    from PySide6.QtCore import Qt
+    from PySide6.QtGui import QGuiApplication
+    from PySide6.QtWidgets import QApplication
+
     QGuiApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
-    app = QApplication.instance() or CrashAwareApplication([])
+    application_class = crash_aware_application_class()
+    app = QApplication.instance() or application_class([])
     app.setQuitOnLastWindowClosed(False)
     app.setApplicationName("OCRTranslator")
+    return app
 
+
+def run_app():
+    startup_timing = StartupTimingTracker()
     pending_capture = should_forward_capture_request()
+    startup_timing.mark("capture_mode_decided")
     lock = acquire_single_instance_lock()
     if lock is None:
         action = "capture" if pending_capture else "show"
         if request_existing_instance_action(action):
             return
 
+        startup_timing.mark("existing_instance_forward_failed")
         lock = recover_stale_single_instance_lock()
         if lock is None:
+            from .app_defaults import DEFAULT_UI_LANGUAGE
+            from .config_store import load_config
+            from .i18n import I18N, normalize_ui_language
+            from .ui.message_boxes import show_information_message
+            from .ui.theme_tokens import resolve_theme_name
+
+            app = create_ui_application()
             message_config = load_config()
             lang = normalize_ui_language(message_config.ui_language, default=DEFAULT_UI_LANGUAGE)
             show_information_message(
@@ -101,10 +122,22 @@ def run_app():
                 theme_name=resolve_theme_name(getattr(message_config, "theme_mode", None)),
             )
             return
+        startup_timing.mark("stale_lock_recovered")
+    else:
+        startup_timing.mark("single_instance_lock_acquired")
 
-    window = MainWindow()
+    app = create_ui_application()
+    startup_timing.mark("ui_application_created")
+    from .ui.main_window import MainWindow
+
+    startup_timing.mark("main_window_imported")
+
+    window = MainWindow(startup_timing=startup_timing)
+    startup_timing.mark("main_window_created")
     app.instance_lock = lock
     schedule_initial_window_action(window, pending_capture=pending_capture)
+    startup_timing.mark("initial_window_action_scheduled")
+    QTimer.singleShot(0, window.complete_startup_services)
     app.exec()
 
 

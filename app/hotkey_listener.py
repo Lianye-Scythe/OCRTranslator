@@ -1,3 +1,5 @@
+from .hotkey_utils import find_hotkey_conflicts
+
 from .platform.windows.hotkeys import (
     HotkeyListener,
     SPECIAL_VIRTUAL_KEYS,
@@ -31,7 +33,6 @@ from .platform.windows.hotkeys import (
     WM_SYSKEYDOWN,
     WM_SYSKEYUP,
     _hotkey_parts,
-    find_hotkey_conflicts,
     hotkey_to_virtual_keys,
     normalize_virtual_key,
 )
