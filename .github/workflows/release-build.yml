@@ -81,7 +81,7 @@ jobs:
       - name: Upload unsigned files for SignPath
         if: ${{ steps.signpath_gate.outputs.enabled == 'true' }}
         id: upload_unsigned
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: unsigned-windows-package
           if-no-files-found: error
@@ -123,7 +123,7 @@ jobs:
           ) -DestinationPath $zipPath -Force
 
       - name: Upload final release ZIP artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: OCRTranslator-windows-x64-${{ github.ref_name }}
           if-no-files-found: error
