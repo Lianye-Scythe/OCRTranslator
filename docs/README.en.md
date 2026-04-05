@@ -3,6 +3,9 @@
 [繁體中文](../README.md)｜[简体中文](README.zh-CN.md)｜English
 
 [![CI](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml/badge.svg)](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Lianye-Scythe/OCRTranslator?display_name=tag)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
+[![License](https://img.shields.io/github/license/Lianye-Scythe/OCRTranslator)](../LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows-0078D6)](packaging.en.md)
 
 OCRTranslator is a **portable OCR / AI request tool** built around **desktop reading workflows**.
 
@@ -44,6 +47,14 @@ It is not just a screenshot translator. It is a desktop AI workspace organized a
 
 Current visuals for the main workspace and translation overlay:
 
+### Animated preview
+
+<p align="center">
+  <img src="images/screenshots/ocrtranslator-preview.gif" width="88%" alt="Animated preview of OCRTranslator" />
+</p>
+
+### Static screenshots
+
 ### Main window
 
 <p align="center">
@@ -61,6 +72,14 @@ Current visuals for the main workspace and translation overlay:
   <img src="images/screenshots/overlay-dark-novel.png" width="49%" alt="Dark theme translation overlay for novel text" />
   <img src="images/screenshots/overlay-dark-manga.png" width="49%" alt="Dark theme translation overlay for manga text" />
 </p>
+
+## Release and trust information
+
+- The official desktop distribution is the versioned ZIP published on GitHub Releases: `OCRTranslator-v<version>-windows-x64.zip`
+- Releases are built automatically from `v*` annotated tags through GitHub Actions, and the Release body is intended to prefer the tag annotation text
+- The current public Windows package is **unsigned**; the repository already includes SignPath / Trusted Build groundwork and code signing is planned
+- Public Releases do not upload a standalone `.exe`; they publish the versioned ZIP plus GitHub's built-in source archives instead
+- For sensitive security reports, contact the maintainer privately at `po12017po@gmail.com`
 
 ## Default hotkeys
 
@@ -190,6 +209,8 @@ python -m compileall app tests launcher.pyw
 - [Architecture](architecture.en.md)
 - [Development Guide](development.en.md)
 - [Packaging and Distribution](packaging.en.md)
+- [FAQ](FAQ.en.md)
+- [Code of Conduct](../CODE_OF_CONDUCT.md)
 - [Contributing](CONTRIBUTING.en.md)
 - [Security Policy](SECURITY.en.md)
 - [Changelog](CHANGELOG.en.md)

@@ -1,12 +1,13 @@
 import copy
 import threading
 
-from PySide6.QtCore import QEvent, Qt
+from PySide6.QtCore import QEvent, Qt, QTimer
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QMessageBox
 
 from ..config_store import load_config, save_config
 from ..app_defaults import DEFAULT_THEME_MODE, PROVIDER_LABELS, normalize_theme_mode
+from .focus_utils import clear_focus_if_alive
 from ..hotkey_utils import hotkey_has_modifier as hotkey_has_modifier_rule
 from ..i18n import I18N
 from ..models import ApiProfile, AppConfig
@@ -49,6 +50,48 @@ class MainWindowProfilesMixin:
 
     def is_form_tracking_suppressed(self) -> bool:
         return bool(getattr(self, "_suppress_form_tracking", False))
+
+    def current_settings_scroll_value(self) -> int | None:
+        scroll = getattr(self, "settings_scroll", None)
+        if scroll is None or not hasattr(scroll, "verticalScrollBar"):
+            return None
+        try:
+            return int(scroll.verticalScrollBar().value())
+        except Exception:  # noqa: BLE001
+            return None
+
+    def restore_settings_scroll_value(self, value: int | None) -> None:
+        if value is None:
+            return
+        scroll = getattr(self, "settings_scroll", None)
+        if scroll is None or not hasattr(scroll, "verticalScrollBar"):
+            return
+        try:
+            scroll.verticalScrollBar().setValue(int(value))
+        except Exception:  # noqa: BLE001
+            return
+
+    def _restore_post_save_view_state(self, scroll_value: int | None) -> None:
+        clear_focus_if_alive(getattr(self, "save_button", None))
+        try:
+            self.setFocus(Qt.OtherFocusReason)
+        except Exception:  # noqa: BLE001
+            pass
+        self.restore_settings_scroll_value(scroll_value)
+
+    def restore_post_save_view_state(self, scroll_value: int | None) -> None:
+        self._restore_post_save_view_state(scroll_value)
+
+        def apply_again(window=self, value=scroll_value):
+            try:
+                window._restore_post_save_view_state(value)
+            except Exception:  # noqa: BLE001
+                return
+
+        try:
+            QTimer.singleShot(0, apply_again)
+        except Exception:  # noqa: BLE001
+            apply_again()
 
     def set_unsaved_changes(self, dirty: bool):
         self.has_unsaved_changes = bool(dirty)
@@ -780,6 +823,7 @@ class MainWindowProfilesMixin:
 
     def save_settings(self):
         try:
+            saved_scroll_value = self.current_settings_scroll_value()
             valid, _ = self.validate_form_inputs(focus_first_invalid=True, scope="save")
             if not valid:
                 self.set_status("validation_failed")
@@ -790,6 +834,7 @@ class MainWindowProfilesMixin:
                 self.setup_hotkey_listener(initial=True, config=candidate_config, raise_on_error=True)
             except Exception as exc:  # noqa: BLE001
                 self.config = previous_runtime_config
+                self.restore_post_save_view_state(saved_scroll_value)
                 try:
                     self.setup_hotkey_listener(initial=True, config=previous_runtime_config, raise_on_error=True)
                 except Exception as restore_exc:  # noqa: BLE001
@@ -804,6 +849,7 @@ class MainWindowProfilesMixin:
             self.apply_language()
             self.load_profile_to_form(self.config.active_profile_name)
             self.load_prompt_preset_to_form(self.config.active_prompt_preset_name)
+            self.restore_post_save_view_state(saved_scroll_value)
             self.set_status("language_saved" if self.config.ui_language != previous_language else "settings_saved")
             self.log(f"Saved profile: {profile.name} | provider={profile.provider} | base_url={profile.base_url}")
             return True

@@ -4,6 +4,24 @@
 
 本文件用于记录 OCRTranslator 的重要变更。
 
+## [0.9.8] - 2026-04-05
+
+### Added
+- 新增项目治理与协作基础文件：`CODE_OF_CONDUCT.md`、`.github/CODEOWNERS`、`.github/dependabot.yml`、`.editorconfig`、`.gitattributes`
+- 新增三语 FAQ：`docs/FAQ.md`、`docs/FAQ.zh-CN.md`、`docs/FAQ.en.md`，补充平台支持、API Key、自架服务、离线 OCR、签名状态与安全回报等常见问题
+- 新增动态预览 GIF 资源 `docs/images/screenshots/ocrtranslator-preview.gif`，并接入 README 预览区块
+
+### Changed
+- README / SECURITY / CONTRIBUTING / docs index / packaging 文档补上公开仓库维护所需的信任信息，包括私下安全联系邮箱、未签名发布包状态、签名计划以及 FAQ / Code of Conduct 入口
+- CI workflow 新增 `workflow_dispatch`、concurrency、timeout 与 pip cache；release workflow 也补上 concurrency、timeout、pip cache 与 annotated tag release note 转发
+- GitHub Release 自动发布现在会优先使用 annotated tag 内文作为 Release 正文，不再只依赖 GitHub Actions 自动生成 changelog
+
+### Fixed
+- 修复 `Save Settings` 在保存成功后仍可能因为焦点回退与滚动区自动保证可见而跳到“目标语言”字段的问题；保存后会恢复原滚动位置并清掉 Save 按钮焦点
+- 修复设置页 API Keys、图片提示词与文本提示词多行输入框在深色模式下的双层描边感，改为更接近 Material 的 single-surface 焦点表面
+- 修复浅色 / 深色模式下单行与多行输入框文字选取高亮过淡的问题，现在统一采用更清楚的选取配色
+- 补上 release workflow、theme token、style sheet、settings save scroll restore 与 validation scope 的回归测试
+
 ## [0.9.7] - 2026-04-05
 
 ### Changed

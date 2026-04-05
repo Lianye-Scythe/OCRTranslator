@@ -55,6 +55,7 @@ The repository now includes `.github/workflows/release-build.yml` for automated 
 - `push tags: v*`: automatic packaging when version tags are pushed
 - uploaded workflow artifacts contain only the versioned ZIP
 - GitHub Releases also attach only the versioned ZIP
+- when the tag is annotated, the Release body is intended to prefer the tag annotation text
 
 > GitHub Releases automatically provide `Source code (zip)` and `Source code (tar.gz)` for a tag, so the workflow does not need to upload those source archives manually, and it does not upload the standalone `.exe` either.
 
@@ -79,6 +80,8 @@ When the following GitHub secret / variables are configured, the workflow will a
 
 If those values are not configured yet, the workflow still completes the unsigned packaging flow and uploads / publishes the ZIP normally; it simply skips the SignPath signing step.
 
+> The current public Windows package is still **unsigned**. Code signing is planned, and SignPath / Trusted Build is the intended integration path.
+
 ## Recommended order before applying for SignPath
 
 1. Push `.github/workflows/release-build.yml` to GitHub
@@ -90,7 +93,7 @@ If those values are not configured yet, the workflow still completes the unsigne
 
 ## Recommended distribution contents
 
-Prefer uploading the versioned archive first. The file name should include the project name, version, and platform, for example: `OCRTranslator-v0.9.7-windows-x64.zip`.
+Prefer uploading the versioned archive first. The file name should include the project name, version, and platform, for example: `OCRTranslator-v0.9.8-windows-x64.zip`.
 
 ```text
 release\OCRTranslator-v<version>-windows-x64.zip

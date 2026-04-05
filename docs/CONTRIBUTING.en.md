@@ -6,6 +6,8 @@ Thanks for your interest in OCRTranslator.
 
 The project is still primarily maintained by a single owner, but contributions through issues and pull requests are welcome. Please review the following guidelines first.
 
+Before participating, please read and follow the repository-root `CODE_OF_CONDUCT.md`.
+
 ## Development principles
 
 - Preserve the current UI direction unless there is a strong reason to change it

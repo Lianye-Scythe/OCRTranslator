@@ -9,6 +9,10 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
   actions: read
@@ -16,6 +20,7 @@ permissions:
 jobs:
   build-windows:
     runs-on: windows-latest
+    timeout-minutes: 45
     env:
       SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
       SIGNPATH_ORGANIZATION_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
@@ -32,6 +37,10 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
 
       - name: Detect SignPath configuration
         id: signpath_gate
@@ -120,9 +129,29 @@ jobs:
           if-no-files-found: error
           path: ${{ steps.release_archive.outputs.path }}
 
+      - name: Extract release notes from annotated tag
+        if: startsWith(github.ref, 'refs/tags/')
+        id: release_notes
+        shell: powershell
+        run: |
+          $notesPath = Join-Path $PWD 'release-notes.md'
+          $tagName = $env:GITHUB_REF_NAME
+          $notes = git tag -l --format='%(contents)' $tagName | Out-String
+          if ([string]::IsNullOrWhiteSpace($notes)) {
+            $notes = @"
+$tagName
+
+- Automated release build.
+- Current public Windows package is unsigned.
+- Code signing is planned via SignPath / Trusted Build.
+"@
+          }
+          Set-Content -Path $notesPath -Value $notes.Trim() -Encoding utf8
+          "path=$notesPath" >> $env:GITHUB_OUTPUT
+
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ steps.release_archive.outputs.path }}
-          generate_release_notes: true
+          body_path: ${{ steps.release_notes.outputs.path }}

@@ -3,6 +3,9 @@
 [繁體中文](../README.md)｜简体中文｜[English](README.en.md)
 
 [![CI](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml/badge.svg)](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Lianye-Scythe/OCRTranslator?display_name=tag)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
+[![License](https://img.shields.io/github/license/Lianye-Scythe/OCRTranslator)](../LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows-0078D6)](packaging.zh-CN.md)
 
 OCRTranslator 是一款以 **桌面即时阅读** 为核心的 **便携式 OCR / AI 请求工具**。
 
@@ -48,6 +51,14 @@ OCRTranslator 是一款以 **桌面即时阅读** 为核心的 **便携式 OCR /
 
 主窗口与翻译浮窗当前的视觉效果如下：
 
+### 动态预览
+
+<p align="center">
+  <img src="images/screenshots/ocrtranslator-preview.gif" width="88%" alt="OCRTranslator 动态预览" />
+</p>
+
+### 静态截图
+
 ### 主窗口
 
 <p align="center">
@@ -65,6 +76,14 @@ OCRTranslator 是一款以 **桌面即时阅读** 为核心的 **便携式 OCR /
   <img src="images/screenshots/overlay-dark-novel.png" width="49%" alt="深色主题翻译浮窗（小说）" />
   <img src="images/screenshots/overlay-dark-manga.png" width="49%" alt="深色主题翻译浮窗（漫画）" />
 </p>
+
+## 发布与信任信息
+
+- 官方桌面发布以 GitHub Releases 中的版本化 ZIP 为准：`OCRTranslator-v<version>-windows-x64.zip`
+- Release 由 `v*` annotated tag 触发 GitHub Actions 自动构建；Release 正文默认会优先使用 tag annotation 文案
+- 当前公开 Windows 发布包 **尚未签名**；仓库已预留 SignPath / Trusted Build 集成，后续计划导入正式签名流程
+- 公开 Release 不会额外上传独立 `.exe`，而是只提供版本化 ZIP 与 GitHub 自带 source archives
+- 若要私下回报敏感安全问题，请发送邮件到 `po12017po@gmail.com`
 
 ## 默认快捷键
 
@@ -282,6 +301,8 @@ python -m compileall app tests launcher.pyw
 - [架构说明](architecture.zh-CN.md)
 - [开发指南](development.zh-CN.md)
 - [打包与发布](packaging.zh-CN.md)
+- [常见问题 FAQ](FAQ.zh-CN.md)
+- [Code of Conduct](../CODE_OF_CONDUCT.md)
 - [贡献指南](CONTRIBUTING.zh-CN.md)
 - [安全性回报](SECURITY.zh-CN.md)
 - [变更记录](CHANGELOG.zh-CN.md)

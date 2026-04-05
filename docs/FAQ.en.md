@@ -1,0 +1,92 @@
+# FAQ
+
+[繁體中文](FAQ.md)｜[简体中文](FAQ.zh-CN.md)｜English
+
+## 1. Which platforms does OCRTranslator currently support?
+
+The project is currently focused on the **Windows** desktop workflow.
+
+Some Python code is portable, but the current hotkey integration, system tray behavior, packaging scripts, and real-world validation are still centered on Windows.
+
+## 2. Do I need my own API key?
+
+Yes.
+
+OCRTranslator does not bundle or proxy any model service. You need to bring your own API key and base URL, then configure them in an API profile.
+
+## 3. Which services are supported right now?
+
+The current integration model is centered around:
+
+- `Gemini Compatible`
+- `OpenAI Compatible`
+
+If your endpoint is API-compatible, it may also work with OCRTranslator.
+
+## 4. Is offline OCR included?
+
+Not at the moment.
+
+The current design is focused on connecting screen capture, selected text, and manual input workflows to multimodal / text models, so recognition and output quality depend heavily on the model you actually connect.
+
+## 5. Why is the selected-text workflow unreliable in some apps?
+
+The selected-text flow currently uses a simulated copy-and-restore strategy, so:
+
+- some custom UI apps may not respond to the standard copy shortcut
+- some games, remote desktops, or sandboxed environments may intercept hotkeys
+- some apps handle focus and text selection in non-standard ways
+
+If you depend on this entry point, validate it first in the applications you actually use every day.
+
+## 6. Why do Releases provide a ZIP instead of a standalone `.exe` asset?
+
+The public release strategy currently prefers a **versioned ZIP** because it:
+
+- keeps the portable distribution structure intact
+- ships `README.md`, `LICENSE`, and `config.example.json` together
+- reduces the chance that users miss required companion files
+- keeps release assets consistent and predictable
+
+## 7. Is the current public Windows package signed?
+
+**Not yet.**
+
+The repository already includes the groundwork for SignPath / Trusted Build integration, and code signing is planned. Until that is in place, treat the versioned ZIP on GitHub Releases as the canonical public desktop package.
+
+## 8. Where is the config file stored?
+
+By default:
+
+- source mode: `config.json` in the project root
+- packaged exe: `config.json` next to the exe
+
+This keeps the app portable and easy to move or back up.
+
+## 9. How should I report a security issue?
+
+Please do not post sensitive exploit details directly in a public issue.
+
+If the report involves:
+
+- API key exposure
+- a private base URL
+- replayable requests
+- a vulnerability that could be abused
+
+please contact the maintainer privately at `po12017po@gmail.com`.
+
+## 10. Is the project ready for production use?
+
+Right now it is best treated as:
+
+- a personal-use tool
+- a small internal-use tool
+- a public beta / early access project for users who are comfortable with active iteration
+
+If you want to rely on it in a production-like environment, review at least:
+
+- model stability
+- API key handling requirements
+- whether selected-text capture works in your target apps
+- whether an unsigned desktop package is acceptable in your environment

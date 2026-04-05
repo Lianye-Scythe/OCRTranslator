@@ -15,9 +15,11 @@
 - [架構說明](architecture.md)
 - [開發指南](development.md)
 - [打包與發佈](packaging.md)
+- [常見問題 FAQ](FAQ.md)
 
 ## 協作與治理
 
+- [Code of Conduct](../CODE_OF_CONDUCT.md)
 - [Contributing](../CONTRIBUTING.md)
 - [Security Policy](../SECURITY.md)
 - [Changelog](../CHANGELOG.md)

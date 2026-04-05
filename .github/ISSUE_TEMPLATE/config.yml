@@ -1,5 +1,11 @@
 blank_issues_enabled: false
 contact_links:
+  - name: OCRTranslator FAQ
+    url: https://github.com/Lianye-Scythe/OCRTranslator/blob/main/docs/FAQ.md
+    about: 先查看常見問題，確認是否已有對應說明。
+  - name: Private Security Contact
+    url: mailto:po12017po@gmail.com
+    about: 涉及敏感安全問題時，請不要公開發 issue，優先以 email 私下聯繫維護者。
   - name: OCRTranslator Repository
     url: https://github.com/Lianye-Scythe/OCRTranslator
     about: 先閱讀 README、CONTRIBUTING 與 SECURITY 再建立 issue。

@@ -15,9 +15,11 @@ This page collects the main OCRTranslator documentation entry points.
 - [Architecture](architecture.en.md)
 - [Development Guide](development.en.md)
 - [Packaging and Distribution](packaging.en.md)
+- [FAQ](FAQ.en.md)
 
 ## Collaboration and governance
 
-- [Contributing](../CONTRIBUTING.md)
-- [Security Policy](../SECURITY.md)
-- [Changelog](../CHANGELOG.md)
+- [Code of Conduct](../CODE_OF_CONDUCT.md)
+- [Contributing](CONTRIBUTING.en.md)
+- [Security Policy](SECURITY.en.md)
+- [Changelog](CHANGELOG.en.md)

@@ -4,6 +4,24 @@
 
 This file records important OCRTranslator changes.
 
+## [0.9.8] - 2026-04-05
+
+### Added
+- Added repository governance and collaboration files: `CODE_OF_CONDUCT.md`, `.github/CODEOWNERS`, `.github/dependabot.yml`, `.editorconfig`, and `.gitattributes`
+- Added a trilingual FAQ set: `docs/FAQ.md`, `docs/FAQ.zh-CN.md`, and `docs/FAQ.en.md`, covering platform support, API keys, self-hosted endpoints, offline OCR, signing status, and security reporting
+- Added an animated preview asset at `docs/images/screenshots/ocrtranslator-preview.gif` and linked it from the README preview sections
+
+### Changed
+- Expanded README / SECURITY / CONTRIBUTING / docs index / packaging docs with public-repository trust information, including the private security contact email, unsigned package status, signing plan, and FAQ / Code of Conduct entry points
+- Optimized the CI workflow with `workflow_dispatch`, concurrency, timeouts, and pip cache; the release workflow now also includes concurrency, timeout, pip cache, and annotated-tag release-note forwarding
+- Automated GitHub Releases now prefer the annotated tag contents as the Release body instead of relying only on auto-generated changelog text
+
+### Fixed
+- Fixed `Save Settings` still jumping to the target-language field after a successful save because of focus fallback and scroll-area auto-visibility; the form now restores the previous scroll position and clears Save-button focus
+- Fixed the API Keys, image prompt, and text prompt multiline editors still feeling double-outlined in dark mode, refining them into a cleaner Material-style single-surface focus treatment
+- Fixed text selection highlights in both light and dark themes being too faint for single-line and multiline form inputs; input fields now use a clearer unified selection palette
+- Added regression coverage for the release workflow, theme tokens, stylesheet rendering, save-time scroll restoration, and validation scope behavior
+
 ## [0.9.7] - 2026-04-05
 
 ### Changed

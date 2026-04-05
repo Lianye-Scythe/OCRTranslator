@@ -15,9 +15,11 @@
 - [架构说明](architecture.zh-CN.md)
 - [开发指南](development.zh-CN.md)
 - [打包与发布](packaging.zh-CN.md)
+- [常见问题 FAQ](FAQ.zh-CN.md)
 
 ## 协作与治理
 
-- [Contributing](../CONTRIBUTING.md)
-- [Security Policy](../SECURITY.md)
-- [Changelog](../CHANGELOG.md)
+- [Code of Conduct](../CODE_OF_CONDUCT.md)
+- [Contributing](CONTRIBUTING.zh-CN.md)
+- [Security Policy](SECURITY.zh-CN.md)
+- [Changelog](CHANGELOG.zh-CN.md)

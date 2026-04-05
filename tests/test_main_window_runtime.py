@@ -354,6 +354,42 @@ class MainWindowRuntimeTests(unittest.TestCase):
         mock_save_config.assert_not_called()
         mock_critical.assert_called_once()
 
+    def test_save_settings_restores_scroll_position_and_neutral_focus_after_success(self):
+        window = MainWindow.__new__(MainWindow)
+        scrollbar = SimpleNamespace(value=Mock(return_value=284), setValue=Mock())
+        window.settings_scroll = SimpleNamespace(verticalScrollBar=lambda: scrollbar)
+        window.save_button = SimpleNamespace()
+        window.setFocus = Mock()
+        window.tr = lambda key, **kwargs: key
+        window.validate_form_inputs = lambda focus_first_invalid=True, scope="save": (True, "")
+        window.set_status = Mock()
+        window.log = Mock()
+        window.apply_language = Mock()
+        window.load_profile_to_form = Mock()
+        window.load_prompt_preset_to_form = Mock()
+        window.config = SimpleNamespace(ui_language="en", hotkey="Ctrl+X", selection_hotkey="Ctrl+C", input_hotkey="Ctrl+Z")
+        candidate_config = SimpleNamespace(
+            ui_language="en",
+            hotkey="Ctrl+Shift+X",
+            selection_hotkey="Ctrl+Shift+C",
+            input_hotkey="Ctrl+Shift+Z",
+            active_profile_name="Demo",
+            active_prompt_preset_name="Translate",
+        )
+        profile = SimpleNamespace(name="Demo", provider="openai", base_url="https://api.openai.com")
+        window.sync_form_to_config = lambda: ("en", candidate_config, profile)
+        window.setup_hotkey_listener = Mock(return_value=True)
+
+        with patch("app.ui.main_window_profiles.save_config"), patch("app.ui.main_window_profiles.clear_focus_if_alive") as mock_clear_focus, patch(
+            "app.ui.main_window_profiles.QTimer.singleShot", side_effect=lambda _delay, callback: callback()
+        ):
+            result = window.save_settings()
+
+        self.assertTrue(result)
+        self.assertGreaterEqual(scrollbar.setValue.call_count, 2)
+        mock_clear_focus.assert_called_with(window.save_button)
+        window.setFocus.assert_called()
+
     def test_validate_hotkey_actions_rejects_subset_conflicts(self):
         window = MainWindow.__new__(MainWindow)
         window.tr = lambda key, **kwargs: f"{key}: {kwargs}"

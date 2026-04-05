@@ -55,6 +55,7 @@ build_exe.bat
 - `push tags: v*`：推送版本 tag 时自动打包
 - 上传的 workflow artifact 只包含版本化 ZIP
 - 创建 GitHub Release 时也只附上版本化 ZIP
+- 如果 tag 是 annotated tag，Release 正文会优先使用 tag annotation 文案
 
 > GitHub Release 页面本身会自动附带 `Source code (zip)` 与 `Source code (tar.gz)`，因此 workflow 不需要另外上传这两个源码压缩包，也不会额外上传 `.exe`。
 
@@ -79,6 +80,8 @@ build_exe.bat
 
 如果上述值尚未配置，workflow 仍会正常完成“未签名打包 + 上传 ZIP artifact / GitHub Release”流程，只是会跳过 SignPath 签名步骤。
 
+> 当前公开发布包仍属于 **未签名** 状态；代码签名已纳入后续规划，并以 SignPath / Trusted Build 作为预定集成方向。
+
 ## 申请 SignPath 前建议顺序
 
 1. 先把 `.github/workflows/release-build.yml` 推上 GitHub
@@ -90,7 +93,7 @@ build_exe.bat
 
 ## 推荐分发内容
 
-建议优先上传带版本号的压缩包，文件名包含项目名称、版本号与平台信息，例如：`OCRTranslator-v0.9.7-windows-x64.zip`。
+建议优先上传带版本号的压缩包，文件名包含项目名称、版本号与平台信息，例如：`OCRTranslator-v0.9.8-windows-x64.zip`。
 
 ```text
 release\OCRTranslator-v<version>-windows-x64.zip

@@ -12,6 +12,7 @@ class MainWindowSettingsLayoutMixin:
         layout.setSpacing(0)
 
         scroll = QScrollArea()
+        self.settings_scroll = scroll
         scroll.setObjectName("SettingsScrollArea")
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
