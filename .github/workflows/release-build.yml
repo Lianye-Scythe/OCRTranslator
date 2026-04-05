@@ -1,0 +1,100 @@
+name: Release Build
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build unsigned release package
+        shell: cmd
+        run: |
+          set BUILD_NO_PAUSE=1
+          build_exe.bat
+
+      - name: Resolve release archive path
+        id: release_archive
+        shell: powershell
+        run: |
+          $zip = Get-ChildItem release\OCRTranslator-v*-windows-x64.zip | Select-Object -First 1
+          if (-not $zip) {
+            throw "Release ZIP was not produced under release/."
+          }
+          "path=$($zip.FullName)" >> $env:GITHUB_OUTPUT
+          "name=$($zip.Name)" >> $env:GITHUB_OUTPUT
+
+      - name: Upload unsigned files for SignPath
+        if: ${{ secrets.SIGNPATH_API_TOKEN != '' && vars.SIGNPATH_ORGANIZATION_ID != '' && vars.SIGNPATH_PROJECT_SLUG != '' && vars.SIGNPATH_SIGNING_POLICY_SLUG != '' }}
+        id: upload_unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-windows-package
+          if-no-files-found: error
+          path: |
+            release/OCRTranslator.exe
+            release/README.md
+            release/config.example.json
+
+      - name: Submit signing request to SignPath
+        if: ${{ secrets.SIGNPATH_API_TOKEN != '' && vars.SIGNPATH_ORGANIZATION_ID != '' && vars.SIGNPATH_PROJECT_SLUG != '' && vars.SIGNPATH_SIGNING_POLICY_SLUG != '' }}
+        id: signpath
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id: '${{ vars.SIGNPATH_ORGANIZATION_ID }}'
+          project-slug: '${{ vars.SIGNPATH_PROJECT_SLUG }}'
+          signing-policy-slug: '${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}'
+          github-artifact-id: '${{ steps.upload_unsigned.outputs.artifact-id }}'
+          wait-for-completion: true
+          output-artifact-directory: 'release-signed'
+
+      - name: Repack signed release ZIP
+        if: ${{ secrets.SIGNPATH_API_TOKEN != '' && vars.SIGNPATH_ORGANIZATION_ID != '' && vars.SIGNPATH_PROJECT_SLUG != '' && vars.SIGNPATH_SIGNING_POLICY_SLUG != '' }}
+        shell: powershell
+        run: |
+          $signedExe = Join-Path $PWD 'release-signed\OCRTranslator.exe'
+          if (-not (Test-Path $signedExe)) {
+            throw "Signed executable not found in release-signed/."
+          }
+          $zipPath = '${{ steps.release_archive.outputs.path }}'
+          if (Test-Path $zipPath) {
+            Remove-Item $zipPath -Force
+          }
+          Compress-Archive -Path @(
+            'release-signed\OCRTranslator.exe',
+            'release\README.md',
+            'release\config.example.json'
+          ) -DestinationPath $zipPath -Force
+
+      - name: Upload final release ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OCRTranslator-windows-x64-${{ github.ref_name }}
+          if-no-files-found: error
+          path: ${{ steps.release_archive.outputs.path }}
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.release_archive.outputs.path }}
+          generate_release_notes: true

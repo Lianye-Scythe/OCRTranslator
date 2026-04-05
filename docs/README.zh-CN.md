@@ -40,6 +40,28 @@ OCRTranslator 是一款以 **桌面即时阅读** 为核心的 **便携式 OCR /
 - 支持全局快捷键、系统托盘、单实例保护
 - 配置默认保存在项目根目录 / exe 同层，保持便携
 
+## 界面预览
+
+主窗口与翻译浮窗当前的视觉效果如下：
+
+### 主窗口
+
+<p align="center">
+  <img src="images/screenshots/main-window-light.png" width="49%" alt="浅色主题主窗口" />
+  <img src="images/screenshots/main-window-dark.png" width="49%" alt="深色主题主窗口" />
+</p>
+
+### 翻译浮窗
+
+<p align="center">
+  <img src="images/screenshots/overlay-light-manga.png" width="49%" alt="浅色主题翻译浮窗（漫画）" />
+  <img src="images/screenshots/overlay-light-novel.png" width="49%" alt="浅色主题翻译浮窗（小说）" />
+</p>
+<p align="center">
+  <img src="images/screenshots/overlay-dark-novel.png" width="49%" alt="深色主题翻译浮窗（小说）" />
+  <img src="images/screenshots/overlay-dark-manga.png" width="49%" alt="深色主题翻译浮窗（漫画）" />
+</p>
+
 ## 默认快捷键
 
 当 `config.json` 不存在或字段缺失时，默认快捷键如下：

@@ -4,6 +4,25 @@
 
 This file records important OCRTranslator changes.
 
+## [0.9.5] - 2026-04-05
+
+### Added
+- Added a unified app icon asset directory at `app/assets/icons/`, consolidating the source icon, multi-size PNGs, and the Windows `.ico` so runtime and packaging now share the same icon set
+- Added `docs/images/screenshots/` plus README screenshot galleries for the light / dark main window and translation overlay states
+- Added a GitHub Actions `release-build.yml` workflow that supports manual runs or `v*` tag builds and publishes only the versioned ZIP while relying on GitHub's built-in source archives
+- Added a `.signpath/` bootstrap structure and SignPath artifact configuration so GitHub trusted-build / automatic signing can be connected later with minimal repository reshaping
+
+### Changed
+- Formalized packaging around `OCRTranslator.spec` + `build_exe.bat`, moving PyInstaller datas / excludes / icon configuration into the `.spec` file for long-term maintenance
+- `build_exe.bat` now cleans stale `~ip`-style pip metadata from `.venv`, supports `BUILD_NO_PAUSE` / `BUILD_SKIP_PIP_INSTALL`, and drives packaging in a more automation-friendly way
+- The main window, application-level window icon, system tray, and packaged exe now all use the external icon assets; frozen runtime also resolves resources through `resource_path()` / `_MEIPASS`
+- Packaging docs now cover the GitHub Actions / SignPath flow and update the versioned ZIP example to `v0.9.5`
+
+### Fixed
+- Fixed the `build_exe.bat` APP_VERSION read step that previously broke because of `for /f` quoting and command parsing
+- Fixed build-time `Ignoring invalid distribution ~ip` warnings by cleaning stale virtualenv metadata before packaging
+- Added regression coverage for app icon assets and release workflow configuration
+
 ## [0.9.4] - 2026-04-05
 
 ### Added

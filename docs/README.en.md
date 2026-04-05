@@ -36,6 +36,28 @@ It is not just a screenshot translator. It is a desktop AI workspace organized a
 - Global hotkeys, system tray, and single-instance protection
 - Portable config stored next to the project root or packaged exe
 
+## Screenshots
+
+Current visuals for the main workspace and translation overlay:
+
+### Main window
+
+<p align="center">
+  <img src="images/screenshots/main-window-light.png" width="49%" alt="Light theme main window" />
+  <img src="images/screenshots/main-window-dark.png" width="49%" alt="Dark theme main window" />
+</p>
+
+### Translation overlay
+
+<p align="center">
+  <img src="images/screenshots/overlay-light-manga.png" width="49%" alt="Light theme translation overlay for manga text" />
+  <img src="images/screenshots/overlay-light-novel.png" width="49%" alt="Light theme translation overlay for novel text" />
+</p>
+<p align="center">
+  <img src="images/screenshots/overlay-dark-novel.png" width="49%" alt="Dark theme translation overlay for novel text" />
+  <img src="images/screenshots/overlay-dark-manga.png" width="49%" alt="Dark theme translation overlay for manga text" />
+</p>
+
 ## Default hotkeys
 
 | Action | Default hotkey |

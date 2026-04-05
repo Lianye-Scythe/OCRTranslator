@@ -14,19 +14,87 @@
 2. 安装 `requirements-dev.txt`
 3. 清理旧的 `build/`、`dist/`、`release/`
 4. 从 `app/app_metadata.py` 读取当前版本号
-5. 通过 PyInstaller 输出 `release\OCRTranslator.exe`
+5. 通过 `OCRTranslator.spec` + PyInstaller 输出 `release\OCRTranslator.exe`
 6. 复制 `README.md` 与 `config.example.json`
 7. 自动创建 `release\OCRTranslator-v<version>-windows-x64.zip`
 
+当前仓库采用“`OCRTranslator.spec` 保存 PyInstaller 打包定义、`build_exe.bat` 负责准备环境 / 生成版本资源 / 启动打包”的分工方式。后续如果要调整 datas、exclude modules 或 onefile 行为，优先修改 `.spec` 即可。
+
+## 图标资源位置
+
+应用图标现在统一收敛到 `app/assets/icons/`：
+
+- `app-icon-source.png`：原始来源图
+- `app-icon-16.png` ~ `app-icon-256.png`：运行期多尺寸 PNG
+- `app-icon.ico`：Windows 可执行文件打包图标
+
+主窗口、系统托盘与 PyInstaller 打包都会共用这组图标资源。
+
+## 可选打包环境变量
+
+`build_exe.bat` 还支持几个对本地重复打包很实用的环境变量：
+
+```text
+BUILD_NO_PAUSE=1          完成或失败后不 pause，方便在终端、CI 或自动化脚本中调用
+BUILD_SKIP_PIP_INSTALL=1  跳过 `pip install -r requirements-dev.txt`，适合依赖已经就绪的重复打包
+```
+
+示例：
+
+```bat
+set BUILD_NO_PAUSE=1
+set BUILD_SKIP_PIP_INSTALL=1
+build_exe.bat
+```
+
+## GitHub Actions 自动打包
+
+仓库现在已预留 `.github/workflows/release-build.yml`，用途如下：
+
+- `workflow_dispatch`：手动触发打包测试
+- `push tags: v*`：推送版本 tag 时自动打包
+- 上传的 workflow artifact 只包含版本化 ZIP
+- 创建 GitHub Release 时也只附上版本化 ZIP
+
+> GitHub Release 页面本身会自动附带 `Source code (zip)` 与 `Source code (tar.gz)`，因此 workflow 不需要另外上传这两个源码压缩包，也不会额外上传 `.exe`。
+
+## SignPath 预留结构
+
+仓库也已预留 SignPath 需要的基础结构：
+
+- `.signpath/artifact-configurations/default.xml`
+- `.signpath/README.md`
+
+当前 workflow 会在已配置以下 GitHub Secret / Variable 时，自动把 unsigned artifact 送到 SignPath 签名：
+
+### GitHub Secret
+
+- `SIGNPATH_API_TOKEN`
+
+### GitHub Variables
+
+- `SIGNPATH_ORGANIZATION_ID`
+- `SIGNPATH_PROJECT_SLUG`
+- `SIGNPATH_SIGNING_POLICY_SLUG`
+
+如果上述值尚未配置，workflow 仍会正常完成“未签名打包 + 上传 ZIP artifact / GitHub Release”流程，只是会跳过 SignPath 签名步骤。
+
+## 申请 SignPath 前建议顺序
+
+1. 先把 `.github/workflows/release-build.yml` 推上 GitHub
+2. 到 GitHub Actions 页面手动执行一次 `Release Build`
+3. 确认能正常产出 ZIP artifact
+4. 再向 SignPath 申请 / 开通 GitHub Trusted Build System 权限
+5. 拿到 SignPath 组织与项目参数后，再补上前述 Secret / Variables
+6. 最后以测试 tag 验证自动签名与 GitHub Release 流程
+
 ## 推荐分发内容
 
-建议优先上传带版本号的压缩包，文件名包含项目名称、版本号与平台信息，例如：`OCRTranslator-v0.9.4-windows-x64.zip`。
+建议优先上传带版本号的压缩包，文件名包含项目名称、版本号与平台信息，例如：`OCRTranslator-v0.9.5-windows-x64.zip`。
 
 ```text
 release\OCRTranslator-v<version>-windows-x64.zip
 ```
-
-如果你希望用户也能单独下载，也可以额外附上 `release\OCRTranslator.exe`。
 
 ## 可选代码签名
 

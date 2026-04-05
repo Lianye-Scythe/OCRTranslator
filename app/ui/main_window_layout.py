@@ -19,10 +19,12 @@ from PySide6.QtWidgets import (
     QSpinBox,
     QStackedWidget,
     QVBoxLayout,
+    QApplication,
     QWidget,
 )
 
 from ..app_metadata import APP_VERSION, AUTHOR_NAME_EN, AUTHOR_NAME_ZH, REPOSITORY_NAME, REPOSITORY_URL
+from .app_icons import load_app_icon
 from .style_utils import load_style_sheet
 from .theme_tokens import color, qcolor, set_theme_mode
 
@@ -315,6 +317,9 @@ class MainWindowLayoutMixin:
             self.refresh_workspace_shadow()
         self.icon = self.create_app_icon()
         self.setWindowIcon(self.icon)
+        app = QApplication.instance()
+        if app:
+            app.setWindowIcon(self.icon)
         if hasattr(self, "tray_service"):
             self.tray_service.apply_styles()
             self.tray_service.icon = self.icon
@@ -693,6 +698,10 @@ class MainWindowLayoutMixin:
             self.sidebar_scroll.ensureVisible(0, 0, 0, 0)
 
     def create_app_icon(self) -> QIcon:
+        icon = load_app_icon()
+        if not icon.isNull():
+            return icon
+
         pix = QPixmap(64, 64)
         pix.fill(Qt.transparent)
         painter = QPainter(pix)

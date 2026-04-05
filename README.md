@@ -45,6 +45,28 @@ OCRTranslator 是一款以 **桌面即時閱讀** 為核心的 **便攜式 OCR /
 - 支援全域快捷鍵、系統匣、單實例保護
 - 設定檔預設保存在專案根目錄 / exe 同層，維持便攜
 
+## 介面預覽
+
+主視窗與翻譯浮窗目前的視覺效果如下：
+
+### 主視窗
+
+<p align="center">
+  <img src="docs/images/screenshots/main-window-light.png" width="49%" alt="淺色主題主視窗" />
+  <img src="docs/images/screenshots/main-window-dark.png" width="49%" alt="深色主題主視窗" />
+</p>
+
+### 翻譯浮窗
+
+<p align="center">
+  <img src="docs/images/screenshots/overlay-light-manga.png" width="49%" alt="淺色主題翻譯浮窗（漫畫）" />
+  <img src="docs/images/screenshots/overlay-light-novel.png" width="49%" alt="淺色主題翻譯浮窗（小說）" />
+</p>
+<p align="center">
+  <img src="docs/images/screenshots/overlay-dark-novel.png" width="49%" alt="深色主題翻譯浮窗（小說）" />
+  <img src="docs/images/screenshots/overlay-dark-manga.png" width="49%" alt="深色主題翻譯浮窗（漫畫）" />
+</p>
+
 ## 預設快捷鍵
 
 當 `config.json` 不存在或欄位缺失時，預設快捷鍵如下：

@@ -4,6 +4,25 @@
 
 本文件用于记录 OCRTranslator 的重要变更。
 
+## [0.9.5] - 2026-04-05
+
+### Added
+- 新增统一的应用图标资源目录 `app/assets/icons/`，收敛原始 icon、多尺寸 PNG 与 Windows `.ico`，让运行期与打包流程共用同一套图标资产
+- 新增 `docs/images/screenshots/` 与 README 界面预览区块，补上主窗口与翻译浮窗的浅色 / 深色效果图展示
+- 新增 GitHub Actions `release-build.yml`，支持手动触发或推送 `v*` tag 自动打包，并只发布版本化 ZIP（GitHub 自带 source code 压缩包）
+- 新增 `.signpath/` 预留结构与 SignPath artifact configuration，为后续 GitHub Trusted Build / 自动签名流程预先铺路
+
+### Changed
+- 打包流程改为正式采用 `OCRTranslator.spec` + `build_exe.bat` 分工，把 PyInstaller datas / excludes / icon 设置收敛到 `.spec` 管理
+- `build_exe.bat` 现在会自动清理 `.venv` 中残留的 `~ip` 类 pip metadata、支持 `BUILD_NO_PAUSE` / `BUILD_SKIP_PIP_INSTALL`，并以更适合自动化的方式驱动打包
+- 主窗口、应用级 window icon、系统托盘与打包输出的 exe icon 现在统一使用外部图标资源；冻结运行期也会通过 `resource_path()` 正确读取 `_MEIPASS` 内资源
+- 打包文档补上 GitHub Actions / SignPath 接入说明，并同步更新版本化 ZIP 示例到 `v0.9.5`
+
+### Fixed
+- 修复 `build_exe.bat` 用 `for /f` 读取 `APP_VERSION` 时的引号解析问题，避免脚本在读版本号阶段提前失败
+- 修复打包期 `Ignoring invalid distribution ~ip` 类 warning，降低虚拟环境残留 metadata 对本地与 CI 打包流程的干扰
+- 补上应用图标资产与 Release workflow 配置的回归测试
+
 ## [0.9.4] - 2026-04-05
 
 ### Added
