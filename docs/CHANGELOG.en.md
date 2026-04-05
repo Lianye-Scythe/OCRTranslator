@@ -4,6 +4,23 @@
 
 This file records important OCRTranslator changes.
 
+## [0.9.9] - 2026-04-05
+
+### Added
+- Added trilingual `SUPPORT` docs to document the recommended paths for general questions, bug reports, feature requests, and private security reporting, reflecting the current Discussions-disabled maintenance flow
+- Added a GitHub social preview asset at `docs/images/social-preview.png` plus its generator script `tools/generate_social_preview.py`
+- Expanded the FAQ with request-latency guidance, clarifying that AI / LLM choice, upstream load, and throttling affect response time, and documenting the common 5–10 second, occasional 30–40 second, and `429` / `503` behavior seen with Google's `gemini-3.1-flash-lite-preview`
+
+### Changed
+- Updated the static Release badges in the README set to `v0.9.9`, and refreshed the example ZIP filenames in the packaging docs
+- Added a Support entry to issue contact links, and linked `SUPPORT.md` from the README and docs index
+- Refined the social preview into a cleaner brand + main-window composition, removing the capsule-style feature labels and unifying the left-panel information colors
+
+### Fixed
+- Fixed the YAML / PowerShell structure in `release-build.yml` when generating fallback release notes so the workflow no longer breaks on syntax errors
+- Fixed the README Release / License badges showing `repo not found` or `no releases` in a private repository by switching to private-friendly static badges
+- Relaxed Dependabot's default label expectations so update jobs do not fail just because labels like `dependencies`, `python`, or `ci` have not been created yet
+
 ## [0.9.8] - 2026-04-05
 
 ### Added

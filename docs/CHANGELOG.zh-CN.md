@@ -4,6 +4,23 @@
 
 本文件用于记录 OCRTranslator 的重要变更。
 
+## [0.9.9] - 2026-04-05
+
+### Added
+- 新增三语 `SUPPORT` 文档，整理一般问题、bug 回报、功能建议与安全问题的推荐联系路径，并反映当前 Discussions 已关闭后的维护方式
+- 新增 GitHub social preview 图片资源 `docs/images/social-preview.png` 与生成脚本 `tools/generate_social_preview.py`
+- FAQ 补充请求回复速度说明，明确记录 AI / LLM 模型、上游负载与限流会影响延迟，并补充 Google 官方 `gemini-3.1-flash-lite-preview` 常见的 5～10 秒、偶发 30～40 秒以及 `429` / `503` 情况
+
+### Changed
+- README / docs README 的静态 Release badge 更新为 `v0.9.9`，打包文档中的示例 ZIP 文件名也同步更新
+- Issue contact links 现在补上 Support 入口，README 与 docs index 也同步收录 `SUPPORT.md`
+- social preview 改为更简洁的品牌 + 主窗口截图版式，去掉胶囊式功能标签并统一左侧信息色系
+
+### Fixed
+- 修复 `release-build.yml` 在生成 fallback release notes 时的 YAML / PowerShell 结构问题，避免 workflow 因语法错误失效
+- 修复私有仓库下 README 的 Release / License badge 容易出现 `repo not found` 或 `no releases` 的问题，改为私有仓库也能稳定显示的静态 badge
+- 放宽 Dependabot 默认 label 依赖，避免仓库尚未建立 `dependencies`、`python`、`ci` 等 labels 时导致更新任务报错
+
 ## [0.9.8] - 2026-04-05
 
 ### Added

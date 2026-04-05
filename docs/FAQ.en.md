@@ -90,3 +90,23 @@ If you want to rely on it in a production-like environment, review at least:
 - API key handling requirements
 - whether selected-text capture works in your target apps
 - whether an unsigned desktop package is acceptable in your environment
+
+## 11. Why are some requests fast while others are slow, or even return 429 / 503?
+
+Response time is strongly affected by the AI / LLM model you connect, upstream service load, network conditions, quota limits, and provider-side rate limiting. It is not something OCRTranslator can fully control on its own.
+
+As a practical example, the Google-hosted `gemini-3.1-flash-lite-preview` model used in the default example setup often feels like it returns in about **5–10 seconds** under normal conditions. When the service is busier, the network is slower, or the upstream queue is longer, it can also stretch to around **30–40 seconds**.
+
+In more extreme cases, the upstream service may return:
+
+- `429 Too Many Requests`
+- `503 Service Unavailable`
+
+That usually means provider-side rate limiting, temporary unavailability, or heavier upstream load.
+
+If response speed matters to you, keep an eye on at least:
+
+- latency differences between models
+- provider / region / time-of-day variability
+- API key quota and throttling status
+- whether you should retry later or switch to another model
