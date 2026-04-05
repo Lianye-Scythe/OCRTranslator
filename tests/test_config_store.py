@@ -244,6 +244,38 @@ class ConfigStoreMigrationTests(unittest.TestCase):
             self.assertIn('"ui_language": "zh-CN"', saved)
             self.assertIn('"target_language": "简体中文"', saved)
 
+    def test_load_config_falls_back_to_user_config_path_when_portable_directory_is_not_writable(self):
+        with TemporaryDirectory() as portable_dir, TemporaryDirectory() as fallback_dir:
+            config_path = Path(portable_dir) / "config.json"
+            fallback_path = Path(fallback_dir) / "config.json"
+
+            with patch("app.config_store.CONFIG_PATH", config_path), patch(
+                "app.config_store.FALLBACK_CONFIG_PATH", fallback_path
+            ), patch("app.config_store._directory_is_writable", return_value=False), patch(
+                "app.config_store.detect_system_ui_language", return_value="en"
+            ):
+                config = load_config()
+
+            self.assertEqual(config.ui_language, "en")
+            self.assertFalse(config_path.exists())
+            self.assertTrue(fallback_path.exists())
+            self.assertIn('"ui_language": "en"', fallback_path.read_text(encoding="utf-8"))
+
+    def test_load_config_prefers_existing_fallback_config_when_portable_config_is_missing(self):
+        with TemporaryDirectory() as portable_dir, TemporaryDirectory() as fallback_dir:
+            config_path = Path(portable_dir) / "config.json"
+            fallback_path = Path(fallback_dir) / "config.json"
+            fallback_path.write_text('{"target_language":"English","mode":"web_ud","api_key":"fallback-key"}', encoding="utf-8")
+
+            with patch("app.config_store.CONFIG_PATH", config_path), patch("app.config_store.FALLBACK_CONFIG_PATH", fallback_path), patch(
+                "app.config_store.detect_system_ui_language", return_value="zh-CN"
+            ):
+                config = load_config()
+
+            self.assertEqual(config.target_language, "English")
+            self.assertEqual(config.active_profile_name, "Default Gemini")
+            self.assertEqual(config.api_profiles[0].api_keys, ["fallback-key"])
+
     def test_load_config_propagates_migration_errors_instead_of_recreating_config(self):
         with TemporaryDirectory() as temp_dir:
             config_path = Path(temp_dir) / "config.json"

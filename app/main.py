@@ -14,6 +14,25 @@ from .services.startup_timing import StartupTimingTracker
 _CRASH_AWARE_APPLICATION_CLASS = None
 
 
+def request_application_shutdown(app) -> bool:
+    window = getattr(app, "main_window", None)
+    shutdown = getattr(window, "emergency_shutdown", None) if window is not None else None
+    if callable(shutdown):
+        try:
+            return bool(shutdown())
+        except Exception as exc:  # noqa: BLE001
+            try:
+                sys.stderr.write(f"Emergency shutdown fallback after failure: {exc}\n")
+                sys.stderr.flush()
+            except Exception:  # noqa: BLE001
+                pass
+    try:
+        app.quit()
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def crash_aware_application_class():
     global _CRASH_AWARE_APPLICATION_CLASS
     if _CRASH_AWARE_APPLICATION_CLASS is None:
@@ -25,7 +44,7 @@ def crash_aware_application_class():
                     return super().notify(receiver, event)
                 except Exception as exc:  # noqa: BLE001
                     sys.excepthook(type(exc), exc, exc.__traceback__)
-                    self.quit()
+                    request_application_shutdown(self)
                     return False
 
         _CRASH_AWARE_APPLICATION_CLASS = CrashAwareApplication
@@ -73,10 +92,10 @@ def should_forward_capture_request() -> bool:
 
 
 def schedule_initial_window_action(window, *, pending_capture: bool) -> None:
-    window.show()
     if pending_capture:
-        QTimer.singleShot(0, window.start_selection)
+        QTimer.singleShot(0, window.start_selection_from_launch)
         return
+    window.show()
     QTimer.singleShot(0, window.show_main_window)
 
 
@@ -134,9 +153,12 @@ def run_app():
 
     window = MainWindow(startup_timing=startup_timing)
     startup_timing.mark("main_window_created")
+    app.main_window = window
     app.instance_lock = lock
     schedule_initial_window_action(window, pending_capture=pending_capture)
     startup_timing.mark("initial_window_action_scheduled")
+    if hasattr(app, "aboutToQuit"):
+        app.aboutToQuit.connect(window.handle_about_to_quit)
     QTimer.singleShot(0, window.complete_startup_services)
     app.exec()
 

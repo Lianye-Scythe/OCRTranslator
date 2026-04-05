@@ -194,6 +194,7 @@
   "at_least_one_profile": "至少要保留一個設定檔。",
   "at_least_one_prompt_preset": "至少要保留一個提示詞方案。",
   "capture_cancelled": "已取消截圖。",
+  "capture_launch_fallback": "未能直接進入截圖，已切回主視窗。請檢查目前設定或驗證提示。",
   "request_cancelled": "目前操作已取消。",
   "font_zoomed": "結果字級已調整為 {size}",
   "already_running_title": "程式已在執行",

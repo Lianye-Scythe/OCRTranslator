@@ -34,6 +34,14 @@ OCRTranslator 当前主要分成这些层：
    - 表单快照校验
    - candidate config 构建
 
+## 运行时配置路径
+
+- `app/config_store.py` 会优先沿用便携 `config.json`，也就是源码模式下的项目根目录，或打包后 exe 同层
+- 如果便携位置尚未存在配置文件，且当前运行目录不可写，则会回退到用户设置目录
+- Windows fallback 路径：`%LOCALAPPDATA%\OCRTranslator\config.json`
+- 其他环境 fallback 路径：`~/.ocrtranslator/config.json`
+- crash log 仍然以 runtime base dir 为主，也就是项目根目录 / exe 同层，不会跟着 fallback 配置路径移动
+
 ## 详细项目结构
 
 ```text
@@ -52,7 +60,7 @@ OCRTranslator/
 │  ├─ api_client.py                  # 统一 API 调用、Key 轮替、重试与 Provider 调度
 │  ├─ app_defaults.py                # 默认 Provider / URL / 模型 / 快捷键 / theme mode / 显示值
 │  ├─ app_metadata.py                # 作者与仓库 metadata
-│  ├─ config_store.py                # config.json 载入、迁移、保存、损坏恢复
+│  ├─ config_store.py                # 便携 / fallback config 载入、迁移、保存、损坏恢复
 │  ├─ crash_handling.py              # 共用 crash hook 安装与错误对话框入口
 │  ├─ crash_reporter.py              # crash log 生成、脱敏、落盘
 │  ├─ default_prompts.py             # 内建 Prompt Preset 定义与名称正规化

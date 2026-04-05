@@ -34,6 +34,14 @@ OCRTranslator is mainly split into these layers:
    - form snapshot validation
    - candidate config construction
 
+## Runtime config path resolution
+
+- `app/config_store.py` prefers a portable `config.json`, meaning the project root in source mode or the executable directory in packaged mode
+- If no portable config exists yet and the current runtime directory is not writable, config storage falls back to a user-level config directory
+- Windows fallback path: `%LOCALAPPDATA%\OCRTranslator\config.json`
+- Other-environment fallback path: `~/.ocrtranslator/config.json`
+- Crash logs still default to the runtime base directory (project root / executable directory) instead of following the fallback config path
+
 ## Detailed project structure
 
 ```text
@@ -52,7 +60,7 @@ OCRTranslator/
 │  ├─ api_client.py                  # unified API calling, key rotation, retry, and provider dispatch
 │  ├─ app_defaults.py                # default provider / URL / model / hotkey / theme mode / display values
 │  ├─ app_metadata.py                # author and repository metadata
-│  ├─ config_store.py                # load, migrate, save, and recover config.json
+│  ├─ config_store.py                # load, migrate, save, and recover portable / fallback config
 │  ├─ crash_handling.py              # shared crash-hook setup and error dialog entry point
 │  ├─ crash_reporter.py              # crash log generation, redaction, and persistence
 │  ├─ default_prompts.py             # built-in prompt preset definitions and name normalization

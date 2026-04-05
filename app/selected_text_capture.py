@@ -34,8 +34,6 @@ from .platform.windows.selected_text import (
     _restore_clipboard_if_unchanged,
     _send_copy_shortcut,
     _virtual_key_codes_for_hotkey,
-    _wait_for_hotkey_release,
-    capture_selected_text,
 )
 
 __all__ = [
@@ -74,6 +72,4 @@ __all__ = [
     "_restore_clipboard_if_unchanged",
     "_send_copy_shortcut",
     "_virtual_key_codes_for_hotkey",
-    "_wait_for_hotkey_release",
-    "capture_selected_text",
 ]

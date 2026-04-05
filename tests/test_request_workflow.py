@@ -20,6 +20,9 @@ class _FakeOverlay:
     def setVisible(self, value: bool):
         self._visible = bool(value)
 
+    def hide(self):
+        self._visible = False
+
 
 class _FakeSignal:
     def __init__(self):
@@ -103,6 +106,9 @@ class RequestWorkflowControllerTests(unittest.TestCase):
             or window.selected_text_capture_in_progress
         )
         window.show_main_window = Mock()
+        window.hide = Mock()
+        window.isVisible = lambda: True
+        window.isMinimized = lambda: False
         return window
 
     def test_profile_request_signature_can_include_model(self):
@@ -276,8 +282,8 @@ class RequestWorkflowControllerTests(unittest.TestCase):
         window.pending_capture_prompt_preset = None
         window.build_prompt_preset_from_form = lambda validate_name=False: SimpleNamespace(name="Translate", image_prompt="Describe")
 
-        def record_update_preview(image=None, *, preview_pixmap=None):
-            events.append(("update_preview", image, preview_pixmap))
+        def record_update_preview(*, preview_pixmap=None):
+            events.append(("update_preview", preview_pixmap))
 
         def request_image(*args, **kwargs):
             events.append("request_image")
@@ -296,10 +302,30 @@ class RequestWorkflowControllerTests(unittest.TestCase):
         window.screen_capture_service.capture_bbox_png_bytes_threadsafe.assert_called_once_with((10, 20, 110, 120))
         window.api_client.request_image_png.assert_called_once_with(b"png-data", unittest.mock.ANY, "image-prompt", 0.2, request_context=request_context)
         window.update_preview.assert_called_once_with(preview_pixmap="preview-pixmap")
-        self.assertEqual(events[0], ("update_preview", None, "preview-pixmap"))
+        self.assertEqual(events[0], ("update_preview", "preview-pixmap"))
         self.assertEqual(events[1], "request_image")
         self.assertEqual(window.set_status.call_args_list[0].args[0], "capturing")
         window.show_tray_toast.assert_called_once_with("tray_capturing")
+
+    def test_start_selection_allows_explicit_restore_override_for_capture_launch(self):
+        window = self._build_window()
+        controller = RequestWorkflowController(window)
+        overlay = window.translation_overlay
+        overlay.is_pinned = False
+        overlay.last_text = ""
+        window.isVisible = lambda: False
+        window.isMinimized = lambda: False
+        window.selection_overlay = SimpleNamespace(show_overlay=Mock())
+
+        controller.start_selection(restore_window_after_capture=True)
+
+        self.assertTrue(window.capture_workflow_active)
+        self.assertTrue(window.restore_window_after_capture)
+        window.selection_overlay.show_overlay.assert_called_once_with()
+        self.assertIsNotNone(window.pending_capture_profile)
+        self.assertIsNotNone(window.pending_capture_prompt_preset)
+        self.assertEqual(window.pending_capture_target_language, "English")
+        window.hide.assert_called_once_with()
 
 
 if __name__ == "__main__":

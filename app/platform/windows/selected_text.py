@@ -299,18 +299,6 @@ def _is_virtual_key_pressed(virtual_key: int) -> bool:
         return False
 
 
-def _wait_for_hotkey_release(hotkey_text: str, *, timeout_seconds: float, poll_seconds: float) -> None:
-    virtual_keys = _virtual_key_codes_for_hotkey(hotkey_text)
-    if not virtual_keys:
-        return
-    deadline = time.monotonic() + max(0.0, timeout_seconds)
-    while time.monotonic() < deadline:
-        QApplication.processEvents()
-        if not any(_is_virtual_key_pressed(virtual_key) for virtual_key in virtual_keys):
-            return
-        time.sleep(poll_seconds)
-
-
 def _send_copy_shortcut() -> None:
     from pynput.keyboard import Controller, Key
 
@@ -318,70 +306,3 @@ def _send_copy_shortcut() -> None:
     with controller.pressed(Key.ctrl):
         controller.press("c")
         controller.release("c")
-
-
-def capture_selected_text(
-    *,
-    hotkey_text: str = "",
-    settle_seconds: float = COPY_TRIGGER_SETTLE_SECONDS,
-    timeout_seconds: float = COPY_TRIGGER_TIMEOUT_SECONDS,
-    poll_seconds: float = COPY_TRIGGER_POLL_SECONDS,
-) -> str:
-    app = QApplication.instance()
-    if app is None:
-        raise RuntimeError("A QApplication instance is required to capture selected text.")
-
-    clipboard = app.clipboard()
-    backup_mime, had_backup_payload = _clone_mime_data(clipboard.mimeData())
-    backup_text = clipboard.text()
-    initial_sequence = _clipboard_sequence_number()
-    captured_sequence = None
-    captured_text = None
-
-    try:
-        _wait_for_hotkey_release(
-            hotkey_text,
-            timeout_seconds=HOTKEY_RELEASE_TIMEOUT_SECONDS,
-            poll_seconds=poll_seconds,
-        )
-
-        deadline = time.monotonic() + max(0.0, settle_seconds)
-        while time.monotonic() < deadline:
-            QApplication.processEvents()
-            time.sleep(min(poll_seconds, max(0.0, deadline - time.monotonic())))
-
-        _send_copy_shortcut()
-
-        changed = False
-        deadline = time.monotonic() + max(0.0, timeout_seconds)
-        while time.monotonic() < deadline:
-            QApplication.processEvents()
-            time.sleep(poll_seconds)
-            current_sequence = _clipboard_sequence_number()
-            current_text = clipboard.text()
-            if initial_sequence is not None and current_sequence is not None:
-                if current_sequence != initial_sequence:
-                    changed = True
-                    captured_sequence = current_sequence
-                    captured_text = current_text
-                    break
-            elif current_text != backup_text:
-                changed = True
-                captured_sequence = current_sequence
-                captured_text = current_text
-                break
-
-        copied_text = clipboard.text().strip() if changed else ""
-    finally:
-        if captured_sequence is None and captured_text is None:
-            _restore_clipboard(clipboard, backup_mime, had_backup_payload)
-        else:
-            _restore_clipboard_if_unchanged(
-                clipboard,
-                backup_mime,
-                had_backup_payload,
-                expected_sequence=captured_sequence,
-                expected_text=captured_text,
-            )
-    QApplication.processEvents()
-    return copied_text

@@ -93,7 +93,7 @@ build_exe.bat
 
 ## 推荐分发内容
 
-建议优先上传带版本号的压缩包，文件名包含项目名称、版本号与平台信息，例如：`OCRTranslator-v1.0.2-windows-x64.zip`，并额外附上一份 `SHA256SUMS.txt` 供手动校验。
+建议优先上传带版本号的压缩包，文件名包含项目名称、版本号与平台信息，例如：`OCRTranslator-v1.0.3-windows-x64.zip`，并额外附上一份 `SHA256SUMS.txt` 供手动校验。
 
 ```text
 release\OCRTranslator-v<version>-windows-x64.zip
@@ -148,7 +148,11 @@ dist\
 
 ## 运行时路径
 
-- 源码运行：根目录保存 `config.json` 与 crash log
-- exe 运行：exe 同层保存 `config.json` 与 crash log
+- 源码运行：优先使用项目根目录的 `config.json`
+- exe 运行：优先使用 exe 同层的 `config.json`
+- 如果便携位置没有配置文件，且当前运行目录不可写，配置文件会自动回退到：
+  - Windows：`%LOCALAPPDATA%\OCRTranslator\config.json`
+  - 其他环境 fallback：`~/.ocrtranslator/config.json`
+- crash log 仍然会写回项目根目录 / exe 同层，不会跟着 fallback 配置路径移动
 
-这样能让应用保持便携，方便整体搬移、备份与分发。
+这样能让应用在可写目录中保持便携，同时也能在只读或受限目录下稳定启动、保存配置与分发。

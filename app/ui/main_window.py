@@ -7,7 +7,6 @@ import threading
 import time
 from pathlib import Path
 
-from PIL import Image
 from PySide6.QtCore import QEvent, QPoint, Qt, QTimer
 from PySide6.QtGui import QGuiApplication, QPixmap
 from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QWidget
@@ -105,6 +104,8 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self._active_error_dialogs = []
         self._handling_error = False
         self._exit_watchdog_started = False
+        self._shutdown_cleanup_in_progress = False
+        self._shutdown_cleanup_done = False
         self.fetch_models_in_progress = False
         self.test_profile_in_progress = False
         self.translation_in_progress = False
@@ -309,11 +310,13 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
 
     def _startup_prewarm_steps(self):
         return [
-            {"name": "api_client", "callback": self.get_api_client, "min_idle_ms": 320, "next_delay_ms": 120},
-            {"name": "screen_capture_service", "callback": self.get_screen_capture_service, "min_idle_ms": 520, "next_delay_ms": 140},
-            {"name": "request_support_classes", "callback": self.request_workflow.preload_support_classes, "min_idle_ms": 760, "next_delay_ms": 140},
-            {"name": "translation_overlay_class", "callback": self.preload_translation_overlay_class, "min_idle_ms": 1080, "next_delay_ms": 150},
-            {"name": "overlay_presenter_class", "callback": self.preload_overlay_presenter_class, "min_idle_ms": 1220, "next_delay_ms": 0},
+            {"name": "api_client", "callback": self.get_api_client, "min_idle_ms": 320, "next_delay_ms": 120, "allow_hidden": True},
+            {"name": "screen_capture_service", "callback": self.get_screen_capture_service, "min_idle_ms": 520, "next_delay_ms": 140, "allow_hidden": True},
+            {"name": "request_support_classes", "callback": self.request_workflow.preload_support_classes, "min_idle_ms": 760, "next_delay_ms": 140, "allow_hidden": True},
+            {"name": "translation_overlay_class", "callback": self.preload_translation_overlay_class, "min_idle_ms": 980, "next_delay_ms": 110, "allow_hidden": True},
+            {"name": "overlay_presenter_class", "callback": self.preload_overlay_presenter_class, "min_idle_ms": 1180, "next_delay_ms": 110, "allow_hidden": True},
+            {"name": "translation_overlay", "callback": lambda: self.get_translation_overlay(create=True), "min_idle_ms": 1320, "next_delay_ms": 120, "allow_hidden": False},
+            {"name": "overlay_presenter", "callback": lambda: self.get_overlay_presenter(create=True), "min_idle_ms": 1460, "next_delay_ms": 0, "allow_hidden": False},
         ]
 
     def schedule_idle_prewarm(self, delay_ms: int = 180):
@@ -374,12 +377,9 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
     def _run_idle_prewarm_step(self):
         if getattr(self, "is_quitting", False) or getattr(self, "_startup_prewarm_completed", False):
             return
-        if not self.isVisible():
-            return
         if self.capture_workflow_active or self.background_busy():
             self.schedule_idle_prewarm(delay_ms=360)
             return
-
         if not getattr(self, "_startup_prewarm_started", False):
             self._startup_prewarm_started = True
             self.startup_timing.mark("startup_prewarm_started")
@@ -394,6 +394,8 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             return
 
         step = queue[0]
+        if not self.isVisible() and not bool(step.get("allow_hidden", False)):
+            return
         idle_ms = (time.perf_counter() - getattr(self, "_last_user_interaction_at", time.perf_counter())) * 1000.0
         required_idle_ms = int(step.get("min_idle_ms", 0))
         if idle_ms < required_idle_ms:
@@ -623,6 +625,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self.run_worker(
             lambda: self.update_check_service.check_latest_release(current_version=self.current_app_version()),
             lambda result, manual=manual: self._handle_update_check_result(result, manual=manual),
+            operation_key="update_check",
         )
         return True
 
@@ -848,6 +851,98 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         dialog = show_non_blocking_critical_message(self if self.isVisible() else None, self.tr("error_title"), display_message, theme_name=self.effective_theme_name())
         self._track_error_dialog(dialog)
 
+    def _perform_shutdown_cleanup(self):
+        if getattr(self, "_shutdown_cleanup_done", False) or getattr(self, "_shutdown_cleanup_in_progress", False):
+            return
+        self._shutdown_cleanup_in_progress = True
+        try:
+            if self.selected_text_capture_in_progress and getattr(self, "selected_text_capture_session", None):
+                try:
+                    self.selected_text_capture_session.cancel()
+                except Exception:  # noqa: BLE001
+                    pass
+            try:
+                self.operation_manager.cancel_all()
+            except Exception:  # noqa: BLE001
+                pass
+            try:
+                self.selection_overlay.hide()
+            except Exception:  # noqa: BLE001
+                pass
+            try:
+                self.stop_hotkey_recording(cancelled=False, restore_hotkey_listener=False)
+            except Exception:  # noqa: BLE001
+                pass
+            listener = getattr(self, "hotkey_listener", None)
+            if listener:
+                try:
+                    listener.stop()
+                except Exception:  # noqa: BLE001
+                    pass
+                self.hotkey_listener = None
+            self.registered_hotkeys = {}
+            for dialog in list(getattr(self, "_active_error_dialogs", [])):
+                try:
+                    dialog.close()
+                except Exception:  # noqa: BLE001
+                    pass
+            try:
+                self.instance_server_service.close()
+            except Exception:  # noqa: BLE001
+                pass
+            try:
+                self.tray_service.close()
+            except Exception:  # noqa: BLE001
+                pass
+            if hasattr(self, "toast_service"):
+                try:
+                    self.toast_service.close()
+                except Exception:  # noqa: BLE001
+                    pass
+            try:
+                overlay = self.existing_translation_overlay()
+            except Exception:  # noqa: BLE001
+                overlay = None
+            if overlay is not None:
+                try:
+                    overlay.close()
+                except Exception:  # noqa: BLE001
+                    pass
+        finally:
+            self._shutdown_cleanup_in_progress = False
+            self._shutdown_cleanup_done = True
+
+    def _shutdown_application(self, *, prompt_unsaved: bool, log_exit: bool, request_app_quit: bool) -> bool:
+        if not getattr(self, "is_quitting", False):
+            if prompt_unsaved and not self.resolve_unsaved_changes(for_exit=True):
+                return False
+            self.is_quitting = True
+            try:
+                self._remove_startup_interaction_tracker()
+            except Exception:  # noqa: BLE001
+                pass
+            if log_exit:
+                self.log_tr("log_application_exiting")
+            self._start_exit_watchdog()
+        self._perform_shutdown_cleanup()
+        app = QApplication.instance()
+        if app is None:
+            return True
+        try:
+            app.main_window = None
+        except Exception:  # noqa: BLE001
+            pass
+        if request_app_quit:
+            app.quit()
+        return True
+
+    def handle_about_to_quit(self):
+        self._shutdown_application(prompt_unsaved=False, log_exit=False, request_app_quit=False)
+
+    def emergency_shutdown(self):
+        self._safe_write_stderr("Emergency shutdown requested after unhandled Qt exception")
+        return self._shutdown_application(prompt_unsaved=False, log_exit=False, request_app_quit=True)
+
     def clear_logs(self):
         self.log_store.clear()
         self.refresh_log_view()
@@ -1059,6 +1154,17 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         except Exception as exc:  # noqa: BLE001
             self.handle_error(exc)
 
+    def start_selection_from_launch(self):
+        try:
+            self.request_workflow.start_selection(restore_window_after_capture=True)
+            if not getattr(self, "capture_workflow_active", False) and not getattr(self, "is_quitting", False):
+                self.log("Capture launch fallback opened main window because capture did not start")
+                if hasattr(self, "status_label"):
+                    self.set_status("capture_launch_fallback")
+                self.show_main_window()
+        except Exception as exc:  # noqa: BLE001
+            self.handle_error(exc)
+
     def finish_capture_workflow(self, restore_window: bool = False, *, clear_restore_window_state: bool = True):
         self.request_workflow.finish_capture_workflow(restore_window=restore_window, clear_restore_window_state=clear_restore_window_state)
 
@@ -1093,11 +1199,9 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
     def adjust_overlay_font_size(self, direction: int):
         self.overlay_presenter.adjust_font_size(direction)
 
-    def update_preview(self, image: Image.Image | None = None, *, preview_pixmap: QPixmap | None = None):
+    def update_preview(self, *, preview_pixmap: QPixmap | None = None):
         if preview_pixmap is not None:
             self.preview_pixmap = preview_pixmap
-        elif image is not None:
-            self.preview_pixmap = self.screen_capture_service.build_preview_pixmap(image)
         self.refresh_preview_pixmap()
 
     def refresh_preview_pixmap(self):
@@ -1136,6 +1240,11 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         return self.tray_service.show_message(message, duration_ms=duration_ms)
 
     def minimize_to_tray(self):
+        if not self.tray and not getattr(self, "_startup_services_initialized", False):
+            try:
+                self.complete_startup_services()
+            except Exception:  # noqa: BLE001
+                pass
         if not self.tray:
             self.set_status("tray_unavailable")
             show_information_message(self, self.tr("tray_title"), self.tr("tray_unavailable"))
@@ -1164,7 +1273,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             actual_exc = getattr(exc, "original", exc)
             if self._handle_stale_operation_error(operation, task_id, actual_exc):
                 return
-            if operation in {"fetch_models", "test_profile", "translation"}:
+            if operation in {"fetch_models", "test_profile", "translation", "update_check"}:
                 if task_id is not None:
                     self.operation_manager.finish(operation, task_id)
                 else:
@@ -1255,46 +1364,4 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             event.ignore()
 
     def quit_app(self):
-        if self.is_quitting:
-            return True
-        if not self.resolve_unsaved_changes(for_exit=True):
-            return False
-        self.is_quitting = True
-        self._remove_startup_interaction_tracker()
-        self.log_tr("log_application_exiting")
-        self._start_exit_watchdog()
-        if self.selected_text_capture_in_progress and getattr(self, "selected_text_capture_session", None):
-            try:
-                self.selected_text_capture_session.cancel()
-            except Exception:  # noqa: BLE001
-                pass
-        self.operation_manager.cancel_all()
-        try:
-            self.selection_overlay.hide()
-        except Exception:  # noqa: BLE001
-            pass
-        try:
-            self.stop_hotkey_recording(cancelled=False, restore_hotkey_listener=False)
-        except Exception:  # noqa: BLE001
-            pass
-        if self.hotkey_listener:
-            self.hotkey_listener.stop()
-            self.hotkey_listener = None
-        self.registered_hotkeys = {}
-        for dialog in list(getattr(self, "_active_error_dialogs", [])):
-            try:
-                dialog.close()
-            except Exception:  # noqa: BLE001
-                pass
-        self.instance_server_service.close()
-        self.tray_service.close()
-        if hasattr(self, "toast_service"):
-            self.toast_service.close()
-        overlay = self.existing_translation_overlay()
-        if overlay is not None:
-            overlay.close()
-        app = QApplication.instance()
-        if app is None:
-            return True
-        app.quit()
-        return True
+        return self._shutdown_application(prompt_unsaved=True, log_exit=True, request_app_quit=True)

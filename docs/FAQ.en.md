@@ -56,12 +56,17 @@ The repository already includes the groundwork for SignPath / Trusted Build inte
 
 ## 8. Where is the config file stored?
 
-By default:
+The app prefers a portable config file:
 
 - source mode: `config.json` in the project root
 - packaged exe: `config.json` next to the exe
 
-This keeps the app portable and easy to move or back up.
+If no portable config exists yet and the runtime directory is not writable, the app falls back to:
+
+- Windows: `%LOCALAPPDATA%\OCRTranslator\config.json`
+- other environments: `~/.ocrtranslator/config.json`
+
+Whenever a portable config exists, it takes precedence. This keeps the app portable while still allowing reliable startup from read-only locations.
 
 ## 9. How should I report a security issue?
 

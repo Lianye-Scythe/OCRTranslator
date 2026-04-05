@@ -194,6 +194,7 @@
   "at_least_one_profile": "至少要保留一个配置。",
   "at_least_one_prompt_preset": "至少要保留一个提示词方案。",
   "capture_cancelled": "已取消截图。",
+  "capture_launch_fallback": "未能直接进入截图，已切回主窗口。请检查当前设置或校验提示。",
   "request_cancelled": "当前操作已取消。",
   "font_zoomed": "结果字号已调整为 {size}",
   "already_running_title": "程序已在运行",

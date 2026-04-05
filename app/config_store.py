@@ -28,7 +28,7 @@ from .profile_utils import (
     normalize_provider_name,
     unique_non_empty,
 )
-from .runtime_paths import CONFIG_PATH
+from .runtime_paths import CONFIG_PATH, FALLBACK_CONFIG_PATH
 from .ui.message_boxes import show_warning_message
 
 
@@ -283,13 +283,46 @@ def _migrate_legacy_config(data: dict) -> AppConfig:
     )
 
 
-def _recover_broken_config_file() -> None:
-    backup_path = CONFIG_PATH.with_suffix(f".broken-{time.strftime('%Y%m%d-%H%M%S')}.json")
+def _directory_is_writable(path: Path) -> bool:
+    target_dir = Path(path)
+    probe_path = target_dir / f".ocrtranslator-write-test-{time.time_ns()}"
     try:
-        shutil.copy2(CONFIG_PATH, backup_path)
+        target_dir.mkdir(parents=True, exist_ok=True)
+        probe_path.write_text("", encoding="utf-8")
+    except OSError:
+        return False
+    finally:
+        try:
+            if probe_path.exists():
+                probe_path.unlink()
+        except OSError:
+            pass
+    return True
+
+
+def _resolved_config_path() -> Path:
+    portable_path = Path(CONFIG_PATH)
+    fallback_path = Path(FALLBACK_CONFIG_PATH)
+    if portable_path.exists():
+        return portable_path
+    if fallback_path.exists():
+        return fallback_path
+    if portable_path == fallback_path:
+        return portable_path
+    if _directory_is_writable(portable_path.parent):
+        return portable_path
+    return fallback_path
+
+
+def _recover_broken_config_file(config_path: Path) -> None:
+    backup_path = config_path.with_suffix(f".broken-{time.strftime('%Y%m%d-%H%M%S')}.json")
+    try:
+        shutil.copy2(config_path, backup_path)
     except Exception:  # noqa: BLE001
         backup_path = None
-    message = "Failed to load config.json. A fresh config will be created."
+    message = f"Failed to load {config_path.name}. A fresh config will be created."
+    if config_path != Path(CONFIG_PATH):
+        message += f" Active path: {config_path.parent}"
     if backup_path:
         message += f" Backup: {backup_path.name}"
     try:
@@ -300,25 +333,26 @@ def _recover_broken_config_file() -> None:
 
 def load_config() -> AppConfig:
     config = _default_app_config()
+    config_path = _resolved_config_path()
 
-    if CONFIG_PATH.exists():
+    if config_path.exists():
         try:
-            raw_payload = CONFIG_PATH.read_text(encoding="utf-8")
+            raw_payload = config_path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
-            _recover_broken_config_file()
-            save_config(config)
+            _recover_broken_config_file(config_path)
+            save_config(config, path=config_path)
             return config
 
         try:
             payload = json.loads(raw_payload)
         except json.JSONDecodeError:
-            _recover_broken_config_file()
-            save_config(config)
+            _recover_broken_config_file(config_path)
+            save_config(config, path=config_path)
             return config
 
         return _migrate_legacy_config(payload)
 
-    save_config(config)
+    save_config(config, path=config_path)
     return config
 
 
@@ -337,6 +371,6 @@ def _atomic_write_text(path: Path, content: str) -> None:
         raise
 
 
-def save_config(config: AppConfig) -> None:
+def save_config(config: AppConfig, *, path: Path | None = None) -> None:
     payload = json.dumps(_config_to_dict(config), ensure_ascii=False, indent=2) + "\n"
-    _atomic_write_text(CONFIG_PATH, payload)
+    _atomic_write_text(Path(path) if path is not None else _resolved_config_path(), payload)

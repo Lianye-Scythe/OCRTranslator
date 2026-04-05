@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml/badge.svg)](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D6)](packaging.en.md)
-[![Release](https://img.shields.io/badge/release-v1.0.2-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
+[![Release](https://img.shields.io/badge/release-v1.0.3-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
 [![License](https://img.shields.io/badge/license-GPLv3-4F46E5)](../LICENSE)
 
 OCRTranslator is a **portable OCR / AI request tool** built around **desktop reading workflows**.
@@ -44,9 +44,11 @@ It is not just a screenshot translator. It is a desktop AI workspace organized a
 - Main-thread crash handling now suppresses nested and short-window duplicate crash reports, reducing crash-log storms from a single startup exception
 - The tray context menu and Pin button states now follow the current light / dark theme and use a more restrained Material-style presentation
 - Shutdown now includes a watchdog and error-dialog fallback path to reduce the risk of the app becoming hard to close after runtime failures or third-party hook issues
+- `--capture` launches no longer flash the main window first; if capture cannot start because of validation or runtime-state checks, the app now falls back to the main window with an explicit status message
+- If the app is minimized to tray immediately after startup, it continues only lightweight prewarm work while pausing heavier overlay-instance prewarm so readiness improves without making tray mode noisy
 - Message boxes and destructive confirmations now share consistent button semantics, focus handling, and Escape behavior
 - Global hotkeys, system tray, and single-instance protection
-- Portable config stored next to the project root or packaged exe
+- Config resolution prefers a portable `config.json` next to the project root or packaged exe, and now falls back to a user-level config directory when the portable location is unavailable and not writable
 
 ## Screenshots
 
@@ -188,6 +190,29 @@ Supported variable:
 - `{target_language}`
 
 Built-in presets cannot be deleted directly. Duplicate one first if you want a removable custom version.
+
+## Config storage
+
+The app prefers a portable `config.json`.
+
+Resolution order:
+
+- source mode: if `config.json` already exists in the project root, it is reused; if the root is writable and no config exists yet, the app creates it there
+- packaged exe: if `config.json` already exists next to the executable, it is reused; if the exe directory is writable and no config exists yet, the app creates it there
+- if no portable config exists and the current runtime directory is not writable, the app falls back to a user-level config path:
+  - Windows: `%LOCALAPPDATA%\OCRTranslator\config.json`
+  - other environments: `~/.ocrtranslator/config.json`
+
+Whenever a portable config exists, it wins over the fallback path.
+
+Typical contents include:
+
+- active API / prompt preset selections
+- UI language, target language, theme mode, and hotkeys
+- overlay font, opacity, default size, and pinned geometry
+
+> `config.json` may contain API keys and private base URLs. Do not share it directly.
+> Crash logs still default to the project root or the executable directory instead of following the fallback config path.
 
 ## Tray and selected-text behavior
 

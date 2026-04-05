@@ -244,6 +244,25 @@ class MainWindowRuntimeTests(unittest.TestCase):
         window.log_tr.assert_called_once_with("log_application_started")
         window.schedule_idle_prewarm.assert_called_once_with()
 
+    def test_minimize_to_tray_can_finish_startup_services_before_reporting_unavailable(self):
+        window = MainWindow.__new__(MainWindow)
+        window.tray = None
+        window._startup_services_initialized = False
+        window.config = SimpleNamespace(ui_language="en")
+        window.tr = lambda key, **kwargs: key
+        window.complete_startup_services = Mock(side_effect=lambda: setattr(window, "tray", object()))
+        window.set_status = Mock()
+        window.show_tray_toast = Mock()
+        window.hide = Mock()
+        window.existing_translation_overlay = lambda: None
+
+        window.minimize_to_tray()
+
+        window.complete_startup_services.assert_called_once_with()
+        window.hide.assert_called_once_with()
+        window.set_status.assert_called_once_with("tray_minimized")
+
+
     def test_show_tray_toast_prefers_transient_toast_for_visible_window(self):
         window = MainWindow.__new__(MainWindow)
         window.toast_service = SimpleNamespace(show_message=Mock(return_value=True), hide_message=Mock())
@@ -417,6 +436,34 @@ class MainWindowRuntimeTests(unittest.TestCase):
         window.refresh_update_check_ui.assert_not_called()
         window.set_status.assert_not_called()
 
+    def test_handle_error_clears_update_check_state_when_update_worker_fails(self):
+        class _UpdateFailure(RuntimeError):
+            operation = "update_check"
+            task_id = 3
+
+        window = MainWindow.__new__(MainWindow)
+        window._handling_error = False
+        window._safe_write_stderr = Mock()
+        window._handle_stale_operation_error = Mock(return_value=False)
+        window.update_check_in_progress = True
+        window.operation_manager = SimpleNamespace(finish=lambda operation, task_id: setattr(window, "update_check_in_progress", False))
+        window.capture_workflow_active = False
+        window.restore_pinned_overlay_after_capture = False
+        window.is_quitting = False
+        window.status_label = object()
+        window.isVisible = lambda: True
+        window.finish_capture_workflow = Mock()
+        window.set_status = Mock()
+        window.log = Mock()
+        window.tr = lambda key, **kwargs: key
+        window.effective_theme_name = lambda: "light"
+        window._show_error_dialog_safe = Mock()
+
+        window.handle_error(_UpdateFailure("boom"))
+
+        self.assertFalse(window.update_check_in_progress)
+
+
     def test_close_event_can_redirect_to_tray_even_before_startup_services_finish(self):
         window = MainWindow.__new__(MainWindow)
         event = SimpleNamespace(ignore=Mock(), accept=Mock())
@@ -500,6 +547,40 @@ class MainWindowRuntimeTests(unittest.TestCase):
         self.assertEqual(calls, ["api", "overlay_class"])
         self.assertTrue(window._startup_prewarm_completed)
         window._remove_startup_interaction_tracker.assert_called_once_with()
+
+    def test_idle_prewarm_continues_light_steps_while_window_is_hidden_but_pauses_heavy_steps(self):
+        window = MainWindow.__new__(MainWindow)
+        calls = []
+        window.is_quitting = False
+        window._startup_prewarm_started = False
+        window._startup_prewarm_completed = False
+        window._startup_prewarm_pending = False
+        window.isVisible = lambda: False
+        window.capture_workflow_active = False
+        window.background_busy = lambda: False
+        window.log = Mock()
+        window.schedule_idle_prewarm = Mock()
+        window._remove_startup_interaction_tracker = Mock()
+        window._log_startup_prewarm_summary_if_ready = Mock()
+        window.startup_timing = SimpleNamespace(mark=Mock(), measure=lambda _name, callback: callback())
+        window._last_user_interaction_at = time.perf_counter() - 10
+        window._startup_prewarm_steps = lambda: [
+            {"name": "api", "callback": lambda: calls.append("api"), "min_idle_ms": 0, "next_delay_ms": 90, "allow_hidden": True},
+            {"name": "overlay", "callback": lambda: calls.append("overlay"), "min_idle_ms": 0, "next_delay_ms": 0, "allow_hidden": False},
+        ]
+
+        window._run_idle_prewarm_step()
+
+        self.assertEqual(calls, ["api"])
+        self.assertFalse(window._startup_prewarm_completed)
+        window.schedule_idle_prewarm.assert_called_once_with(delay_ms=90)
+
+        window._run_idle_prewarm_step()
+
+        self.assertEqual(calls, ["api"])
+        self.assertFalse(window._startup_prewarm_completed)
+        window._remove_startup_interaction_tracker.assert_not_called()
+
 
     def test_workspace_shadow_spec_uses_lighter_material_elevation_in_light_mode(self):
         window = MainWindow.__new__(MainWindow)
@@ -795,6 +876,73 @@ class MainWindowRuntimeTests(unittest.TestCase):
 
         window._force_process_exit.assert_called_once_with(0)
 
+    def test_start_selection_from_launch_uses_restore_window_override(self):
+        window = MainWindow.__new__(MainWindow)
+        window.capture_workflow_active = False
+        window.is_quitting = False
+        window.log = Mock()
+        window.status_label = object()
+        window.set_status = Mock()
+        window.show_main_window = Mock()
+        window.request_workflow = SimpleNamespace(start_selection=Mock(side_effect=lambda **kwargs: setattr(window, "capture_workflow_active", True)))
+        window.handle_error = Mock()
+
+        window.start_selection_from_launch()
+
+        window.request_workflow.start_selection.assert_called_once_with(restore_window_after_capture=True)
+        window.show_main_window.assert_not_called()
+        window.set_status.assert_not_called()
+        window.handle_error.assert_not_called()
+
+    def test_start_selection_from_launch_shows_main_window_when_capture_does_not_start(self):
+        window = MainWindow.__new__(MainWindow)
+        window.capture_workflow_active = False
+        window.is_quitting = False
+        window.log = Mock()
+        window.status_label = object()
+        window.set_status = Mock()
+        window.show_main_window = Mock()
+        window.request_workflow = SimpleNamespace(start_selection=Mock())
+        window.handle_error = Mock()
+
+        window.start_selection_from_launch()
+
+        window.set_status.assert_called_once_with("capture_launch_fallback")
+        window.show_main_window.assert_called_once_with()
+        window.handle_error.assert_not_called()
+
+    @patch("app.ui.main_window.QApplication.instance")
+    def test_emergency_shutdown_skips_unsaved_prompt_and_runs_cleanup(self, mock_app_instance):
+        fake_app = SimpleNamespace(quit=Mock())
+        mock_app_instance.return_value = fake_app
+        window = MainWindow.__new__(MainWindow)
+        window.is_quitting = False
+        window._shutdown_cleanup_in_progress = False
+        window._shutdown_cleanup_done = False
+        window.resolve_unsaved_changes = Mock(return_value=False)
+        window._remove_startup_interaction_tracker = Mock()
+        window._start_exit_watchdog = Mock()
+        window._safe_write_stderr = Mock()
+        window.selected_text_capture_in_progress = False
+        window.operation_manager = SimpleNamespace(cancel_all=Mock())
+        window.selection_overlay = SimpleNamespace(hide=Mock())
+        window.stop_hotkey_recording = Mock()
+        window.hotkey_listener = None
+        window.registered_hotkeys = {}
+        window._active_error_dialogs = []
+        window.instance_server_service = SimpleNamespace(close=Mock())
+        window.tray_service = SimpleNamespace(close=Mock())
+        window.toast_service = SimpleNamespace(close=Mock())
+        window.existing_translation_overlay = lambda: None
+
+        result = window.emergency_shutdown()
+
+        self.assertTrue(result)
+        window.resolve_unsaved_changes.assert_not_called()
+        window._start_exit_watchdog.assert_called_once_with()
+        fake_app.quit.assert_called_once_with()
+        self.assertTrue(window._shutdown_cleanup_done)
+
     @patch("app.ui.main_window.QApplication.instance")
     def test_quit_app_does_not_restore_hotkeys_while_exiting(self, mock_app_instance):
         fake_app = SimpleNamespace(quit=Mock())
@@ -821,6 +969,31 @@ class MainWindowRuntimeTests(unittest.TestCase):
         window._start_exit_watchdog.assert_called_once_with()
         fake_app.quit.assert_called_once_with()
 
+    @patch("app.ui.main_window.QApplication.instance")
+    def test_handle_about_to_quit_runs_cleanup_when_app_quit_bypasses_quit_app(self, mock_app_instance):
+        fake_app = SimpleNamespace()
+        mock_app_instance.return_value = fake_app
+        window = MainWindow.__new__(MainWindow)
+        window.is_quitting = False
+        window._shutdown_cleanup_in_progress = False
+        window._shutdown_cleanup_done = False
+        window._remove_startup_interaction_tracker = Mock()
+        window._start_exit_watchdog = Mock()
+        window.selected_text_capture_in_progress = False
+        window.operation_manager = SimpleNamespace(cancel_all=Mock())
+        window.selection_overlay = SimpleNamespace(hide=Mock())
+        window.stop_hotkey_recording = Mock()
+        window.hotkey_listener = None
+        window.registered_hotkeys = {}
+        window._active_error_dialogs = []
+        window.instance_server_service = SimpleNamespace(close=Mock())
+        window.tray_service = SimpleNamespace(close=Mock())
+        window.existing_translation_overlay = lambda: None
+
+        window.handle_about_to_quit()
+
+        window._start_exit_watchdog.assert_called_once_with()
+        self.assertTrue(window._shutdown_cleanup_done)
 
 if __name__ == "__main__":
     unittest.main()

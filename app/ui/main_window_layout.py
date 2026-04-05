@@ -161,6 +161,7 @@ class MainWindowLayoutMixin:
         self.hero_manual_input_button = self.create_button(self.open_prompt_input_dialog, secondary=True)
         self.hero_manual_input_button.setProperty("sidebarHeroTonal", True)
         self.hero_tray_button = self.create_button(self.minimize_to_tray, accent=False, compact=True)
+        self.hero_tray_button.setEnabled(False)
         sidebar_layout.addWidget(self.hero_capture_button)
         sidebar_layout.addWidget(self.hero_manual_input_button)
         sidebar_layout.addWidget(self.hero_tray_button)

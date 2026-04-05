@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml/badge.svg)](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D6)](docs/packaging.md)
-[![Release](https://img.shields.io/badge/release-v1.0.2-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
+[![Release](https://img.shields.io/badge/release-v1.0.3-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
 [![License](https://img.shields.io/badge/license-GPLv3-4F46E5)](LICENSE)
 
 OCRTranslator 是一款以 **桌面即時閱讀** 為核心的 **便攜式 OCR / AI 請求工具**。
@@ -54,8 +54,10 @@ OCRTranslator 是一款以 **桌面即時閱讀** 為核心的 **便攜式 OCR /
 - 主執行緒 crash handling 現在會抑制巢狀與短時間重複 crash report，降低單一啟動期錯誤刷出整排 crash log 的風險
 - 系統匣右鍵選單與 Pin 按鈕狀態現在會跟隨淺色 / 深色主題，並持續以較低存在感的 Material 風格呈現
 - 退出流程新增 watchdog 與錯誤提示 fallback，降低程式因錯誤或第三方 hook 狀態而無法正常關閉的風險
+- `--capture` 啟動現在不會再先閃出主視窗；若因設定校驗或執行期狀態無法直接開始截圖，會自動回到主視窗並提示原因
+- 啟動後若立刻最小化到系統匣，程式會繼續進行輕量 prewarm，但暫停較重的浮窗實例預熱，兼顧待命速度與背景安靜度
 - 支援全域快捷鍵、系統匣、單實例保護
-- 設定檔預設保存在專案根目錄 / exe 同層，維持便攜
+- 設定檔會優先沿用專案根目錄 / exe 同層的便攜 `config.json`；若目錄不可寫且尚未存在便攜設定檔，則自動回退到使用者設定目錄
 
 ## 介面預覽
 
@@ -234,14 +236,17 @@ python -m app.main --capture
 
 ## 設定檔
 
-預設設定檔位置：
+預設會優先使用便攜設定檔 `config.json`。
 
-- `config.json`
+路徑解析規則：
 
-路徑規則：
+- 原始碼模式：若專案根目錄已有 `config.json`，就沿用它；若根目錄可寫且尚未存在設定檔，也會直接在根目錄建立
+- 打包 exe：若 exe 同層已有 `config.json`，就沿用它；若 exe 目錄可寫且尚未存在設定檔，也會直接在 exe 同層建立
+- 若便攜位置沒有設定檔，且當前執行目錄不可寫，則自動回退到使用者設定目錄：
+  - Windows：`%LOCALAPPDATA%\OCRTranslator\config.json`
+  - 其他環境 fallback：`~/.ocrtranslator/config.json`
 
-- 原始碼模式：專案根目錄
-- 打包 exe：exe 所在目錄
+只要便攜設定檔存在，就會優先使用便攜路徑。
 
 主要保存內容：
 
@@ -259,6 +264,7 @@ python -m app.main --capture
 - `config.example.json`
 
 > `config.json` 可能包含 API Keys 與私有 Base URL，請勿直接分享。
+> crash log 仍會優先寫回專案根目錄或 exe 同層，不跟著 fallback 設定檔路徑移動。
 
 ## 托盤、單實例與錯誤處理
 

@@ -30,6 +30,15 @@ or:
 python -m app.main
 ```
 
+## Config path note
+
+When running from source, the app prefers `config.json` in the project root. If no portable config exists yet and the current directory is not writable, it falls back to:
+
+- Windows: `%LOCALAPPDATA%\OCRTranslator\config.json`
+- other environments: `~/.ocrtranslator/config.json`
+
+When debugging local config behavior, check both the portable path and the fallback path to see which one is currently active.
+
 ### Run tests
 
 ```bash

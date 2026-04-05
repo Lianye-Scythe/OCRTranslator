@@ -269,11 +269,11 @@ class RequestWorkflowController:
             source_key="manual_input_processing",
         )
 
-    def start_selection(self):
+    def start_selection(self, *, restore_window_after_capture: bool | None = None):
         request_context = self.prepare_request_context(focus_first_invalid=True, validation_scope="image_request")
         if not request_context:
             return
-        restore_window_after_capture = self.window.isVisible() and not self.window.isMinimized()
+        restore_window_after_capture = (self.window.isVisible() and not self.window.isMinimized()) if restore_window_after_capture is None else bool(restore_window_after_capture)
         self.window.pending_capture_profile = request_context["profile"]
         self.window.pending_capture_target_language = request_context["target_language"]
         self.window.pending_capture_prompt_preset = request_context["prompt_preset"]

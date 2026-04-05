@@ -93,7 +93,7 @@ If those values are not configured yet, the workflow still completes the unsigne
 
 ## Recommended distribution contents
 
-Prefer uploading the versioned archive first. The file name should include the project name, version, and platform, for example: `OCRTranslator-v1.0.2-windows-x64.zip`, and attach a companion `SHA256SUMS.txt` file for manual verification.
+Prefer uploading the versioned archive first. The file name should include the project name, version, and platform, for example: `OCRTranslator-v1.0.3-windows-x64.zip`, and attach a companion `SHA256SUMS.txt` file for manual verification.
 
 ```text
 release\OCRTranslator-v<version>-windows-x64.zip
@@ -148,7 +148,11 @@ dist\
 
 ## Runtime paths
 
-- source mode: `config.json` and crash logs are stored in the project root
-- exe mode: `config.json` and crash logs are stored next to the executable
+- source mode: the app prefers `config.json` in the project root
+- exe mode: the app prefers `config.json` next to the executable
+- if no portable config exists and the current runtime directory is not writable, config storage falls back to:
+  - Windows: `%LOCALAPPDATA%\OCRTranslator\config.json`
+  - other environments: `~/.ocrtranslator/config.json`
+- crash logs still stay in the project root / executable directory instead of following the fallback config path
 
-This keeps the app portable and easy to move, back up, and redistribute.
+This keeps the app portable when the runtime directory is writable while still allowing stable startup and config saves from read-only or otherwise restricted locations.

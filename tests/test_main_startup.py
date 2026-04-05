@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QApplication
 
-from app.main import request_existing_instance_action, schedule_initial_window_action
+from app.main import request_application_shutdown, request_existing_instance_action, schedule_initial_window_action
 from app.models import AppConfig
 from app.services.startup_timing import StartupTimingTracker
 from app.ui.main_window import MainWindow
@@ -143,8 +143,8 @@ class MainStartupTests(unittest.TestCase):
 
         schedule_initial_window_action(window, pending_capture=True)
 
-        window.show.assert_called_once_with()
-        mock_single_shot.assert_called_once_with(0, window.start_selection)
+        window.show.assert_not_called()
+        mock_single_shot.assert_called_once_with(0, window.start_selection_from_launch)
 
     @patch("app.main.create_ui_application")
     @patch("app.main.request_existing_instance_action", return_value=True)
@@ -162,6 +162,29 @@ class MainStartupTests(unittest.TestCase):
         run_app()
 
         mock_create_ui_application.assert_not_called()
+
+    def test_request_application_shutdown_prefers_main_window_emergency_shutdown(self):
+        emergency_shutdown = Mock(return_value=True)
+        app = Mock(main_window=Mock(emergency_shutdown=emergency_shutdown))
+
+        self.assertTrue(request_application_shutdown(app))
+
+        emergency_shutdown.assert_called_once_with()
+        app.quit.assert_not_called()
+
+    def test_request_application_shutdown_falls_back_to_app_quit_when_window_shutdown_is_missing(self):
+        app = Mock(main_window=object())
+
+        self.assertTrue(request_application_shutdown(app))
+
+        app.quit.assert_called_once_with()
+
+    def test_request_application_shutdown_falls_back_to_app_quit_when_window_shutdown_raises(self):
+        app = Mock(main_window=Mock(emergency_shutdown=Mock(side_effect=RuntimeError("boom"))))
+
+        self.assertTrue(request_application_shutdown(app))
+
+        app.quit.assert_called_once_with()
 
     @patch.object(MainWindow, "setup_hotkey_listener", autospec=True, return_value=True)
     @patch("app.ui.main_window.UpdateCheckService", _FakeUpdateCheckService)

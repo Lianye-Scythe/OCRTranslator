@@ -6,6 +6,21 @@ This file records important OCRTranslator changes.
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-04-06
+
+### Added
+- Added a `--capture` launch fallback so the app now returns to the main window with an explicit status message when capture cannot start because of validation or runtime state checks
+- Added dual-config-path documentation and regression coverage that explain how the portable config and the user-level fallback config are resolved
+
+### Changed
+- Further refined the startup path: `--capture` no longer shows the main window first, tray minimization now backfills tray initialization before reporting failure, and hidden windows continue only lightweight prewarm while pausing heavier UI-instance prewarm
+- Config resolution now prefers a portable `config.json` beside the project root or packaged exe; if no portable config exists and that directory is not writable, the app falls back to a user-level config directory automatically
+
+### Fixed
+- Unified the Qt main-thread unhandled-event shutdown path with the full application cleanup flow, including the watchdog plus hotkey / tray / overlay / single-instance IPC cleanup, reducing the risk of needing Task Manager after an error
+- Fixed update-check workers leaving stale busy state behind when they fail by exception instead of returning a result object
+- Removed the old synchronous selected-text path and the unused screenshot dead code so the startup and maintenance surface is easier to reason about
+
 ## [1.0.2] - 2026-04-05
 
 ### Fixed

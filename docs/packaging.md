@@ -93,7 +93,7 @@ build_exe.bat
 
 ## 建議分發內容
 
-建議優先上傳版本化壓縮包，檔名包含專案名稱、版本號與平台資訊，例如：`OCRTranslator-v1.0.2-windows-x64.zip`，並額外附上一份 `SHA256SUMS.txt` 供手動驗證。
+建議優先上傳版本化壓縮包，檔名包含專案名稱、版本號與平台資訊，例如：`OCRTranslator-v1.0.3-windows-x64.zip`，並額外附上一份 `SHA256SUMS.txt` 供手動驗證。
 
 ```text
 release\OCRTranslator-v<version>-windows-x64.zip
@@ -148,7 +148,11 @@ dist\
 
 ## 執行期路徑
 
-- 原始碼執行：根目錄保存 `config.json` 與 crash log
-- exe 執行：exe 同層保存 `config.json` 與 crash log
+- 原始碼執行：優先使用專案根目錄的 `config.json`
+- exe 執行：優先使用 exe 同層的 `config.json`
+- 若便攜位置沒有設定檔，且當前執行目錄不可寫，設定檔會自動回退到：
+  - Windows：`%LOCALAPPDATA%\OCRTranslator\config.json`
+  - 其他環境 fallback：`~/.ocrtranslator/config.json`
+- crash log 仍維持寫回專案根目錄 / exe 同層，不跟著 fallback 設定檔路徑移動
 
-這讓應用維持便攜，方便整包搬移、備份與分發。
+這讓應用在可寫目錄中保持便攜，同時也能在唯讀或受限目錄中穩定啟動、保存設定與分發。

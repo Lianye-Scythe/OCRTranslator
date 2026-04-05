@@ -30,6 +30,15 @@ python launcher.pyw
 python -m app.main
 ```
 
+## 設定檔路徑提示
+
+原始碼執行時，程式會優先使用專案根目錄的 `config.json`；若根目錄沒有設定檔且目前目錄不可寫，則會自動回退到：
+
+- Windows：`%LOCALAPPDATA%\OCRTranslator\config.json`
+- 其他環境 fallback：`~/.ocrtranslator/config.json`
+
+排查本機設定問題時，請同時確認便攜設定檔與 fallback 設定檔是否有其中一份正在生效。
+
 ### 執行測試
 
 ```bash

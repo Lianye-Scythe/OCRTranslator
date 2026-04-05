@@ -194,6 +194,7 @@
   "at_least_one_profile": "At least one profile must remain.",
   "at_least_one_prompt_preset": "At least one prompt preset must remain.",
   "capture_cancelled": "Capture cancelled.",
+  "capture_launch_fallback": "Capture did not start, so the app returned to the main window. Please review the current settings or validation hints.",
   "request_cancelled": "The current operation was cancelled.",
   "font_zoomed": "Result font size changed to {size}",
   "already_running_title": "Already Running",
