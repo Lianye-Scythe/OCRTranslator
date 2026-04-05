@@ -350,12 +350,13 @@ class MainWindowRuntimeTests(unittest.TestCase):
         window.refresh_update_check_ui.assert_called_once_with()
 
     @patch("app.ui.main_window.QTimer.singleShot")
-    def test_schedule_startup_update_check_runs_once_and_respects_toggle(self, mock_single_shot):
+    def test_schedule_startup_update_check_runs_once_and_uses_saved_preference(self, mock_single_shot):
         window = MainWindow.__new__(MainWindow)
         window._startup_update_check_scheduled = False
         window.is_quitting = False
         window.update_check_in_progress = False
-        window.should_check_updates_on_startup = lambda: True
+        window.config = SimpleNamespace(check_updates_on_startup=True)
+        window.check_updates_on_startup_checkbox = SimpleNamespace(isChecked=lambda: False)
         window.start_update_check = Mock()
 
         window.schedule_startup_update_check(delay_ms=3456)
@@ -366,6 +367,23 @@ class MainWindowRuntimeTests(unittest.TestCase):
         self.assertEqual(delay, 3456)
         callback()
         window.start_update_check.assert_called_once_with(manual=False)
+
+    @patch("app.ui.main_window.QTimer.singleShot")
+    def test_schedule_startup_update_check_ignores_unsaved_checkbox_enable_when_saved_preference_is_off(self, mock_single_shot):
+        window = MainWindow.__new__(MainWindow)
+        window._startup_update_check_scheduled = False
+        window.is_quitting = False
+        window.update_check_in_progress = False
+        window.config = SimpleNamespace(check_updates_on_startup=False)
+        window.check_updates_on_startup_checkbox = SimpleNamespace(isChecked=lambda: True)
+        window.start_update_check = Mock()
+
+        window.schedule_startup_update_check(delay_ms=3456)
+
+        delay, callback = mock_single_shot.call_args.args
+        self.assertEqual(delay, 3456)
+        callback()
+        window.start_update_check.assert_not_called()
 
     def test_refresh_update_check_hint_uses_result_when_manual_check_found_new_release(self):
         window = MainWindow.__new__(MainWindow)

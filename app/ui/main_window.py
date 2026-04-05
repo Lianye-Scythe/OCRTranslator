@@ -532,6 +532,10 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
     def current_app_version(self) -> str:
         return APP_VERSION
 
+    def persisted_update_check_preference(self) -> bool:
+        config = getattr(self, "config", None)
+        return bool(getattr(config, "check_updates_on_startup", False))
+
     def should_check_updates_on_startup(self) -> bool:
         if hasattr(self, "check_updates_on_startup_checkbox"):
             return bool(self.check_updates_on_startup_checkbox.isChecked())
@@ -602,7 +606,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             self._startup_update_check_scheduled = False
             if getattr(self, "is_quitting", False) or self.update_check_in_progress:
                 return
-            if not self.should_check_updates_on_startup():
+            if not self.persisted_update_check_preference():
                 return
             self.start_update_check(manual=False)
 

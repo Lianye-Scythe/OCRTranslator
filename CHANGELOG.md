@@ -6,6 +6,14 @@
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-04-05
+
+### Fixed
+- 啟動後延遲執行的自動版本檢查現在只會讀取已儲存的 `check_updates_on_startup` 設定，不再受尚未儲存的 checkbox 即時狀態影響
+
+### Changed
+- `v1.0.2` 的發佈 tag annotation 改為以無 BOM 文案建立，避免 GitHub Release 正文繼承隱藏字元
+
 ## [1.0.1] - 2026-04-05
 
 ### Added

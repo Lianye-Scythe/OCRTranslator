@@ -6,6 +6,14 @@ This file records important OCRTranslator changes.
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-04-05
+
+### Fixed
+- Delayed startup update checks now read only the persisted `check_updates_on_startup` setting, so unsaved checkbox changes no longer alter the current launch's automatic-check behavior
+
+### Changed
+- The `v1.0.2` release tag annotation is created from BOM-free text so GitHub Release notes do not inherit a hidden leading character
+
 ## [1.0.1] - 2026-04-05
 
 ### Added
