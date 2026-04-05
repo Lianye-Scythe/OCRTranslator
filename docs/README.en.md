@@ -211,6 +211,7 @@ python -m compileall app tests launcher.pyw
 - [Packaging and Distribution](packaging.en.md)
 - [FAQ](FAQ.en.md)
 - [Code of Conduct](../CODE_OF_CONDUCT.md)
+- [Support](../SUPPORT.md)
 - [Contributing](CONTRIBUTING.en.md)
 - [Security Policy](SECURITY.en.md)
 - [Changelog](CHANGELOG.en.md)

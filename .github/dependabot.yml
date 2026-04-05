@@ -8,9 +8,6 @@ updates:
       time: "09:00"
       timezone: "Asia/Taipei"
     open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "python"
     groups:
       python-dependencies:
         patterns:
@@ -24,9 +21,6 @@ updates:
       time: "09:15"
       timezone: "Asia/Taipei"
     open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "ci"
     groups:
       github-actions:
         patterns:

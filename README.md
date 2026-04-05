@@ -315,6 +315,7 @@ python -m compileall app tests launcher.pyw
 - [打包與發佈](docs/packaging.md)
 - [常見問題 FAQ](docs/FAQ.md)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Support](SUPPORT.md)
 - [貢獻指南](CONTRIBUTING.md)
 - [安全性回報](SECURITY.md)
 - [變更記錄](CHANGELOG.md)

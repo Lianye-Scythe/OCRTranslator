@@ -20,6 +20,7 @@ This page collects the main OCRTranslator documentation entry points.
 ## Collaboration and governance
 
 - [Code of Conduct](../CODE_OF_CONDUCT.md)
+- [Support](../SUPPORT.md)
 - [Contributing](CONTRIBUTING.en.md)
 - [Security Policy](SECURITY.en.md)
 - [Changelog](CHANGELOG.en.md)

@@ -303,6 +303,7 @@ python -m compileall app tests launcher.pyw
 - [打包与发布](packaging.zh-CN.md)
 - [常见问题 FAQ](FAQ.zh-CN.md)
 - [Code of Conduct](../CODE_OF_CONDUCT.md)
+- [Support](../SUPPORT.md)
 - [贡献指南](CONTRIBUTING.zh-CN.md)
 - [安全性回报](SECURITY.zh-CN.md)
 - [变更记录](CHANGELOG.zh-CN.md)

@@ -20,6 +20,7 @@
 ## 协作与治理
 
 - [Code of Conduct](../CODE_OF_CONDUCT.md)
+- [Support](../SUPPORT.md)
 - [Contributing](CONTRIBUTING.zh-CN.md)
 - [Security Policy](SECURITY.zh-CN.md)
 - [Changelog](CHANGELOG.zh-CN.md)
