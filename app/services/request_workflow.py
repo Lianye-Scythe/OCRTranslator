@@ -128,7 +128,7 @@ class RequestWorkflowController:
         self.window.log_tr("log_text_request_submitted", preset=prompt_preset.name, chars=len(text))
         self.window.show_tray_toast(self.window.tr(source_key))
         overlay = self.window.translation_overlay
-        preserve_pinned_geometry = bool(overlay.is_pinned and overlay.last_geometry is not None)
+        preserve_pinned_geometry = bool(overlay.is_pinned)
         preserve_manual_position = bool(
             overlay.isVisible()
             and overlay.manual_positioned
@@ -286,7 +286,7 @@ class RequestWorkflowController:
             bbox,
             text,
             preset_name=preset_name,
-            preserve_geometry=bool(self.window.restore_pinned_overlay_after_capture),
+            preserve_geometry=bool(self.window.translation_overlay.is_pinned),
         )
         request_elapsed = time.perf_counter() - request_started_at
         total_elapsed = time.perf_counter() - capture_started_at

@@ -54,9 +54,13 @@ class AppConfig:
     selection_hotkey: str = DEFAULT_SELECTION_HOTKEY
     input_hotkey: str = DEFAULT_INPUT_HOTKEY
     overlay_font_family: str = DEFAULT_OVERLAY_FONT_FAMILY
-    overlay_font_size: int = 12
+    overlay_font_size: int = 16
     overlay_opacity: int = 95
     overlay_pinned: bool = False
+    overlay_pinned_x: int | None = None
+    overlay_pinned_y: int | None = None
+    overlay_pinned_width: int | None = None
+    overlay_pinned_height: int | None = None
     close_to_tray_on_close: bool = False
     active_profile_name: str = "Default Gemini"
     active_prompt_preset_name: str = DEFAULT_PROMPT_PRESET_DEFINITIONS[0]["name"]

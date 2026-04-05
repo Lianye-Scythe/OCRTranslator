@@ -4,6 +4,26 @@
 
 本檔案用來記錄 OCRTranslator 的重要變更。
 
+## [0.9.6] - 2026-04-05
+
+### Added
+- 新增 `LICENSE`（GPLv3），並補上 README / 貢獻指南中的授權說明，明確定義程式碼與後續貢獻的授權方式
+- 新增 Pin 專用持久化幾何欄位，讓固定中的翻譯浮窗位置與尺寸可跨重啟保留
+
+### Changed
+- 預設結果浮窗字級從 `12` 調整為 `16`，`config.example.json` 與設定模型的預設值同步更新
+- 打包 / 簽名基礎結構移至 `packaging/`，由 `packaging/windows/OCRTranslator.spec` 與 `packaging/signpath/` 集中管理
+- GitHub Actions workflow 改為使用 Node 24 相容 action 版本，並以 SignPath gate step 避免 workflow 在 `if:` 直接引用 `secrets.*` 而失效
+- 主視窗關於區塊現在會顯示 `License: GPLv3`，打包輸出的 ZIP 也會一併附上 `LICENSE`
+- 執行期提示文案同步更新：未 Pin 浮窗每次都會從儲存的預設尺寸重新自動擴展，Pin 浮窗則自動記住目前幾何
+
+### Fixed
+- 修正英文 `Unsaved Changes` 對話框按鈕文案溢出、說明文截斷與中英文對齊不平衡問題，讓警告 icon、文案區與按鈕區更穩定
+- 修正未 Pin 浮窗在自動擴展或手動 resize 後覆蓋 `overlay_width` / `overlay_height` 的問題；未 Pin 狀態現在每次新請求都會從儲存的預設尺寸重新起算
+- 修正浮窗 runtime resize 會污染設定表單、觸發未保存提示的問題；未 Pin 的臨時幾何不再被當成需要保存的預設值
+- 修正 Pin 浮窗在 runtime 幾何尚未載入時無法可靠沿用持久化尺寸的問題
+- 補上 Pin 幾何持久化、未 Pin 尺寸回退、overlay dialog 版面與 release workflow 的回歸測試
+
 ## [0.9.5] - 2026-04-05
 
 ### Added

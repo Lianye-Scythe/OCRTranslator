@@ -26,6 +26,10 @@ class ConfigStoreMigrationTests(unittest.TestCase):
                 "overlay_font_size": 1,
                 "overlay_opacity": 5,
                 "overlay_pinned": "yes",
+                "overlay_pinned_x": "120",
+                "overlay_pinned_y": 140,
+                "overlay_pinned_width": "600",
+                "overlay_pinned_height": 10000,
                 "active_profile_name": "missing",
                 "api_profiles": {
                     "name": " Demo ",
@@ -57,6 +61,10 @@ class ConfigStoreMigrationTests(unittest.TestCase):
         self.assertEqual(config.overlay_font_size, 10)
         self.assertEqual(config.overlay_opacity, 5)
         self.assertTrue(config.overlay_pinned)
+        self.assertEqual(config.overlay_pinned_x, 120)
+        self.assertEqual(config.overlay_pinned_y, 140)
+        self.assertEqual(config.overlay_pinned_width, 600)
+        self.assertEqual(config.overlay_pinned_height, 1600)
         self.assertEqual(config.active_prompt_preset_name, "翻譯 (Translate)")
         self.assertEqual(len(config.prompt_presets), 4)
         self.assertEqual(config.prompt_presets[0].name, "翻譯 (Translate)")
@@ -96,6 +104,10 @@ class ConfigStoreMigrationTests(unittest.TestCase):
         self.assertEqual(config.overlay_auto_expand_bottom_margin, 24)
         self.assertEqual(config.overlay_opacity, 95)
         self.assertFalse(config.overlay_pinned)
+        self.assertIsNone(config.overlay_pinned_x)
+        self.assertIsNone(config.overlay_pinned_y)
+        self.assertIsNone(config.overlay_pinned_width)
+        self.assertIsNone(config.overlay_pinned_height)
         self.assertEqual(config.selection_hotkey, "Shift+Win+C")
         self.assertEqual(config.input_hotkey, "Shift+Win+Z")
         self.assertEqual(len(config.api_profiles), 1)

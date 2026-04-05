@@ -44,6 +44,7 @@ class MainWindowProfilesDialogTests(unittest.TestCase):
 
         self.assertEqual(result, QMessageBox.Cancel)
         mock_dialog.assert_called_once()
+        self.assertTrue(mock_dialog.call_args.kwargs["center_text"])
 
     def test_stop_hotkey_recording_skips_hotkey_restore_when_requested(self):
         window = MainWindowProfilesMixin.__new__(MainWindowProfilesMixin)

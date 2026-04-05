@@ -5,7 +5,8 @@ import os
 from pathlib import Path
 
 
-project_root = Path(globals().get("SPECPATH", ".")).resolve()
+spec_dir = Path(globals().get("SPECPATH", ".")).resolve()
+project_root = spec_dir.parents[1]
 version_file_value = os.environ.get("OCRT_VERSION_FILE")
 version_file = Path(version_file_value) if version_file_value else project_root / "build" / "OCRTranslator.version-info.txt"
 version_file = version_file.resolve()

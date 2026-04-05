@@ -1,9 +1,10 @@
 APP_NAME = "OCRTranslator"
-APP_VERSION = "0.9.5"
+APP_VERSION = "0.9.6"
 AUTHOR_NAME_ZH = "鐮夜"
 AUTHOR_NAME_EN = "scythenight"
 REPOSITORY_NAME = "Lianye-Scythe/OCRTranslator"
 REPOSITORY_URL = "https://github.com/Lianye-Scythe/OCRTranslator"
+APP_LICENSE_NAME = "GPLv3"
 
 WINDOWS_COMPANY_NAME = AUTHOR_NAME_EN
 WINDOWS_PRODUCT_NAME = APP_NAME

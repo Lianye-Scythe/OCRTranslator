@@ -30,6 +30,8 @@ It is not just a screenshot translator. It is a desktop AI workspace organized a
 - Selected-text capture now runs as a non-blocking flow, shows a single processing toast only when the request is submitted, and supports cancellation during capture
 - Result overlay supports copy, a pushpin-style keep-visible toggle, surface-only opacity control, direct opacity input, drag to move, corner resize, and `Ctrl + mouse wheel` font zoom
 - Pinned result overlays now preserve their previous size and position across capture, selected-text, and manual-input flows; capture hides the overlay only temporarily and restores it with the same geometry
+- Unpinned overlays now restart from the saved default size on every new request; temporary manual resizing no longer pollutes the saved default size or triggers unsaved-change prompts
+- Pinned overlay size and position changes are now auto-persisted across app restarts; once Pin is turned off, the next new request falls back to the saved default size again
 - The tray context menu and Pin button states now follow the current light / dark theme and use a more restrained Material-style presentation
 - Shutdown now includes a watchdog and error-dialog fallback path to reduce the risk of the app becoming hard to close after runtime failures or third-party hook issues
 - Message boxes and destructive confirmations now share consistent button semantics, focus handling, and Escape behavior
@@ -189,3 +191,11 @@ python -m compileall app tests launcher.pyw
 - [Contributing](CONTRIBUTING.en.md)
 - [Security Policy](SECURITY.en.md)
 - [Changelog](CHANGELOG.en.md)
+
+## License
+
+- This project is released under the **GNU General Public License v3.0 (GPLv3)**
+- See the repository-root `LICENSE` file for the full text
+- If you distribute a modified or derived version, please provide the corresponding source code under GPLv3 as well
+
+By submitting pull requests, patches, or other code contributions to this repository, you agree that those contributions may be distributed under GPLv3.

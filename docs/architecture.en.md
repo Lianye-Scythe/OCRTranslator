@@ -160,6 +160,13 @@ OCRTranslator/
 ├─ config.json                       # local runtime config (generated file, should not be committed)
 ├─ CONTRIBUTING.md                   # contribution guide (default Traditional Chinese version)
 ├─ launcher.pyw                      # GUI launcher
+├─ packaging/
+│  ├─ signpath/
+│  │  ├─ artifact-configurations/
+│  │  │  └─ default.xml              # SignPath artifact configuration
+│  │  └─ README.md                   # SignPath integration notes
+│  └─ windows/
+│     └─ OCRTranslator.spec          # PyInstaller packaging definition
 ├─ README.md                         # project overview (default Traditional Chinese version)
 ├─ requirements-dev.txt              # development / packaging dependencies
 ├─ requirements.txt                  # runtime dependencies

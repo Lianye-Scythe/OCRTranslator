@@ -81,6 +81,20 @@ def _coerce_int(value, default: int, *, min_value: int | None = None, max_value:
     return result
 
 
+def _coerce_optional_int(value, *, min_value: int | None = None, max_value: int | None = None) -> int | None:
+    if value is None:
+        return None
+    try:
+        result = int(value)
+    except (TypeError, ValueError):
+        return None
+    if min_value is not None:
+        result = max(min_value, result)
+    if max_value is not None:
+        result = min(max_value, result)
+    return result
+
+
 def _coerce_float(value, default: float, *, min_value: float | None = None, max_value: float | None = None) -> float:
     try:
         result = float(value)
@@ -249,9 +263,13 @@ def _migrate_legacy_config(data: dict) -> AppConfig:
         selection_hotkey=_coerce_text(source.get("selection_hotkey"), DEFAULT_SELECTION_HOTKEY),
         input_hotkey=_coerce_text(source.get("input_hotkey"), DEFAULT_INPUT_HOTKEY),
         overlay_font_family=_coerce_text(source.get("overlay_font_family"), DEFAULT_OVERLAY_FONT_FAMILY),
-        overlay_font_size=_coerce_int(source.get("overlay_font_size"), 12, min_value=10, max_value=32),
+        overlay_font_size=_coerce_int(source.get("overlay_font_size"), 16, min_value=10, max_value=32),
         overlay_opacity=_coerce_int(source.get("overlay_opacity"), 95, min_value=1, max_value=100),
         overlay_pinned=_coerce_bool(source.get("overlay_pinned", False), False),
+        overlay_pinned_x=_coerce_optional_int(source.get("overlay_pinned_x")),
+        overlay_pinned_y=_coerce_optional_int(source.get("overlay_pinned_y")),
+        overlay_pinned_width=_coerce_optional_int(source.get("overlay_pinned_width"), min_value=240, max_value=1600),
+        overlay_pinned_height=_coerce_optional_int(source.get("overlay_pinned_height"), min_value=220, max_value=1600),
         close_to_tray_on_close=_coerce_bool(source.get("close_to_tray_on_close", False), False),
         active_profile_name=_normalize_active_profile_name(profiles, str(source.get("active_profile_name", "")).strip() or None),
         active_prompt_preset_name=_normalize_active_prompt_preset_name(

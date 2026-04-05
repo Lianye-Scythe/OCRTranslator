@@ -8,7 +8,7 @@ set "PYTHON_EXE=%VENV_DIR%\Scripts\python.exe"
 set "BUILD_DIR=build"
 set "RELEASE_DIR=release"
 set "DIST_NAME=OCRTranslator"
-set "SPEC_FILE=%DIST_NAME%.spec"
+set "SPEC_FILE=packaging\windows\%DIST_NAME%.spec"
 set "ARCHIVE_PREFIX=%DIST_NAME%"
 set "ARCHIVE_SUFFIX=windows-x64"
 set "APP_VERSION="
@@ -86,6 +86,8 @@ if errorlevel 1 goto :build_failed
 echo [OCRTranslator] Copying release assets...
 copy /y "README.md" "%RELEASE_DIR%\README.md" >nul
 if errorlevel 1 goto :copy_failed
+copy /y "LICENSE" "%RELEASE_DIR%\LICENSE" >nul
+if errorlevel 1 goto :copy_failed
 copy /y "config.example.json" "%RELEASE_DIR%\config.example.json" >nul
 if errorlevel 1 goto :copy_failed
 
@@ -95,7 +97,7 @@ call :sign_release_binary "%RELEASE_DIR%\%DIST_NAME%.exe"
 if errorlevel 1 goto :sign_failed
 
 echo [OCRTranslator] Creating release archive...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Compress-Archive -Path '%RELEASE_DIR%\%DIST_NAME%.exe','%RELEASE_DIR%\README.md','%RELEASE_DIR%\config.example.json' -DestinationPath '%ARCHIVE_PATH%' -Force"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Compress-Archive -Path '%RELEASE_DIR%\%DIST_NAME%.exe','%RELEASE_DIR%\README.md','%RELEASE_DIR%\LICENSE','%RELEASE_DIR%\config.example.json' -DestinationPath '%ARCHIVE_PATH%' -Force"
 if errorlevel 1 goto :archive_failed
 
 if not exist "%ARCHIVE_PATH%" goto :archive_failed

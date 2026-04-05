@@ -14,11 +14,11 @@
 2. 安裝 `requirements-dev.txt`
 3. 清理舊的 `build/`、`dist/`、`release/`
 4. 從 `app/app_metadata.py` 讀取目前版本號
-5. 透過 `OCRTranslator.spec` + PyInstaller 輸出 `release\OCRTranslator.exe`
-6. 複製 `README.md` 與 `config.example.json`
+5. 透過 `packaging/windows/OCRTranslator.spec` + PyInstaller 輸出 `release\OCRTranslator.exe`
+6. 複製 `README.md`、`LICENSE` 與 `config.example.json`
 7. 自動建立 `release\OCRTranslator-v<version>-windows-x64.zip`
 
-目前倉庫採用「`OCRTranslator.spec` 保存 PyInstaller 打包定義、`build_exe.bat` 負責準備環境 / 生成版本資源 / 啟動打包」的分工方式，後續若要調整 datas、exclude modules 或 onefile 行為，優先修改 `.spec` 即可。
+目前倉庫採用「`packaging/windows/OCRTranslator.spec` 保存 PyInstaller 打包定義、`build_exe.bat` 負責準備環境 / 生成版本資源 / 啟動打包」的分工方式，後續若要調整 datas、exclude modules 或 onefile 行為，優先修改 `.spec` 即可。
 
 ## 圖示資源位置
 
@@ -62,8 +62,8 @@ build_exe.bat
 
 倉庫也已預留 SignPath 需要的基礎結構：
 
-- `.signpath/artifact-configurations/default.xml`
-- `.signpath/README.md`
+- `packaging/signpath/artifact-configurations/default.xml`
+- `packaging/signpath/README.md`
 
 目前 workflow 會在已配置下列 GitHub Secret / Variable 時，自動把 unsigned artifact 送到 SignPath 簽名：
 
@@ -90,7 +90,7 @@ build_exe.bat
 
 ## 建議分發內容
 
-建議優先上傳版本化壓縮包，檔名包含專案名稱、版本號與平台資訊，例如：`OCRTranslator-v0.9.5-windows-x64.zip`。
+建議優先上傳版本化壓縮包，檔名包含專案名稱、版本號與平台資訊，例如：`OCRTranslator-v0.9.6-windows-x64.zip`。
 
 ```text
 release\OCRTranslator-v<version>-windows-x64.zip

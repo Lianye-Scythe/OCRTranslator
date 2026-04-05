@@ -25,4 +25,4 @@ This repository is prepared for SignPath's GitHub Actions trusted-build flow.
 3. Add the GitHub secret / variables listed above.
 4. Run `.github/workflows/release-build.yml` on a test tag and verify the signed ZIP is produced.
 5. If you want stricter origin / branch protection later, add policy files under:
-   - `.signpath/policies/<project-slug>/<signing-policy-slug>.yml`
+   - `packaging/signpath/policies/<project-slug>/<signing-policy-slug>.yml`

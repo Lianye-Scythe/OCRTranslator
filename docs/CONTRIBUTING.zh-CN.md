@@ -24,3 +24,4 @@
    - 若涉及打包脚本或发布流程，再确认 `pip install -r requirements-dev.txt`
 4. 补充必要的 README / docs 或注释
 5. 提交 Pull Request
+6. 若提交代码贡献，默认同意该贡献以 **GPLv3** 纳入本项目

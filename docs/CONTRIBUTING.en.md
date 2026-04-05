@@ -24,3 +24,4 @@ The project is still primarily maintained by a single owner, but contributions t
    - if packaging is involved, also confirm `pip install -r requirements-dev.txt`
 4. Update README / docs / comments when needed
 5. Open a Pull Request
+6. By contributing code, you agree that the contribution may be included in this project under **GPLv3**

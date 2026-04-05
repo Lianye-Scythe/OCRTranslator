@@ -128,6 +128,7 @@ class TranslationOverlay(QWidget):
         self._drag_event_widgets = set()
         self._header_hover_widgets = set()
         self.setup_ui()
+        self.sync_last_geometry_from_pinned_config()
 
     @property
     def is_pinned(self) -> bool:
@@ -465,6 +466,65 @@ class TranslationOverlay(QWidget):
         body_padding = 48
         return int(doc.size().height()) + header_height + body_padding
 
+    def pinned_geometry_from_config(self) -> QRect | None:
+        config = getattr(self.app_window, "config", None)
+        if config is None:
+            return None
+        x = getattr(config, "overlay_pinned_x", None)
+        y = getattr(config, "overlay_pinned_y", None)
+        width = getattr(config, "overlay_pinned_width", None)
+        height = getattr(config, "overlay_pinned_height", None)
+        if None in {x, y, width, height}:
+            return None
+        rect = QRect(int(x), int(y), max(self.MIN_WIDTH, int(width)), max(self.MIN_HEIGHT, int(height)))
+        return clamp_rect_to_visible_screen(rect)
+
+    def sync_last_geometry_from_pinned_config(self):
+        if not self.is_pinned:
+            return
+        geometry = self.pinned_geometry_from_config()
+        if geometry is not None:
+            self.last_geometry = QRect(geometry)
+
+    def resolved_pinned_geometry(self) -> QRect | None:
+        if self.last_geometry is not None:
+            return clamp_rect_to_visible_screen(QRect(self.last_geometry))
+        return self.pinned_geometry_from_config()
+
+    def persist_pinned_geometry_rect(self, rect: QRect | None):
+        config = getattr(self.app_window, "config", None)
+        if config is None:
+            return
+        if rect is None:
+            config.overlay_pinned_x = None
+            config.overlay_pinned_y = None
+            config.overlay_pinned_width = None
+            config.overlay_pinned_height = None
+            return
+        clamped = clamp_rect_to_visible_screen(QRect(rect))
+        self.last_geometry = QRect(clamped)
+        config.overlay_pinned_x = int(clamped.x())
+        config.overlay_pinned_y = int(clamped.y())
+        config.overlay_pinned_width = int(clamped.width())
+        config.overlay_pinned_height = int(clamped.height())
+
+    def persist_current_geometry_as_pinned(self):
+        current_rect = QRect(self.geometry())
+        if current_rect.width() > 0 and current_rect.height() > 0:
+            pass
+        elif self.last_geometry is not None:
+            current_rect = self.last_geometry
+        else:
+            current_rect = self.pinned_geometry_from_config()
+        if current_rect is None:
+            return
+        self.persist_pinned_geometry_rect(current_rect)
+
+    def _persist_runtime_overlay_state(self):
+        persist = getattr(self.app_window, "persist_runtime_overlay_state", None)
+        if callable(persist):
+            persist()
+
     def remember_context(self, bbox, text: str, *, anchor_point=None, preset_name: str = ""):
         self.last_bbox = bbox
         self.last_anchor_point = anchor_point
@@ -479,7 +539,11 @@ class TranslationOverlay(QWidget):
 
     def toggle_pin(self, checked: bool):
         self.app_window.config.overlay_pinned = bool(checked)
-        self.app_window.note_runtime_preference_changed()
+        if checked:
+            self.persist_current_geometry_as_pinned()
+        else:
+            self.persist_pinned_geometry_rect(None)
+        self._persist_runtime_overlay_state()
         self.apply_surface_state()
         self.app_window.set_status("overlay_pinned" if checked else "overlay_unpinned")
 
@@ -659,15 +723,19 @@ class TranslationOverlay(QWidget):
     def _handle_mouse_release(self, watched, event: QMouseEvent) -> bool:
         if event.button() != Qt.LeftButton:
             return False
+        released_drag = bool(self._dragging)
         released_resize = bool(self._resize_mode)
         self._dragging = False
         self._resize_mode = None
         self.last_geometry = self.geometry()
+        if released_drag and self.is_pinned:
+            self.persist_current_geometry_as_pinned()
+            self._persist_runtime_overlay_state()
         self._update_cursor(self._event_pos_in_self(watched, event))
         if released_resize:
             self.overlay_resized.emit(self.width(), self.height())
             return True
-        return False
+        return released_drag
 
     def mousePressEvent(self, event: QMouseEvent):
         if not self._handle_mouse_press(self, event):

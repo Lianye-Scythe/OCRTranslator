@@ -221,18 +221,29 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             handler()
 
     def handle_overlay_resized(self, width: int, height: int):
-        self.config.overlay_width = int(width)
-        self.config.overlay_height = int(height)
-        self._suppress_form_tracking = True
         try:
-            if hasattr(self, "overlay_width_spin"):
-                self.overlay_width_spin.setValue(int(width))
-            if hasattr(self, "overlay_height_spin"):
-                self.overlay_height_spin.setValue(int(height))
-        finally:
-            self._suppress_form_tracking = False
-        self.note_runtime_preference_changed()
+            overlay = getattr(self, "translation_overlay", None)
+            if overlay is not None and getattr(overlay, "is_pinned", False):
+                overlay.persist_current_geometry_as_pinned()
+                self.persist_runtime_overlay_state()
+        except Exception as exc:  # noqa: BLE001
+            self.handle_error(exc)
         self.set_status("overlay_resized", width=int(width), height=int(height))
+
+    def persist_runtime_overlay_state(self) -> bool:
+        keep_dirty = bool(getattr(self, "has_unsaved_changes", False))
+        try:
+            save_config(self.config)
+            return True
+        except Exception as exc:  # noqa: BLE001
+            self.handle_error(exc)
+            return False
+        finally:
+            if hasattr(self, "set_unsaved_changes"):
+                try:
+                    self.set_unsaved_changes(keep_dirty)
+                except Exception:  # noqa: BLE001
+                    self.has_unsaved_changes = keep_dirty
 
     def background_busy(self) -> bool:
         return self.fetch_models_in_progress or self.test_profile_in_progress or self.translation_in_progress or self.selected_text_capture_in_progress

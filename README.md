@@ -40,6 +40,8 @@ OCRTranslator 是一款以 **桌面即時閱讀** 為核心的 **便攜式 OCR /
 - 訊息框與危險操作確認現在共用一致的按鈕語義、焦點行為與 Escape 路徑
 - 選取文字流程改為非阻塞擷取；真正送出請求時才會顯示一次 processing 通知，並支援在擷取階段取消
 - Pin 結果浮窗現在會在截圖、選字與手動輸入流程中保留原本的位置與尺寸；截圖期間僅暫時隱藏，完成後直接以既有狀態恢復
+- 未 Pin 的結果浮窗現在每次都會從儲存的預設尺寸重新自動擴展；臨時拖曳改大小不會再污染預設尺寸或觸發未保存提示
+- Pin 狀態下調整過的浮窗位置與尺寸會自動保存並可跨重啟沿用；取消 Pin 後，下次新請求會回到預設尺寸重新開始
 - 系統匣右鍵選單與 Pin 按鈕狀態現在會跟隨淺色 / 深色主題，並持續以較低存在感的 Material 風格呈現
 - 退出流程新增 watchdog 與錯誤提示 fallback，降低程式因錯誤或第三方 hook 狀態而無法正常關閉的風險
 - 支援全域快捷鍵、系統匣、單實例保護
@@ -219,7 +221,7 @@ python -m app.main --capture
 - Target Language / UI Language
 - Theme Mode
 - 三組全域快捷鍵
-- Overlay 字型 / 字級 / 透明度 / Pin / 預設尺寸
+- Overlay 字型 / 字級 / 透明度 / Pin / 預設尺寸 / Pin 幾何
 - 是否按 X 最小化到系統匣
 - 目前啟用的 API Profile
 - 目前啟用的 Prompt Preset
@@ -303,12 +305,10 @@ python -m compileall app tests launcher.pyw
 - 浮窗定位以「盡量不遮擋閱讀」為優先，而非嚴格排版系統
 - 執行日誌預設不做長期審計保存
 
-## License
+## 授權條款
 
-目前倉庫中尚未提供明確的 `LICENSE` 檔案。
-若之後要公開發佈並接受更多外部協作，建議補上：
+- 本專案採用 **GNU General Public License v3.0（GPLv3）** 發佈
+- 詳細條款請見根目錄的 `LICENSE`
+- 若你修改後再對外分發衍生版本，請一併提供對應原始碼並維持 GPLv3 授權
 
-- `LICENSE`
-- 版本策略
-- Release 說明
-- 截圖或 GIF 展示
+對外提交 Pull Request、補丁或其他程式碼貢獻時，預設也會以 GPLv3 納入本專案。

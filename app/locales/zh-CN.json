@@ -194,7 +194,7 @@
   "selected_text_empty": "没有获取到可用的选中文本。请先选中文本后再试一次。",
   "selected_text_capturing": "正在截取当前选中的文本...",
   "selected_text_processing": "已截取选中文本，正在向模型请求...",
-  "runtime_settings_hint": "浮窗上的 Pin、透明度、字号与尺寸调整都会同步更新当前设置；如需下次启动沿用，请记得点击“保存设置”。",
+  "runtime_settings_hint": "未 Pin 的浮窗每次都会从当前保存的默认尺寸重新自动扩展；Pin 状态则会自动记住当前浮窗几何。若要改变未 Pin 浮窗下次使用的默认尺寸，请在此调整宽高后点击“保存设置”。",
   "manual_input_title": "直接输入文本请求 AI",
   "manual_input_hint": "输入要交给当前提示词方案处理的内容。按 Ctrl+Enter 可直接提交。",
   "manual_input_placeholder": "输入要翻译、解答或润色的内容...",

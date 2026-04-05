@@ -29,6 +29,10 @@ class I18nTests(unittest.TestCase):
         with patch("app.i18n._locale_candidates", return_value=["ja-JP"]):
             self.assertEqual(detect_system_ui_language(), "en")
 
+    def test_english_unsaved_changes_message_uses_explicit_line_break(self):
+        self.assertIn("\n", I18N["en"]["unsaved_changes_message"])
+        self.assertTrue(I18N["en"]["unsaved_changes_message"].startswith("You have unsaved changes."))
+
 
 if __name__ == "__main__":
     unittest.main()

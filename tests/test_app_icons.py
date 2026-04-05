@@ -21,7 +21,7 @@ class AppIconTests(unittest.TestCase):
         self.assertFalse(icon.isNull())
 
     def test_spec_references_icon_assets(self):
-        spec_text = Path("OCRTranslator.spec").read_text(encoding="utf-8")
+        spec_text = Path("packaging/windows/OCRTranslator.spec").read_text(encoding="utf-8")
         self.assertIn("app/assets/icons", spec_text)
         self.assertIn("app-icon.ico", spec_text)
 

@@ -14,11 +14,11 @@ The script will automatically:
 2. install `requirements-dev.txt`
 3. clean old `build/`, `dist/`, and `release/`
 4. read the current version from `app/app_metadata.py`
-5. produce `release\OCRTranslator.exe` through `OCRTranslator.spec` + PyInstaller
-6. copy `README.md` and `config.example.json`
+5. produce `release\OCRTranslator.exe` through `packaging/windows/OCRTranslator.spec` + PyInstaller
+6. copy `README.md`, `LICENSE`, and `config.example.json`
 7. automatically create `release\OCRTranslator-v<version>-windows-x64.zip`
 
-The repository now uses a split build model: `OCRTranslator.spec` keeps the PyInstaller packaging definition, while `build_exe.bat` prepares the environment, generates the Windows version resource, and launches the packaging run. If you need to tweak datas, excluded modules, or onefile behavior, update the `.spec` first.
+The repository now uses a split build model: `packaging/windows/OCRTranslator.spec` keeps the PyInstaller packaging definition, while `build_exe.bat` prepares the environment, generates the Windows version resource, and launches the packaging run. If you need to tweak datas, excluded modules, or onefile behavior, update the `.spec` first.
 
 ## Icon asset location
 
@@ -62,8 +62,8 @@ The repository now includes `.github/workflows/release-build.yml` for automated 
 
 The repository also includes the baseline files needed for a SignPath setup:
 
-- `.signpath/artifact-configurations/default.xml`
-- `.signpath/README.md`
+- `packaging/signpath/artifact-configurations/default.xml`
+- `packaging/signpath/README.md`
 
 When the following GitHub secret / variables are configured, the workflow will automatically submit the unsigned artifact to SignPath for signing:
 
@@ -90,7 +90,7 @@ If those values are not configured yet, the workflow still completes the unsigne
 
 ## Recommended distribution contents
 
-Prefer uploading the versioned archive first. The file name should include the project name, version, and platform, for example: `OCRTranslator-v0.9.5-windows-x64.zip`.
+Prefer uploading the versioned archive first. The file name should include the project name, version, and platform, for example: `OCRTranslator-v0.9.6-windows-x64.zip`.
 
 ```text
 release\OCRTranslator-v<version>-windows-x64.zip

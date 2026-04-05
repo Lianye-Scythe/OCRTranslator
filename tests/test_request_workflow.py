@@ -163,6 +163,30 @@ class RequestWorkflowControllerTests(unittest.TestCase):
             "done", anchor_point="anchor", preset_name="Translate", preserve_manual_position=False, preserve_geometry=True
         )
 
+    def test_submit_text_request_keeps_pinned_geometry_flag_even_when_runtime_geometry_is_not_loaded(self):
+        window = self._build_window()
+        controller = RequestWorkflowController(window)
+        overlay = window.translation_overlay
+        overlay.is_pinned = True
+        overlay.last_geometry = None
+        window.run_worker = Mock()
+
+        controller.submit_text_request(
+            "Hello",
+            profile=window.build_profile_from_form(),
+            target_language="English",
+            prompt_preset=window.build_prompt_preset_from_form(),
+            anchor_point="anchor",
+            source_key="manual_input_processing",
+        )
+
+        callback = window.run_worker.call_args.args[1]
+        callback("done")
+
+        window.overlay_presenter.show_response.assert_called_once_with(
+            "done", anchor_point="anchor", preset_name="Translate", preserve_manual_position=False, preserve_geometry=True
+        )
+
     def test_cancel_selected_text_capture_cleans_up_without_submitting_request(self):
         window = self._build_window()
         controller = RequestWorkflowController(window)

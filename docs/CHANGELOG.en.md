@@ -4,6 +4,26 @@
 
 This file records important OCRTranslator changes.
 
+## [0.9.6] - 2026-04-05
+
+### Added
+- Added a repository `LICENSE` (GPLv3) plus matching README / contribution guidance so code distribution and incoming contributions now have an explicit license basis
+- Added dedicated persisted geometry fields for pinned overlays so pinned translation windows can keep their size and position across app restarts
+
+### Changed
+- Raised the default result-overlay font size from `12` to `16`, with matching updates in `config.example.json` and the settings-model defaults
+- Moved packaging / signing infrastructure under `packaging/`, with `packaging/windows/OCRTranslator.spec` and `packaging/signpath/` as the canonical locations
+- Updated the GitHub Actions workflows to Node 24-compatible action versions and replaced the broken SignPath `if:` secret checks with an explicit gate step
+- The main window now shows `License: GPLv3` in the about metadata, and packaged release ZIPs now include the `LICENSE` file
+- Runtime guidance text now explains the new overlay behavior: unpinned overlays always re-expand from the saved default size, while pinned overlays remember their current geometry
+
+### Fixed
+- Fixed the English `Unsaved Changes` dialog so long button labels no longer overflow, body text no longer clips, and both language layouts keep a more balanced icon / copy / button composition
+- Fixed unpinned overlays overwriting `overlay_width` / `overlay_height` after auto-expansion or manual resizing; new unpinned requests now restart from the saved default size every time
+- Fixed runtime overlay resizing from polluting the settings form and triggering unsaved-change prompts for temporary unpinned geometry changes
+- Fixed pinned overlays failing to reliably reuse persisted geometry when runtime geometry had not yet been restored into memory
+- Added regression coverage for pinned-geometry persistence, unpinned-size reset behavior, overlay dialog layout, and release workflow validation
+
 ## [0.9.5] - 2026-04-05
 
 ### Added

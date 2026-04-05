@@ -160,6 +160,13 @@ OCRTranslator/
 ├─ config.json                       # 本机运行设置（runtime 产物，不应提交）
 ├─ CONTRIBUTING.md                   # 协作与贡献指南（繁中默认版）
 ├─ launcher.pyw                      # GUI 启动器
+├─ packaging/
+│  ├─ signpath/
+│  │  ├─ artifact-configurations/
+│  │  │  └─ default.xml              # SignPath artifact configuration
+│  │  └─ README.md                   # SignPath 接入说明
+│  └─ windows/
+│     └─ OCRTranslator.spec          # PyInstaller 打包定义
 ├─ README.md                         # 项目说明（繁中默认版）
 ├─ requirements-dev.txt              # 开发 / 打包依赖
 ├─ requirements.txt                  # 运行期依赖

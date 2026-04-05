@@ -69,7 +69,52 @@ def _clear_dialog_initial_focus(dialog, buttons: Iterable) -> None:
     clear_focus_if_alive(dialog)
 
 
-def _refine_dialog_layout(dialog: QMessageBox, buttons: list) -> None:
+def _strip_button_mnemonics(text: str) -> str:
+    return text.replace("&&", "&").replace("&", "")
+
+
+def _fit_dialog_buttons(dialog: QMessageBox, button_box: QDialogButtonBox | None, buttons: list) -> None:
+    if not buttons:
+        return
+
+    required_widths = []
+    for button in buttons:
+        label = _strip_button_mnemonics(button.text())
+        text_width = button.fontMetrics().horizontalAdvance(label)
+        estimated_width = len(label) * 7 + 28
+        hinted_width = button.sizeHint().width()
+        target_width = max(96, text_width + 48, estimated_width, hinted_width)
+        button.setMinimumWidth(target_width)
+        required_widths.append(target_width)
+
+    if button_box is None or button_box.layout() is None:
+        return
+    spacing = max(0, button_box.layout().spacing())
+    dialog_margins = dialog.layout().contentsMargins() if dialog.layout() is not None else None
+    extra_width = (dialog_margins.left() + dialog_margins.right() + 40) if dialog_margins is not None else 40
+    button_row_width = sum(required_widths) + spacing * max(0, len(required_widths) - 1)
+    dialog.setMinimumWidth(max(dialog.minimumWidth(), button_row_width + extra_width))
+
+
+def _center_dialog_text_block(dialog: QMessageBox) -> None:
+    layout = dialog.layout()
+    if layout is None:
+        return
+
+    for object_name in ("qt_msgbox_label", "qt_msgbox_informativelabel"):
+        label = dialog.findChild(QLabel, object_name)
+        if label is None:
+            continue
+        label.setContentsMargins(10, 8, 10, 8)
+        label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        layout.setAlignment(label, Qt.AlignHCenter | Qt.AlignVCenter)
+
+    icon_label = dialog.findChild(QLabel, "qt_msgboxex_icon_label")
+    if icon_label is not None:
+        icon_label.setContentsMargins(8, 2, 4, 0)
+
+
+def _refine_dialog_layout(dialog: QMessageBox, buttons: list, *, center_text: bool = False) -> None:
     layout = dialog.layout()
     if layout is not None:
         layout.setContentsMargins(24, 20, 24, 18)
@@ -82,12 +127,12 @@ def _refine_dialog_layout(dialog: QMessageBox, buttons: list) -> None:
     if text_label is not None:
         text_label.setWordWrap(True)
         text_label.setMinimumWidth(max(text_label.minimumWidth(), 320))
-        text_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        text_label.setAlignment((Qt.AlignLeft | Qt.AlignVCenter) if center_text else (Qt.AlignLeft | Qt.AlignTop))
 
     info_label = dialog.findChild(QLabel, "qt_msgbox_informativelabel")
     if info_label is not None:
         info_label.setWordWrap(True)
-        info_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        info_label.setAlignment((Qt.AlignLeft | Qt.AlignVCenter) if center_text else (Qt.AlignLeft | Qt.AlignTop))
 
     icon_label = dialog.findChild(QLabel, "qt_msgboxex_icon_label")
     if icon_label is not None:
@@ -111,12 +156,18 @@ def _refine_dialog_layout(dialog: QMessageBox, buttons: list) -> None:
         _refresh_style(button)
 
 
-def _polish_dialog(dialog: QMessageBox, buttons: list, *, parent=None, theme_name: str | None = None, preserve_initial_focus: bool = False, tone: str = "neutral") -> None:
+def _polish_dialog(dialog: QMessageBox, buttons: list, *, parent=None, theme_name: str | None = None, preserve_initial_focus: bool = False, tone: str = "neutral", center_text: bool = False) -> None:
     dialog.setProperty("messageBox", True)
     dialog.setProperty("messageBoxTone", tone)
-    _refine_dialog_layout(dialog, buttons)
+    _refine_dialog_layout(dialog, buttons, center_text=center_text)
     dialog.setStyleSheet(_dialog_style_sheet(parent, theme_name=theme_name))
+    dialog.ensurePolished()
+    for button in buttons:
+        button.ensurePolished()
+    if center_text:
+        _center_dialog_text_block(dialog)
     dialog._mouse_focus_clear_filters = install_mouse_click_focus_clear_many(*buttons)
+    _fit_dialog_buttons(dialog, dialog.findChild(QDialogButtonBox), buttons)
     if not preserve_initial_focus:
         QTimer.singleShot(0, lambda dlg=dialog, btns=tuple(buttons): _clear_dialog_initial_focus(dlg, btns))
 
@@ -137,6 +188,7 @@ def show_standard_message_box(
     prefer_native: bool = False,
     tone: str = "neutral",
     preserve_initial_focus: bool = False,
+    center_text: bool = False,
 ) -> QMessageBox.StandardButton:
     dialog = QMessageBox(parent)
     dialog.setIcon(icon)
@@ -167,6 +219,7 @@ def show_standard_message_box(
             theme_name=theme_name,
             tone=tone,
             preserve_initial_focus=preserve_initial_focus,
+            center_text=center_text,
         )
 
     dialog.exec()
@@ -190,6 +243,7 @@ def show_custom_message_box(
     preserve_initial_focus: bool = False,
     tone: str = "neutral",
     escape_result: Any = None,
+    center_text: bool = False,
 ):
     dialog = QMessageBox(parent)
     dialog.setIcon(icon)
@@ -223,6 +277,7 @@ def show_custom_message_box(
             theme_name=theme_name,
             tone=tone,
             preserve_initial_focus=preserve_initial_focus,
+            center_text=center_text,
         )
 
     dialog.exec()

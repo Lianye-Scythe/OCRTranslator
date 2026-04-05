@@ -11,6 +11,7 @@ class _FakeAppWindow:
     def __init__(self):
         self.config = AppConfig(overlay_opacity=35)
         self.runtime_pref_change_count = 0
+        self.runtime_overlay_save_count = 0
         self.status_calls = []
 
     def tr(self, key, **kwargs):
@@ -44,6 +45,9 @@ class _FakeAppWindow:
 
     def note_runtime_preference_changed(self):
         self.runtime_pref_change_count += 1
+
+    def persist_runtime_overlay_state(self):
+        self.runtime_overlay_save_count += 1
 
     def set_status(self, key, **kwargs):
         self.status_calls.append((key, kwargs))
@@ -108,6 +112,32 @@ class TranslationOverlayTests(unittest.TestCase):
         self.assertEqual(self.window.config.overlay_opacity, 1)
         self.assertEqual(self.overlay.opacity_value_label.text(), "1%")
         self.assertEqual(self.window.status_calls[-1], ("overlay_opacity_set", {"value": 1}))
+
+    def test_toggle_pin_persists_current_geometry_without_marking_unsaved_preferences(self):
+        self.overlay.setGeometry(120, 140, 500, 360)
+
+        self.overlay.toggle_pin(True)
+
+        self.assertTrue(self.window.config.overlay_pinned)
+        self.assertEqual(self.window.config.overlay_pinned_x, 120)
+        self.assertEqual(self.window.config.overlay_pinned_y, 140)
+        self.assertEqual(self.window.config.overlay_pinned_width, 500)
+        self.assertEqual(self.window.config.overlay_pinned_height, 360)
+        self.assertEqual(self.window.runtime_overlay_save_count, 1)
+        self.assertEqual(self.window.runtime_pref_change_count, 0)
+
+    def test_sync_last_geometry_from_saved_pinned_geometry_restores_runtime_rect(self):
+        self.window.config.overlay_pinned = True
+        self.window.config.overlay_pinned_x = 210
+        self.window.config.overlay_pinned_y = 180
+        self.window.config.overlay_pinned_width = 460
+        self.window.config.overlay_pinned_height = 330
+
+        restored = TranslationOverlay(self.window)
+        self.addCleanup(lambda: (restored.close(), restored.deleteLater(), self.app.processEvents()))
+
+        self.assertIsNotNone(restored.last_geometry)
+        self.assertEqual(restored.last_geometry.getRect(), (210, 180, 460, 330))
 
     def test_dynamic_styles_use_high_contrast_selection_and_full_topbar_hover(self):
         self.window.config.overlay_opacity = 35

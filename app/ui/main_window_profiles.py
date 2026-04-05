@@ -84,6 +84,7 @@ class MainWindowProfilesMixin:
             ],
             preserve_initial_focus=False,
             escape_result=QMessageBox.Cancel,
+            center_text=True,
         )
 
     def resolve_unsaved_changes(self, *, for_exit: bool = False) -> bool:

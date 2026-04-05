@@ -102,11 +102,13 @@ class MainWindowRuntimeTests(unittest.TestCase):
 
         markup = window.build_about_meta_markup()
 
+        self.assertIn("License: GPLv3", markup)
         self.assertIn("Author", markup)
         self.assertIn("Repo", markup)
         self.assertIn("scythenight", markup)
         self.assertIn("OCRTranslator", markup)
         self.assertIn("<br/>", markup)
+        self.assertIn("&nbsp;&nbsp;&nbsp;", markup)
         self.assertIn("Author:", markup)
         self.assertIn("Repo:", markup)
 
@@ -170,6 +172,56 @@ class MainWindowRuntimeTests(unittest.TestCase):
         self.assertEqual(window.current_margin(), 24)
         self.assertEqual(window.current_overlay_auto_expand_top_margin(), 64)
         self.assertEqual(window.current_overlay_auto_expand_bottom_margin(), 18)
+
+    def test_persist_runtime_overlay_state_keeps_existing_dirty_flag(self):
+        window = MainWindow.__new__(MainWindow)
+        window.config = SimpleNamespace()
+        window.has_unsaved_changes = True
+        window.handle_error = Mock()
+        window.set_unsaved_changes = Mock(side_effect=lambda dirty: setattr(window, "has_unsaved_changes", bool(dirty)))
+
+        with patch("app.ui.main_window.save_config") as mock_save_config:
+            self.assertTrue(window.persist_runtime_overlay_state())
+
+        mock_save_config.assert_called_once_with(window.config)
+        self.assertTrue(window.has_unsaved_changes)
+        window.set_unsaved_changes.assert_called_once_with(True)
+
+    def test_handle_overlay_resized_does_not_overwrite_default_overlay_size_when_unpinned(self):
+        window = MainWindow.__new__(MainWindow)
+        window.config = SimpleNamespace(overlay_width=440, overlay_height=520)
+        window.translation_overlay = SimpleNamespace(is_pinned=False, persist_current_geometry_as_pinned=Mock())
+        window.persist_runtime_overlay_state = Mock()
+        window.handle_error = Mock()
+        window.set_status = Mock()
+        window.overlay_width_spin = SimpleNamespace(setValue=Mock())
+        window.overlay_height_spin = SimpleNamespace(setValue=Mock())
+
+        window.handle_overlay_resized(900, 640)
+
+        self.assertEqual(window.config.overlay_width, 440)
+        self.assertEqual(window.config.overlay_height, 520)
+        window.translation_overlay.persist_current_geometry_as_pinned.assert_not_called()
+        window.persist_runtime_overlay_state.assert_not_called()
+        window.overlay_width_spin.setValue.assert_not_called()
+        window.overlay_height_spin.setValue.assert_not_called()
+        window.set_status.assert_called_once_with("overlay_resized", width=900, height=640)
+
+    def test_handle_overlay_resized_persists_pinned_geometry_without_touching_default_size(self):
+        window = MainWindow.__new__(MainWindow)
+        window.config = SimpleNamespace(overlay_width=440, overlay_height=520)
+        window.translation_overlay = SimpleNamespace(is_pinned=True, persist_current_geometry_as_pinned=Mock())
+        window.persist_runtime_overlay_state = Mock()
+        window.handle_error = Mock()
+        window.set_status = Mock()
+
+        window.handle_overlay_resized(900, 640)
+
+        self.assertEqual(window.config.overlay_width, 440)
+        self.assertEqual(window.config.overlay_height, 520)
+        window.translation_overlay.persist_current_geometry_as_pinned.assert_called_once_with()
+        window.persist_runtime_overlay_state.assert_called_once_with()
+        window.set_status.assert_called_once_with("overlay_resized", width=900, height=640)
 
     def test_workspace_shadow_spec_uses_lighter_material_elevation_in_light_mode(self):
         window = MainWindow.__new__(MainWindow)

@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ..app_metadata import APP_VERSION, AUTHOR_NAME_EN, AUTHOR_NAME_ZH, REPOSITORY_NAME, REPOSITORY_URL
+from ..app_metadata import APP_LICENSE_NAME, APP_VERSION, AUTHOR_NAME_EN, AUTHOR_NAME_ZH, REPOSITORY_NAME, REPOSITORY_URL
 from .app_icons import load_app_icon
 from .style_utils import load_style_sheet
 from .theme_tokens import color, qcolor, set_theme_mode
@@ -524,16 +524,21 @@ class MainWindowLayoutMixin:
         )
 
     def build_about_meta_markup(self) -> str:
+        version_and_license = (
+            f"<span style='color:{color('text_secondary')}'>v{APP_VERSION}</span>"
+            f"<span style='color:{color('text_tertiary')};'>&nbsp;&nbsp;&nbsp;</span>"
+            f"<span style='color:{color('text_secondary')}'>License: {APP_LICENSE_NAME}</span><br/>"
+        )
         if self.current_ui_language() == "en":
             return (
-                f"<span style='color:{color('text_secondary')}'>v{APP_VERSION}</span><br/>"
+                f"{version_and_license}"
                 f"<span style='color:{color('subtle_fg')};'>{self.tr('about_author_label')}:</span> "
                 f"<span style='color:{color('text_primary')};'>{AUTHOR_NAME_ZH}</span> <span style='color:{color('text_tertiary')};'>/</span> <span style='color:{color('text_primary')};'>{AUTHOR_NAME_EN}</span><br/>"
                 f"<span style='color:{color('subtle_fg')};'>{self.tr('about_repo_label')}:</span> "
                 f"<a href='{REPOSITORY_URL}' style='color:{color('link')}; text-decoration:none;'>{REPOSITORY_NAME.replace('/', '/&#8203;')}</a>"
             )
         return (
-            f"<span style='color:{color('text_secondary')}'>v{APP_VERSION}</span><br/>"
+            f"{version_and_license}"
             f"<span style='color:{color('text_secondary')};'>{self.tr('about_author_label')}：</span>"
             f"<span style='color:{color('text_primary')};'>{AUTHOR_NAME_ZH}</span>"
             f" <span style='color:{color('text_tertiary')};'>/</span> "

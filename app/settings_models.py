@@ -18,7 +18,7 @@ class SettingsFormSnapshot:
     selection_hotkey: str = ""
     input_hotkey: str = ""
     overlay_font_family: str = ""
-    overlay_font_size: int = 12
+    overlay_font_size: int = 16
     temperature: float = 0.2
     overlay_width: int = 440
     overlay_height: int = 520

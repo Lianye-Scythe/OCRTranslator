@@ -124,6 +124,35 @@ class OverlayPresenterTests(unittest.TestCase):
         window.finish_capture_workflow.assert_called_once_with()
         self.assertFalse(window.restore_pinned_overlay_after_capture)
 
+    @patch("app.services.overlay_presenter.clamp_rect_to_visible_screen", side_effect=lambda rect: QRect(rect))
+    def test_show_response_uses_overlay_resolved_geometry_when_runtime_last_geometry_is_missing(self, _mock_clamp_rect):
+        window = self._build_window()
+        overlay = _FakeOverlay()
+        overlay.last_geometry = None
+        overlay.manual_positioned = False
+        overlay.resolved_pinned_geometry = lambda: QRect(210, 180, 460, 330)
+        presenter = OverlayPresenter(window, overlay)
+
+        presenter.show_response(
+            "restored text",
+            anchor_point=QPoint(50, 60),
+            preset_name="Translate",
+            preserve_manual_position=False,
+            preserve_geometry=True,
+        )
+
+        self.assertEqual(
+            overlay.show_calls[-1],
+            {
+                "text": "restored text",
+                "x": 210,
+                "y": 180,
+                "width": 460,
+                "height": 330,
+                "keep_manual_position": False,
+            },
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

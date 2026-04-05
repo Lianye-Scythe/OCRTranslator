@@ -30,9 +30,12 @@ class OverlayPresenter:
         )
 
     def _preserved_geometry(self, *, preserve_geometry: bool):
-        if not preserve_geometry or self.overlay.last_geometry is None:
+        if not preserve_geometry:
             return None
-        geometry = clamp_rect_to_visible_screen(self.overlay.last_geometry)
+        geometry = self.overlay.resolved_pinned_geometry() if hasattr(self.overlay, "resolved_pinned_geometry") else getattr(self.overlay, "last_geometry", None)
+        if geometry is None:
+            return None
+        geometry = clamp_rect_to_visible_screen(geometry)
         if geometry.width() <= 0 or geometry.height() <= 0:
             return None
         return geometry
@@ -130,6 +133,7 @@ class OverlayPresenter:
         self.window.note_runtime_preference_changed()
         self.overlay.apply_typography()
         self.window.set_status("font_zoomed", size=new_size)
+        preserve_geometry = bool(self.overlay.is_pinned or self.overlay.manual_positioned)
         if self.overlay.isVisible() and self.overlay.last_text:
             if self.overlay.last_bbox is not None:
                 self.show_translation(
@@ -137,7 +141,7 @@ class OverlayPresenter:
                     self.overlay.last_text,
                     preset_name=self.overlay.last_preset_name,
                     preserve_manual_position=self.overlay.manual_positioned and not self.overlay.is_pinned,
-                    preserve_geometry=self.overlay.is_pinned,
+                    preserve_geometry=preserve_geometry,
                     reflow_only=True,
                 )
             else:
@@ -146,6 +150,6 @@ class OverlayPresenter:
                     anchor_point=self.overlay.last_anchor_point,
                     preset_name=self.overlay.last_preset_name,
                     preserve_manual_position=self.overlay.manual_positioned and not self.overlay.is_pinned,
-                    preserve_geometry=self.overlay.is_pinned,
+                    preserve_geometry=preserve_geometry,
                     reflow_only=True,
                 )

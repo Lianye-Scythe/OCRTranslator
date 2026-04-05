@@ -6,6 +6,9 @@ on:
     tags:
       - "v*"
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 permissions:
   contents: write
   actions: read
@@ -13,17 +16,41 @@ permissions:
 jobs:
   build-windows:
     runs-on: windows-latest
+    env:
+      SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+      SIGNPATH_ORGANIZATION_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+      SIGNPATH_PROJECT_SLUG: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+      SIGNPATH_SIGNING_POLICY_SLUG: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+
+      - name: Detect SignPath configuration
+        id: signpath_gate
+        shell: powershell
+        run: |
+          $requiredValues = @(
+            $env:SIGNPATH_API_TOKEN,
+            $env:SIGNPATH_ORGANIZATION_ID,
+            $env:SIGNPATH_PROJECT_SLUG,
+            $env:SIGNPATH_SIGNING_POLICY_SLUG
+          )
+          $enabled = $true
+          foreach ($value in $requiredValues) {
+            if ([string]::IsNullOrWhiteSpace($value)) {
+              $enabled = $false
+              break
+            }
+          }
+          "enabled=$($enabled.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
 
       - name: Build unsigned release package
         shell: cmd
@@ -43,7 +70,7 @@ jobs:
           "name=$($zip.Name)" >> $env:GITHUB_OUTPUT
 
       - name: Upload unsigned files for SignPath
-        if: ${{ secrets.SIGNPATH_API_TOKEN != '' && vars.SIGNPATH_ORGANIZATION_ID != '' && vars.SIGNPATH_PROJECT_SLUG != '' && vars.SIGNPATH_SIGNING_POLICY_SLUG != '' }}
+        if: ${{ steps.signpath_gate.outputs.enabled == 'true' }}
         id: upload_unsigned
         uses: actions/upload-artifact@v4
         with:
@@ -55,20 +82,20 @@ jobs:
             release/config.example.json
 
       - name: Submit signing request to SignPath
-        if: ${{ secrets.SIGNPATH_API_TOKEN != '' && vars.SIGNPATH_ORGANIZATION_ID != '' && vars.SIGNPATH_PROJECT_SLUG != '' && vars.SIGNPATH_SIGNING_POLICY_SLUG != '' }}
+        if: ${{ steps.signpath_gate.outputs.enabled == 'true' }}
         id: signpath
         uses: signpath/github-action-submit-signing-request@v2
         with:
-          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
-          organization-id: '${{ vars.SIGNPATH_ORGANIZATION_ID }}'
-          project-slug: '${{ vars.SIGNPATH_PROJECT_SLUG }}'
-          signing-policy-slug: '${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}'
+          api-token: '${{ env.SIGNPATH_API_TOKEN }}'
+          organization-id: '${{ env.SIGNPATH_ORGANIZATION_ID }}'
+          project-slug: '${{ env.SIGNPATH_PROJECT_SLUG }}'
+          signing-policy-slug: '${{ env.SIGNPATH_SIGNING_POLICY_SLUG }}'
           github-artifact-id: '${{ steps.upload_unsigned.outputs.artifact-id }}'
           wait-for-completion: true
           output-artifact-directory: 'release-signed'
 
       - name: Repack signed release ZIP
-        if: ${{ secrets.SIGNPATH_API_TOKEN != '' && vars.SIGNPATH_ORGANIZATION_ID != '' && vars.SIGNPATH_PROJECT_SLUG != '' && vars.SIGNPATH_SIGNING_POLICY_SLUG != '' }}
+        if: ${{ steps.signpath_gate.outputs.enabled == 'true' }}
         shell: powershell
         run: |
           $signedExe = Join-Path $PWD 'release-signed\OCRTranslator.exe'
@@ -82,6 +109,7 @@ jobs:
           Compress-Archive -Path @(
             'release-signed\OCRTranslator.exe',
             'release\README.md',
+            'release\LICENSE',
             'release\config.example.json'
           ) -DestinationPath $zipPath -Force
 
