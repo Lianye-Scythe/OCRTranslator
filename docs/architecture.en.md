@@ -136,10 +136,15 @@ OCRTranslator/
 │  ├─ packaging.md                   # packaging guide (Traditional Chinese)
 │  ├─ packaging.zh-CN.md             # packaging guide (Simplified Chinese)
 │  ├─ packaging.en.md                # packaging guide (English)
+│  ├─ FAQ.md                         # FAQ (Traditional Chinese)
+│  ├─ FAQ.zh-CN.md                   # FAQ (Simplified Chinese)
+│  ├─ FAQ.en.md                      # FAQ (English)
 │  ├─ README.zh-CN.md                # Simplified Chinese README mirror
 │  ├─ README.en.md                   # English README mirror
 │  ├─ CONTRIBUTING.zh-CN.md          # Simplified Chinese contributing mirror
 │  ├─ CONTRIBUTING.en.md             # English contributing mirror
+│  ├─ SUPPORT.zh-CN.md               # Simplified Chinese support mirror
+│  ├─ SUPPORT.en.md                  # English support mirror
 │  ├─ SECURITY.zh-CN.md              # Simplified Chinese security mirror
 │  ├─ SECURITY.en.md                 # English security mirror
 │  ├─ CHANGELOG.zh-CN.md             # Simplified Chinese changelog mirror
@@ -178,6 +183,7 @@ OCRTranslator/
 ├─ README.md                         # project overview (default Traditional Chinese version)
 ├─ requirements-dev.txt              # development / packaging dependencies
 ├─ requirements.txt                  # runtime dependencies
+├─ SUPPORT.md                        # support and contact guide (default Traditional Chinese version)
 ├─ SECURITY.md                       # security policy (default Traditional Chinese version)
 └─ start.bat                         # one-click Windows startup script
 ```

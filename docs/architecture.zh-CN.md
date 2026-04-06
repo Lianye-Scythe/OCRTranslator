@@ -136,10 +136,15 @@ OCRTranslator/
 │  ├─ packaging.md                   # 打包与发布（繁中）
 │  ├─ packaging.zh-CN.md             # 打包与发布（简中）
 │  ├─ packaging.en.md                # 打包与发布（英文）
+│  ├─ FAQ.md                         # FAQ（繁中）
+│  ├─ FAQ.zh-CN.md                   # FAQ（简中）
+│  ├─ FAQ.en.md                      # FAQ（英文）
 │  ├─ README.zh-CN.md                # README 的简中镜像版
 │  ├─ README.en.md                   # README 的英文镜像版
 │  ├─ CONTRIBUTING.zh-CN.md          # Contributing 的简中镜像版
 │  ├─ CONTRIBUTING.en.md             # Contributing 的英文镜像版
+│  ├─ SUPPORT.zh-CN.md               # Support 的简中镜像版
+│  ├─ SUPPORT.en.md                  # Support 的英文镜像版
 │  ├─ SECURITY.zh-CN.md              # Security 的简中镜像版
 │  ├─ SECURITY.en.md                 # Security 的英文镜像版
 │  ├─ CHANGELOG.zh-CN.md             # Changelog 的简中镜像版
@@ -178,6 +183,7 @@ OCRTranslator/
 ├─ README.md                         # 项目说明（繁中默认版）
 ├─ requirements-dev.txt              # 开发 / 打包依赖
 ├─ requirements.txt                  # 运行期依赖
+├─ SUPPORT.md                        # 支持与联系方式（繁中默认版）
 ├─ SECURITY.md                       # 安全性回报说明（繁中默认版）
 └─ start.bat                         # Windows 一键启动脚本
 ```
