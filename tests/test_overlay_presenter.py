@@ -18,14 +18,16 @@ class _FakeOverlay:
         self.is_pinned = True
         self.show_calls = []
         self.context_calls = []
+        self.partial_state_calls = []
+        self._has_partial_result = False
 
     def apply_typography(self):
         return None
 
-    def calculate_size(self, _text):
-        return (860, 900)
+    def calculate_size(self, _text, *, base_width=None):
+        return ((base_width if base_width is not None else 860), 900)
 
-    def show_text(self, text, x, y, width, height, *, keep_manual_position=False):
+    def show_text(self, text, x, y, width, height, *, keep_manual_position=False, remember_state=True):
         self.show_calls.append(
             {
                 "text": text,
@@ -34,8 +36,10 @@ class _FakeOverlay:
                 "width": width,
                 "height": height,
                 "keep_manual_position": keep_manual_position,
+                "remember_state": remember_state,
             }
         )
+        self._has_partial_result = not remember_state
 
     def remember_context(self, bbox, text, *, anchor_point=None, preset_name=""):
         self.context_calls.append(
@@ -46,6 +50,13 @@ class _FakeOverlay:
                 "preset_name": preset_name,
             }
         )
+
+    def has_partial_result(self):
+        return self._has_partial_result
+
+    def set_partial_result_state(self, state, *, preset_name=None):
+        self.partial_state_calls.append((state, preset_name))
+        self._has_partial_result = bool(state)
 
     def measure_content_height(self, text, width):
         return 400
@@ -100,6 +111,7 @@ class OverlayPresenterTests(unittest.TestCase):
                 "width": 500,
                 "height": 360,
                 "keep_manual_position": True,
+                "remember_state": True,
             },
         )
         self.assertEqual(overlay.context_calls[-1]["anchor_point"], QPoint(30, 40))
@@ -155,8 +167,74 @@ class OverlayPresenterTests(unittest.TestCase):
                 "width": 460,
                 "height": 330,
                 "keep_manual_position": False,
+                "remember_state": True,
             },
         )
+
+    def test_show_response_prefers_runtime_request_width_override_when_not_pinned(self):
+        window = self._build_window()
+        window.current_request_overlay_width = lambda: 420
+        overlay = _FakeOverlay()
+        overlay.is_pinned = False
+        overlay.manual_positioned = False
+        window.translation_overlay = overlay
+        presenter = OverlayPresenter(window)
+
+        presenter.show_response(
+            "manual width",
+            anchor_point=QPoint(80, 90),
+            preset_name="Translate",
+            preserve_manual_position=False,
+            preserve_geometry=False,
+        )
+
+        self.assertEqual(overlay.show_calls[-1]["width"], 420)
+
+    def test_show_response_can_lock_width_for_streaming_updates(self):
+        window = self._build_window()
+        overlay = _FakeOverlay()
+        overlay.is_pinned = False
+        overlay.manual_positioned = False
+        window.translation_overlay = overlay
+        presenter = OverlayPresenter(window)
+
+        presenter.show_response(
+            "stream text",
+            anchor_point=QPoint(80, 90),
+            preset_name="Translate",
+            preserve_manual_position=False,
+            preserve_geometry=False,
+            locked_width=420,
+        )
+
+        self.assertEqual(overlay.show_calls[-1]["width"], 420)
+        self.assertEqual(overlay.context_calls[-1]["preset_name"], "Translate")
+
+    @patch("app.services.overlay_presenter.clamp_rect_to_visible_screen", side_effect=lambda rect: QRect(rect))
+    def test_show_response_partial_update_does_not_replace_persisted_context_or_finish_state(self, _mock_clamp_rect):
+        window = self._build_window()
+        overlay = _FakeOverlay()
+        window.translation_overlay = overlay
+        presenter = OverlayPresenter(window)
+
+        presenter.show_response(
+            "partial",
+            anchor_point=QPoint(70, 80),
+            preset_name="Translate",
+            preserve_manual_position=False,
+            preserve_geometry=False,
+            partial=True,
+        )
+
+        self.assertEqual(overlay.partial_state_calls, [("streaming", "Translate")])
+        self.assertEqual(overlay.show_calls[-1]["text"], "partial")
+        self.assertFalse(overlay.show_calls[-1]["remember_state"])
+        self.assertEqual(overlay.context_calls, [])
+        self.assertTrue(overlay.has_partial_result())
+        window.set_status.assert_not_called()
+        window.log_tr.assert_not_called()
+        window.finish_capture_workflow.assert_not_called()
+        window.toast_service.hide_message.assert_called_once_with()
 
 
 if __name__ == "__main__":

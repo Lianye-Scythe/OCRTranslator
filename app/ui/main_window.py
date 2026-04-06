@@ -114,6 +114,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self._fetch_models_request_id = 0
         self._test_profile_request_id = 0
         self.pending_capture_profile = None
+        self._runtime_unpinned_overlay_width = None
         self.pending_capture_target_language = self.config.target_language
         self.pending_capture_prompt_preset = None
         self.selection_overlay = SelectionOverlay()
@@ -129,6 +130,8 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             log_func=self.log,
             worker_cls=WorkerThread,
         )
+        self.sync_runtime_unpinned_overlay_width_from_config()
+
         self.request_workflow = RequestWorkflowController(self)
         self.instance_server_service = InstanceServerService(self, APP_SERVER_NAME, log_func=self.log)
         self.tray = None
@@ -171,8 +174,29 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
 
     def get_api_client(self):
         if self._api_client is None:
-            self._api_client = self.get_api_client_class()(self.log)
+            self._api_client = self.get_api_client_class()(self.log, status_notifier=self.notify_stream_fallback_status)
         return self._api_client
+
+    def notify_stream_fallback_status(self, event_name: str, payload: dict | None = None):
+        data = {"event_name": str(event_name or "").strip().lower(), "payload": dict(payload or {})}
+        bridge = getattr(self, "bridge", None)
+        signal = getattr(bridge, "invoke_main_thread", None)
+        if signal is None or not hasattr(signal, "emit"):
+            self._handle_stream_fallback_status_notification(data)
+            return
+        signal.emit(self._handle_stream_fallback_status_notification, data)
+
+    def _handle_stream_fallback_status_notification(self, payload: dict):
+        if getattr(self, "is_quitting", False) or not isinstance(payload, dict) or not hasattr(self, "status_label"):
+            return
+        event_name = str(payload.get("event_name") or "").strip().lower()
+        status_key = {
+            "retrying": "stream_fallback_retrying",
+            "succeeded": "stream_fallback_succeeded",
+        }.get(event_name)
+        if not status_key:
+            return
+        self.set_status(status_key)
 
     @property
     def api_client(self):
@@ -265,6 +289,25 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
 
     def existing_translation_overlay(self):
         return self._translation_overlay
+
+    def mark_visible_partial_translation_result(self, state: str) -> bool:
+        normalized_state = str(state or "").strip().lower()
+        if not normalized_state:
+            return False
+        overlay = self.existing_translation_overlay()
+        if overlay is None:
+            return False
+        has_partial_result = getattr(overlay, "has_partial_result", None)
+        set_partial_result_state = getattr(overlay, "set_partial_result_state", None)
+        if not callable(has_partial_result) or not callable(set_partial_result_state):
+            return False
+        try:
+            if not has_partial_result():
+                return False
+            set_partial_result_state(normalized_state)
+            return True
+        except Exception:  # noqa: BLE001
+            return False
 
     def existing_overlay_presenter(self):
         return self._overlay_presenter
@@ -497,6 +540,47 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             return int(self.overlay_width_spin.value())
         return int(self.config.overlay_width)
 
+    def _has_pending_overlay_width_form_change(self) -> bool:
+        if getattr(self, "_suppress_form_tracking", False) or not hasattr(self, "overlay_width_spin"):
+            return False
+        config = getattr(self, "config", None)
+        if config is None:
+            return False
+        try:
+            saved_width = int(getattr(config, "overlay_width", self.overlay_width_spin.value()))
+            return int(self.overlay_width_spin.value()) != saved_width
+        except (TypeError, ValueError):
+            return False
+
+    def sync_runtime_unpinned_overlay_width_from_config(self):
+        config = getattr(self, "config", None)
+        value = getattr(config, "overlay_unpinned_width", None) if config is not None else None
+        try:
+            self._runtime_unpinned_overlay_width = int(value) if value is not None else None
+        except (TypeError, ValueError):
+            self._runtime_unpinned_overlay_width = None
+
+    def current_request_overlay_width(self) -> int:
+        runtime_override = getattr(self, "_runtime_unpinned_overlay_width", None)
+        try:
+            if runtime_override is not None:
+                return int(runtime_override)
+        except (TypeError, ValueError):
+            pass
+        if not self._has_pending_overlay_width_form_change():
+            saved_override = getattr(getattr(self, "config", None), "overlay_unpinned_width", None)
+            try:
+                if saved_override is not None:
+                    return int(saved_override)
+            except (TypeError, ValueError):
+                pass
+        return self.current_overlay_width()
+
+    def handle_overlay_width_setting_changed(self, _value=None):
+        if getattr(self, "_suppress_form_tracking", False):
+            return
+        self._runtime_unpinned_overlay_width = None
+
     def current_overlay_height(self) -> int:
         if hasattr(self, "overlay_height_spin"):
             return int(self.overlay_height_spin.value())
@@ -530,6 +614,12 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
     def current_toast_duration_ms(self) -> int:
         duration_seconds = max(0.0, self.current_toast_duration_seconds())
         return int(round(duration_seconds * 1000))
+
+    def current_stream_responses(self) -> bool:
+        if hasattr(self, "stream_responses_checkbox"):
+            return bool(self.stream_responses_checkbox.isChecked())
+        config = getattr(self, "config", None)
+        return bool(getattr(config, "stream_responses", True))
 
     def current_app_version(self) -> str:
         return APP_VERSION
@@ -675,6 +765,12 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             if overlay is not None and getattr(overlay, "is_pinned", False):
                 overlay.persist_current_geometry_as_pinned()
                 self.persist_runtime_overlay_state()
+            elif overlay is not None:
+                self._runtime_unpinned_overlay_width = int(width)
+                config = getattr(self, "config", None)
+                if config is not None and hasattr(config, "overlay_unpinned_width"):
+                    config.overlay_unpinned_width = int(width)
+                self.persist_runtime_overlay_state()
         except Exception as exc:  # noqa: BLE001
             self.handle_error(exc)
         self.set_status("overlay_resized", width=int(width), height=int(height))
@@ -741,6 +837,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             "overlay_auto_expand_top_margin_spin",
             "overlay_auto_expand_bottom_margin_spin",
             "toast_duration_spin",
+            "stream_responses_checkbox",
             "close_to_tray_on_close_checkbox",
         ):
             if hasattr(self, widget_name):
@@ -990,12 +1087,17 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self.log(f"Cancelling background operation: {active_operation}")
         self.operation_manager.cancel(active_operation)
         if active_operation == "translation":
+            request_workflow = getattr(self, "request_workflow", None)
+            if request_workflow is not None and hasattr(request_workflow, "clear_streaming_response_update_state"):
+                request_workflow.clear_streaming_response_update_state()
             should_restore = self.capture_workflow_active or self.restore_window_after_capture or self.restore_pinned_overlay_after_capture
             self.finish_capture_workflow(restore_window=should_restore)
             overlay = self.existing_translation_overlay()
             if should_restore and self.restore_pinned_overlay_after_capture and overlay is not None:
                 overlay.restore_last_overlay()
                 self.restore_pinned_overlay_after_capture = False
+            else:
+                self.mark_visible_partial_translation_result("cancelled")
             self.show_tray_toast(self.tr("request_cancelled"))
         self.set_status("request_cancelled")
         return True
@@ -1278,7 +1380,21 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
                     self.operation_manager.finish(operation, task_id)
                 else:
                     self.set_operation_state(operation, False)
+            if operation == "translation":
+                request_workflow = getattr(self, "request_workflow", None)
+                if request_workflow is not None and hasattr(request_workflow, "clear_streaming_response_update_state"):
+                    request_workflow.clear_streaming_response_update_state()
             if isinstance(actual_exc, RequestCancelledError):
+                if operation == "translation":
+                    overlay = self.existing_translation_overlay()
+                    if self.restore_pinned_overlay_after_capture and overlay is not None:
+                        try:
+                            overlay.restore_last_overlay()
+                            self.restore_pinned_overlay_after_capture = False
+                        except Exception:  # noqa: BLE001
+                            pass
+                    else:
+                        self.mark_visible_partial_translation_result("cancelled")
                 if hasattr(self, "toast_service"):
                     self.toast_service.hide_message()
                 if hasattr(self, "status_label"):
@@ -1298,6 +1414,8 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
                 except Exception:  # noqa: BLE001
                     pass
                 self.restore_pinned_overlay_after_capture = False
+            elif operation == "translation":
+                self.mark_visible_partial_translation_result("failed")
             if hasattr(self, "toast_service"):
                 self.toast_service.hide_message()
             if hasattr(self, "status_label"):

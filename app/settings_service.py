@@ -240,11 +240,14 @@ def build_candidate_config(
     candidate_config.temperature = float(snapshot.temperature)
     candidate_config.overlay_font_size = int(snapshot.overlay_font_size)
     candidate_config.overlay_width = int(snapshot.overlay_width)
+    if int(snapshot.overlay_width) != int(getattr(base_config, "overlay_width", candidate_config.overlay_width)):
+        candidate_config.overlay_unpinned_width = None
     candidate_config.overlay_height = int(snapshot.overlay_height)
     candidate_config.margin = int(snapshot.overlay_margin)
     candidate_config.overlay_auto_expand_top_margin = int(snapshot.overlay_auto_expand_top_margin)
     candidate_config.overlay_auto_expand_bottom_margin = int(snapshot.overlay_auto_expand_bottom_margin)
     candidate_config.toast_duration_seconds = float(snapshot.toast_duration_seconds)
+    candidate_config.stream_responses = bool(snapshot.stream_responses)
     candidate_config.check_updates_on_startup = bool(snapshot.check_updates_on_startup)
     candidate_config.close_to_tray_on_close = bool(snapshot.close_to_tray_on_close)
     candidate_config.mode = snapshot.mode or "book_lr"

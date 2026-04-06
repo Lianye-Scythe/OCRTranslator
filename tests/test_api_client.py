@@ -51,8 +51,173 @@ class ApiClientTests(unittest.TestCase):
         with patch.object(self.client, "request_text", return_value="OK") as mock_request_text:
             result = self.client.test_profile(self.profile)
 
-        mock_request_text.assert_called_once_with("Reply with the single word OK.", self.profile, temperature=0.0, request_context=None)
+        mock_request_text.assert_called_once_with("Reply with the single word OK.", self.profile, temperature=0.0, stream=False, request_context=None)
         self.assertEqual(result, "OK | provider=openai | model=gpt-4o-mini | response=OK")
+
+    def test_test_profile_can_use_streaming_request_chain(self):
+        with patch.object(self.client, "request_text", return_value="OK") as mock_request_text:
+            result = self.client.test_profile(self.profile, stream=True)
+
+        mock_request_text.assert_called_once_with("Reply with the single word OK.", self.profile, temperature=0.0, stream=True, request_context=None)
+        self.assertEqual(result, "OK | provider=openai | model=gpt-4o-mini | response=OK")
+
+    def test_request_text_stream_falls_back_to_non_stream_for_third_party_compatible_backend(self):
+        profile = ApiProfile(
+            name="Compat OpenAI",
+            provider="openai",
+            base_url="https://compat.example.com/openai",
+            api_keys=["demo-key"],
+            model="gpt-4o-mini",
+        )
+        logs = []
+        status_events = []
+        client = ApiClient(logs.append)
+        client.status_notifier = lambda event_name, payload: status_events.append((event_name, payload))
+        stream_modes = []
+
+        def fake_request(profile_obj, api_key, prompt, temperature, **kwargs):
+            stream_modes.append(bool(kwargs.get("stream")))
+            if kwargs.get("stream"):
+                raise ApiClientError("HTTP 404: stream unsupported", user_message="stream unsupported", retryable=False, retry_same_key=False, status_code=404, stream_fallback_allowed=True)
+            return "OK"
+
+        with patch.object(client, "_request_openai_prompt", side_effect=fake_request):
+            result = client.request_text("plain prompt", profile, 0.2, stream=True)
+
+        self.assertEqual(result, "OK")
+        self.assertEqual(stream_modes, [True, False])
+        self.assertTrue(any("retrying without stream" in message for message in logs))
+        self.assertTrue(any("fallback succeeded without stream" in message for message in logs))
+        self.assertEqual(
+            [event_name for event_name, _payload in status_events],
+            ["retrying", "succeeded"],
+        )
+        self.assertEqual(status_events[0][1]["provider"], "openai")
+        self.assertEqual(status_events[0][1]["base_url"], "https://compat.example.com/openai")
+
+    def test_request_text_stream_fallback_checks_cancellation_before_retrying_non_stream(self):
+        profile = ApiProfile(
+            name="Compat OpenAI",
+            provider="openai",
+            base_url="https://compat.example.com/openai",
+            api_keys=["demo-key"],
+            model="gpt-4o-mini",
+        )
+        stream_modes = []
+        request_context = RequestContext()
+        status_events = []
+        self.client.status_notifier = lambda event_name, payload: status_events.append((event_name, payload))
+
+        def fake_request(profile_obj, api_key, prompt, temperature, **kwargs):
+            stream_modes.append(bool(kwargs.get("stream")))
+            if kwargs.get("stream"):
+                request_context.cancel()
+                raise ApiClientError("HTTP 404: stream unsupported", user_message="stream unsupported", retryable=False, retry_same_key=False, status_code=404, stream_fallback_allowed=True)
+            return "OK"
+
+        with patch.object(self.client, "_request_openai_prompt", side_effect=fake_request):
+            with self.assertRaises(RequestCancelledError):
+                self.client.request_text("plain prompt", profile, 0.2, stream=True, request_context=request_context)
+
+        self.assertEqual(stream_modes, [True])
+        self.assertEqual(status_events, [])
+
+    def test_request_text_stream_error_adds_disable_stream_hint_for_third_party_compatible_backend(self):
+        profile = ApiProfile(
+            name="Compat OpenAI",
+            provider="openai",
+            base_url="https://compat.example.com/openai",
+            api_keys=["demo-key"],
+            model="gpt-4o-mini",
+        )
+
+        with patch.object(self.client, "_request_openai_prompt", side_effect=ApiClientError("stream broke", user_message="请求失败", retryable=False, retry_same_key=False)):
+            with self.assertRaises(ApiClientError) as context:
+                self.client.request_text("plain prompt", profile, 0.2, stream=True)
+
+        self.assertIn("关闭「流式响应」", context.exception.user_message)
+
+    @patch("app.api_client.requests.post")
+    def test_request_text_openai_stream_forces_utf8_for_cjk_chunks(self, mock_post):
+        response = Mock()
+        response.raise_for_status.return_value = None
+        response.iter_lines.return_value = [
+            'data: {"choices":[{"delta":{"content":"繁體"},"finish_reason":null}]}'.encode("utf-8"),
+            b"",
+            'data: {"choices":[{"delta":{"content":"中文"},"finish_reason":"stop"}]}'.encode("utf-8"),
+            b"",
+            b"data: [DONE]",
+            b"",
+        ]
+        mock_post.return_value = response
+        streamed = []
+
+        result = self.client.request_text("plain prompt", self.profile, 0.2, stream=True, stream_callback=streamed.append)
+
+        self.assertEqual(result, "繁體中文")
+        self.assertEqual(streamed, ["繁體", "繁體中文"])
+
+    @patch("app.providers.gemini_compatible.requests.request")
+    def test_request_text_gemini_stream_forces_utf8_for_cjk_chunks(self, mock_request):
+        profile = ApiProfile(name="Gemini", provider="gemini", base_url="https://generativelanguage.googleapis.com", api_keys=["demo-key"], model="models/gemini-1.5-flash")
+        response = Mock()
+        response.raise_for_status.return_value = None
+        response.iter_lines.return_value = [
+            'data: {"candidates":[{"content":{"parts":[{"text":"简体"}]}}]}'.encode("utf-8"),
+            b"",
+            'data: {"candidates":[{"content":{"parts":[{"text":"中文"}]},"finishReason":"STOP"}]}'.encode("utf-8"),
+            b"",
+        ]
+        mock_request.return_value = response
+        streamed = []
+
+        result = self.client.request_text("plain prompt", profile, 0.2, stream=True, stream_callback=streamed.append)
+
+        self.assertEqual(result, "简体中文")
+        self.assertEqual(streamed, ["简体", "简体中文"])
+
+    @patch("app.api_client.requests.post")
+    def test_request_text_openai_streams_chunks_when_enabled(self, mock_post):
+        response = Mock()
+        response.raise_for_status.return_value = None
+        response.iter_lines.return_value = [
+            'data: {"choices":[{"delta":{"content":"Hel"},"finish_reason":null}]}',
+            "",
+            'data: {"choices":[{"delta":{"content":"lo"},"finish_reason":null}]}',
+            "",
+            'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}',
+            "",
+            "data: [DONE]",
+            "",
+        ]
+        mock_post.return_value = response
+        streamed = []
+
+        result = self.client.request_text("plain prompt", self.profile, 0.2, stream=True, stream_callback=streamed.append)
+
+        self.assertEqual(result, "Hello")
+        self.assertEqual(streamed, ["Hel", "Hello"])
+        self.assertTrue(mock_post.call_args.kwargs["json"]["stream"])
+        self.assertTrue(mock_post.call_args.kwargs["stream"])
+
+    @patch("app.providers.gemini_compatible.requests.request")
+    def test_request_text_gemini_streams_chunks_when_enabled(self, mock_request):
+        profile = ApiProfile(name="Gemini", provider="gemini", base_url="https://generativelanguage.googleapis.com", api_keys=["demo-key"], model="models/gemini-1.5-flash")
+        response = Mock()
+        response.raise_for_status.return_value = None
+        response.iter_lines.return_value = [
+            'data: {"candidates":[{"content":{"parts":[{"text":"Hello"}]}}]}',
+            "",
+            'data: {"candidates":[{"content":{"parts":[{"text":" world"}]},"finishReason":"STOP"}]}',
+            "",
+        ]
+        mock_request.return_value = response
+        streamed = []
+
+        result = self.client.request_text("plain prompt", profile, 0.2, stream=True, stream_callback=streamed.append)
+
+        self.assertEqual(result, "Hello world")
+        self.assertEqual(streamed, ["Hello", "Hello world"])
 
     @patch("app.api_client.requests.post")
     def test_translate_openai_joins_list_content(self, mock_post):

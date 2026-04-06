@@ -112,6 +112,8 @@ class MainWindowProfilesMixin:
 
     def reload_saved_config(self):
         self.config = load_config()
+        if hasattr(self, "sync_runtime_unpinned_overlay_width_from_config"):
+            self.sync_runtime_unpinned_overlay_width_from_config()
         self.load_profile_to_form(self.config.active_profile_name)
         self.load_prompt_preset_to_form(self.config.active_prompt_preset_name)
         try:
@@ -471,6 +473,7 @@ class MainWindowProfilesMixin:
             overlay_auto_expand_top_margin=self.overlay_auto_expand_top_margin_spin.value(),
             overlay_auto_expand_bottom_margin=self.overlay_auto_expand_bottom_margin_spin.value(),
             toast_duration_seconds=self.toast_duration_spin.value(),
+            stream_responses=self.stream_responses_checkbox.isChecked(),
             check_updates_on_startup=self.check_updates_on_startup_checkbox.isChecked(),
             close_to_tray_on_close=self.close_to_tray_on_close_checkbox.isChecked(),
             mode=self.mode_combo.currentData() or self.config.mode,
@@ -852,6 +855,7 @@ class MainWindowProfilesMixin:
             self.overlay_auto_expand_top_margin_spin.setValue(int(getattr(self.config, "overlay_auto_expand_top_margin", 42)))
             self.overlay_auto_expand_bottom_margin_spin.setValue(int(getattr(self.config, "overlay_auto_expand_bottom_margin", 24)))
             self.toast_duration_spin.setValue(float(getattr(self.config, "toast_duration_seconds", 1.5)))
+            self.stream_responses_checkbox.setChecked(bool(getattr(self.config, "stream_responses", True)))
             self.check_updates_on_startup_checkbox.setChecked(bool(getattr(self.config, "check_updates_on_startup", False)))
             self.close_to_tray_on_close_checkbox.setChecked(bool(getattr(self.config, "close_to_tray_on_close", False)))
             self.update_mode_options(self.config.mode)
@@ -977,6 +981,8 @@ class MainWindowProfilesMixin:
                 self.setup_hotkey_listener(initial=True, config=candidate_config, raise_on_error=True)
             except Exception as exc:  # noqa: BLE001
                 self.config = previous_runtime_config
+                if hasattr(self, "sync_runtime_unpinned_overlay_width_from_config"):
+                    self.sync_runtime_unpinned_overlay_width_from_config()
                 self.restore_post_save_view_state(saved_scroll_value)
                 try:
                     self.setup_hotkey_listener(initial=True, config=previous_runtime_config, raise_on_error=True)
@@ -988,6 +994,8 @@ class MainWindowProfilesMixin:
                 return False
 
             self.config = candidate_config
+            if hasattr(self, "sync_runtime_unpinned_overlay_width_from_config"):
+                self.sync_runtime_unpinned_overlay_width_from_config()
             save_config(self.config)
             self.apply_language()
             self.load_profile_to_form(self.config.active_profile_name)
@@ -1000,6 +1008,8 @@ class MainWindowProfilesMixin:
             try:
                 restored_config = copy.deepcopy(locals().get("previous_runtime_config", self.config))
                 self.config = restored_config
+                if hasattr(self, "sync_runtime_unpinned_overlay_width_from_config"):
+                    self.sync_runtime_unpinned_overlay_width_from_config()
                 self.setup_hotkey_listener(initial=True, config=restored_config, raise_on_error=True)
             except Exception as restore_exc:  # noqa: BLE001
                 self.log(f"Failed to restore runtime state after save error: {restore_exc}")

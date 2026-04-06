@@ -6,6 +6,22 @@ This file records important OCRTranslator changes.
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-04-06
+
+### Added
+- Added a default-on `Stream responses` setting with an explicit Advanced Settings toggle; text and image requests for both `OpenAI Compatible` and `Gemini Compatible` profiles now support streamed partial updates
+- Added visible partial-result state labels and related helper copy so interrupted streams keep the current text on screen and mark it as `streaming / cancelled / failed`
+
+### Changed
+- `Test API` now follows the current streaming setting, and third-party compatible backends now surface status feedback while automatically retrying without streaming when stream mode is incompatible
+- Overlay geometry now follows a more stable two-step policy: width is locked for the lifetime of a streaming request, while unpinned overlays reuse the user's runtime-resized width and can persist it across restarts
+- Partial UI updates now use 16ms latest-only frame coalescing, and visible partial refreshes avoid unnecessary refresh / topmost / geometry / text work
+
+### Fixed
+- Fixed SSE streaming mojibake for UTF-8 / CJK content
+- Fixed interrupted partial-overlay handling for cancellation, failure, and pinned-restore paths so existing results are not overwritten and copy / title behavior stays consistent
+- Fixed the edge case where saved `overlay_unpinned_width` could be cleared too early when `overlay_width` was changed in the form but not saved yet
+
 ## [1.0.3] - 2026-04-06
 
 ### Added

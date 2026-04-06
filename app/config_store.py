@@ -258,6 +258,7 @@ def _migrate_legacy_config(data: dict) -> AppConfig:
         overlay_auto_expand_top_margin=_coerce_int(source.get("overlay_auto_expand_top_margin"), 42, min_value=0, max_value=200),
         overlay_auto_expand_bottom_margin=_coerce_int(source.get("overlay_auto_expand_bottom_margin"), 24, min_value=8, max_value=200),
         toast_duration_seconds=_coerce_float(source.get("toast_duration_seconds"), 1.5, min_value=0, max_value=10),
+        stream_responses=_coerce_bool(source.get("stream_responses", True), True),
         check_updates_on_startup=_coerce_bool(source.get("check_updates_on_startup", False), False),
         ui_language=ui_language,
         theme_mode=normalize_theme_mode(source.get("theme_mode"), default=DEFAULT_THEME_MODE),
@@ -272,6 +273,7 @@ def _migrate_legacy_config(data: dict) -> AppConfig:
         overlay_pinned_y=_coerce_optional_int(source.get("overlay_pinned_y")),
         overlay_pinned_width=_coerce_optional_int(source.get("overlay_pinned_width"), min_value=240, max_value=1600),
         overlay_pinned_height=_coerce_optional_int(source.get("overlay_pinned_height"), min_value=220, max_value=1600),
+        overlay_unpinned_width=_coerce_optional_int(source.get("overlay_unpinned_width"), min_value=240, max_value=1600),
         close_to_tray_on_close=_coerce_bool(source.get("close_to_tray_on_close", False), False),
         active_profile_name=_normalize_active_profile_name(profiles, str(source.get("active_profile_name", "")).strip() or None),
         active_prompt_preset_name=_normalize_active_prompt_preset_name(

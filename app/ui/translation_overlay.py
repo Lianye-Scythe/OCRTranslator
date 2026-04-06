@@ -117,6 +117,8 @@ class TranslationOverlay(QWidget):
         self.last_text = ""
         self.last_preset_name = ""
         self.last_geometry = None
+        self._partial_result_state = None
+        self._partial_preset_name = ""
         self.manual_positioned = False
         self._drag_offset = QPoint()
         self._dragging = False
@@ -415,10 +417,30 @@ class TranslationOverlay(QWidget):
         self.pin_button.setText("")
         self.pin_button.setAccessibleName(self.app_window.tr("overlay_pinned_short") if self.is_pinned else self.app_window.tr("overlay_pin_short"))
 
+    def has_partial_result(self) -> bool:
+        return bool(getattr(self, "_partial_result_state", None) and self.body.toPlainText().strip())
+
+    def set_partial_result_state(self, state: str | None, *, preset_name: str | None = None):
+        normalized = str(state or "").strip().lower() or None
+        next_preset_name = str(preset_name or self._partial_preset_name or "").strip() if normalized else ""
+        if normalized == self._partial_result_state and next_preset_name == self._partial_preset_name:
+            return
+        self._partial_result_state = normalized
+        self._partial_preset_name = next_preset_name
+        self.refresh_language()
+
+    def _clear_partial_result_state(self):
+        self._partial_result_state = None
+        self._partial_preset_name = ""
+
     def refresh_language(self):
         title = self.app_window.tr("overlay_title")
-        if self.last_preset_name:
-            title = f"{title} · {self.last_preset_name}"
+        preset_name = self._partial_preset_name if self._partial_result_state else self.last_preset_name
+        if preset_name:
+            title = f"{title} · {preset_name}"
+        if self._partial_result_state:
+            partial_label = self.app_window.tr(f"overlay_partial_{self._partial_result_state}")
+            title = f"{title} · {partial_label}"
         self.title_label.setText(title)
         self.copy_button.setText(self.app_window.tr("copy_response"))
         self.pin_button.setToolTip(self.app_window.tr("toggle_overlay_pin"))
@@ -445,12 +467,12 @@ class TranslationOverlay(QWidget):
     def apply_typography(self):
         self.body.setFont(QFont(self.app_window.current_overlay_font_family(), self.app_window.current_overlay_font_size()))
 
-    def calculate_size(self, text: str):
+    def calculate_size(self, text: str, *, base_width: int | None = None):
         lines = text.splitlines() or [text]
         metrics = QFontMetrics(self.body.font())
         longest_width = max((metrics.horizontalAdvance(line or " ") for line in lines), default=240)
         line_spacing = metrics.lineSpacing()
-        configured_width = max(self.MIN_WIDTH, int(self.app_window.current_overlay_width() or 440))
+        configured_width = max(self.MIN_WIDTH, int(base_width if base_width is not None else (self.app_window.current_overlay_width() or 440)))
         configured_height = max(self.MIN_HEIGHT, int(self.app_window.current_overlay_height() or 520))
         width = min(860, max(configured_width, longest_width + 136))
         height = min(900, max(configured_height, len(lines) * line_spacing + 132))
@@ -532,9 +554,10 @@ class TranslationOverlay(QWidget):
         self.last_preset_name = preset_name or ""
 
     def copy_text(self):
-        if not self.last_text.strip():
+        text = self.body.toPlainText().strip() if self.has_partial_result() else self.last_text.strip()
+        if not text:
             return
-        QApplication.clipboard().setText(self.last_text)
+        QApplication.clipboard().setText(text)
         self.app_window.set_status("overlay_copied")
 
     def toggle_pin(self, checked: bool):
@@ -561,19 +584,31 @@ class TranslationOverlay(QWidget):
     def adjust_opacity(self, delta: int):
         self.set_overlay_opacity(self._current_overlay_opacity() + delta)
 
-    def show_text(self, text: str, x: int, y: int, width: int, height: int, *, keep_manual_position: bool = False):
-        self.refresh_language()
-        self.setGeometry(x, y, width, height)
-        self.last_geometry = self.geometry()
-        self.body.setPlainText(text)
-        self.last_text = text
+    def show_text(self, text: str, x: int, y: int, width: int, height: int, *, keep_manual_position: bool = False, remember_state: bool = True):
+        if remember_state:
+            self._clear_partial_result_state()
+            self.refresh_language()
+        target_rect = QRect(int(x), int(y), int(width), int(height))
+        geometry_changed = self.geometry() != target_rect
+        if geometry_changed:
+            self.setGeometry(target_rect)
+        if remember_state:
+            self.last_geometry = self.geometry()
+        current_text = self.body.toPlainText()
+        if current_text != text:
+            self.body.setPlainText(text)
+        if remember_state:
+            self.last_text = text
         self.manual_positioned = bool(keep_manual_position)
-        self._show_as_topmost()
-        self._sync_topbar_hover_state(QCursor.pos())
+        should_raise_overlay = remember_state or not self.isVisible()
+        if should_raise_overlay:
+            self._show_as_topmost()
+            self._sync_topbar_hover_state(QCursor.pos())
 
     def restore_last_overlay(self):
         if not self.last_text.strip() or self.last_geometry is None:
             return
+        self._clear_partial_result_state()
         self.refresh_language()
         self.setGeometry(clamp_rect_to_visible_screen(self.last_geometry))
         self.last_geometry = self.geometry()

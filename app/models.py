@@ -49,6 +49,7 @@ class AppConfig:
     overlay_auto_expand_top_margin: int = 42
     overlay_auto_expand_bottom_margin: int = 24
     toast_duration_seconds: float = 1.5
+    stream_responses: bool = True
     check_updates_on_startup: bool = False
     ui_language: str = DEFAULT_UI_LANGUAGE
     theme_mode: str = DEFAULT_THEME_MODE
@@ -63,6 +64,7 @@ class AppConfig:
     overlay_pinned_y: int | None = None
     overlay_pinned_width: int | None = None
     overlay_pinned_height: int | None = None
+    overlay_unpinned_width: int | None = None
     close_to_tray_on_close: bool = False
     active_profile_name: str = "Default Gemini"
     active_prompt_preset_name: str = DEFAULT_PROMPT_PRESET_DEFINITIONS[0]["name"]

@@ -54,12 +54,24 @@ class OverlayPresenter:
         preserve_geometry: bool = False,
         reflow_only: bool = False,
         complete_capture_flow: bool = False,
+        locked_width: int | None = None,
+        partial: bool = False,
     ):
         text = text or self.window.tr("empty_result")
         overlay_config = self._overlay_config()
+        base_width = locked_width
+        if base_width is None:
+            width_getter = getattr(self.window, "current_request_overlay_width", None)
+            if callable(width_getter):
+                try:
+                    base_width = int(width_getter())
+                except Exception:  # noqa: BLE001
+                    base_width = None
         self.overlay.apply_typography()
-        width, height = self.overlay.calculate_size(text)
+        width, height = self.overlay.calculate_size(text, base_width=base_width)
         preserved_geometry = self._preserved_geometry(preserve_geometry=preserve_geometry)
+        if locked_width is not None:
+            width = max(1, int(locked_width))
 
         if preserved_geometry is not None:
             x = preserved_geometry.x()
@@ -100,18 +112,21 @@ class OverlayPresenter:
             else:
                 x, y = compute_overlay_position_for_point(overlay_config, anchor_point, width, height)
 
-        self.overlay.remember_context(bbox, text, anchor_point=anchor_point, preset_name=preset_name)
-        self.overlay.show_text(text, x, y, width, height, keep_manual_position=preserve_manual_position or bool(preserved_geometry and self.overlay.manual_positioned))
+        if partial and hasattr(self.overlay, "set_partial_result_state"):
+            self.overlay.set_partial_result_state("streaming", preset_name=preset_name)
+        if not partial:
+            self.overlay.remember_context(bbox, text, anchor_point=anchor_point, preset_name=preset_name)
+        self.overlay.show_text(text, x, y, width, height, keep_manual_position=preserve_manual_position or bool(preserved_geometry and self.overlay.manual_positioned), remember_state=not partial)
         if hasattr(self.window, "toast_service"):
             self.window.toast_service.hide_message()
         if complete_capture_flow and not reflow_only:
             self.window.finish_capture_workflow()
             self.window.restore_pinned_overlay_after_capture = False
-        if not reflow_only:
+        if not reflow_only and not partial:
             self.window.set_status("translated")
             self.window.log_tr("log_request_finished", preset=preset_name or "default")
 
-    def show_translation(self, bbox, text: str, *, preset_name: str = "", preserve_manual_position: bool = False, preserve_geometry: bool = False, reflow_only: bool = False):
+    def show_translation(self, bbox, text: str, *, preset_name: str = "", preserve_manual_position: bool = False, preserve_geometry: bool = False, reflow_only: bool = False, locked_width: int | None = None):
         self.show_response(
             text,
             bbox=bbox,
@@ -119,6 +134,7 @@ class OverlayPresenter:
             preserve_manual_position=preserve_manual_position,
             preserve_geometry=preserve_geometry,
             reflow_only=reflow_only,
+            locked_width=locked_width,
             complete_capture_flow=not reflow_only,
         )
 

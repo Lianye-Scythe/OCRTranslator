@@ -115,3 +115,15 @@ If response speed matters to you, keep an eye on at least:
 - provider / region / time-of-day variability
 - API key quota and throttling status
 - whether you should retry later or switch to another model
+
+## 12. Why does a compatible backend sometimes fall back to non-stream mode, and why does `Test API` behave the same way as real requests?
+
+`Stream responses` is now enabled by default, and `Test API` intentionally follows the same setting so it can reproduce the backend behavior you are likely to hit before you save and rely on that profile.
+
+If you connect a third-party compatible backend whose stream endpoint, SSE chunk shape, or compatibility layer does not match the schemas OCRTranslator currently supports, the app may:
+
+- show a streaming retry / fallback status hint
+- automatically retry once without streaming
+- keep the partial text that has already arrived and label the current state
+
+That also means some incompatible backends may receive a **second request** during fallback. If your backend is consistently unhappy with streaming, disable `Stream responses` in Advanced Settings.

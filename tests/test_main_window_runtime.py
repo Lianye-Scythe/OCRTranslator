@@ -12,6 +12,7 @@ if "pynput" not in sys.modules:
     sys.modules["pynput"] = pynput_stub
 
 from app.ui.main_window import MainWindow
+from app.operation_control import RequestCancelledError
 
 
 class _ValueWidget:
@@ -174,6 +175,100 @@ class MainWindowRuntimeTests(unittest.TestCase):
         self.assertEqual(window.current_overlay_auto_expand_top_margin(), 64)
         self.assertEqual(window.current_overlay_auto_expand_bottom_margin(), 18)
 
+    def test_get_api_client_injects_stream_fallback_status_notifier(self):
+        window = MainWindow.__new__(MainWindow)
+        window._api_client = None
+        window._api_client_class = Mock(return_value="client")
+        window.log = Mock()
+
+        result = window.get_api_client()
+
+        self.assertEqual(result, "client")
+        window._api_client_class.assert_called_once_with(window.log, status_notifier=window.notify_stream_fallback_status)
+
+    def test_notify_stream_fallback_status_updates_status_on_main_thread(self):
+        window = MainWindow.__new__(MainWindow)
+        window.is_quitting = False
+        window.status_label = object()
+        window.set_status = Mock()
+        window.bridge = SimpleNamespace(invoke_main_thread=SimpleNamespace(emit=lambda callback, payload: callback(payload)))
+
+        window.notify_stream_fallback_status("retrying", {"provider": "openai"})
+        window.notify_stream_fallback_status("succeeded", {"provider": "openai"})
+
+        self.assertEqual(
+            [call.args[0] for call in window.set_status.call_args_list],
+            ["stream_fallback_retrying", "stream_fallback_succeeded"],
+        )
+
+
+    def test_current_request_overlay_width_prefers_runtime_unpinned_override(self):
+        window = MainWindow.__new__(MainWindow)
+        window.config = SimpleNamespace(overlay_width=440, overlay_unpinned_width=560)
+        window.overlay_width_spin = _ValueWidget(440)
+        window._runtime_unpinned_overlay_width = 620
+
+        self.assertEqual(window.current_request_overlay_width(), 620)
+
+    def test_sync_runtime_unpinned_overlay_width_from_config_restores_saved_override(self):
+        window = MainWindow.__new__(MainWindow)
+        window.config = SimpleNamespace(overlay_unpinned_width=620)
+        window._runtime_unpinned_overlay_width = None
+
+        window.sync_runtime_unpinned_overlay_width_from_config()
+
+        self.assertEqual(window._runtime_unpinned_overlay_width, 620)
+
+    def test_handle_overlay_width_setting_changed_clears_runtime_unpinned_width_override(self):
+        window = MainWindow.__new__(MainWindow)
+        window._suppress_form_tracking = False
+        window.config = SimpleNamespace(overlay_width=440, overlay_unpinned_width=620)
+        window.overlay_width_spin = _ValueWidget(500)
+        window._runtime_unpinned_overlay_width = 620
+
+        window.handle_overlay_width_setting_changed()
+
+        self.assertIsNone(window._runtime_unpinned_overlay_width)
+        self.assertEqual(window.config.overlay_unpinned_width, 620)
+
+    def test_current_request_overlay_width_ignores_saved_unpinned_override_while_overlay_width_change_is_unsaved(self):
+        window = MainWindow.__new__(MainWindow)
+        window._suppress_form_tracking = False
+        window.config = SimpleNamespace(overlay_width=440, overlay_unpinned_width=620)
+        window.overlay_width_spin = _ValueWidget(500)
+        window._runtime_unpinned_overlay_width = 620
+
+        window.handle_overlay_width_setting_changed()
+
+        self.assertEqual(window.current_request_overlay_width(), 500)
+
+    def test_handle_overlay_width_setting_changed_ignores_suppressed_form_updates(self):
+        window = MainWindow.__new__(MainWindow)
+        window._suppress_form_tracking = True
+        window.config = SimpleNamespace(overlay_width=440, overlay_unpinned_width=620)
+        window.overlay_width_spin = _ValueWidget(500)
+        window._runtime_unpinned_overlay_width = 620
+
+        window.handle_overlay_width_setting_changed()
+
+        self.assertEqual(window._runtime_unpinned_overlay_width, 620)
+        self.assertEqual(window.config.overlay_unpinned_width, 620)
+
+    def test_handle_overlay_resized_tracks_and_persists_runtime_unpinned_width(self):
+        window = MainWindow.__new__(MainWindow)
+        window.config = SimpleNamespace(overlay_width=440, overlay_height=520, overlay_unpinned_width=None)
+        window.translation_overlay = SimpleNamespace(is_pinned=False)
+        window.persist_runtime_overlay_state = Mock()
+        window.handle_error = Mock()
+        window.set_status = Mock()
+
+        window.handle_overlay_resized(900, 640)
+
+        self.assertEqual(window._runtime_unpinned_overlay_width, 900)
+        self.assertEqual(window.config.overlay_unpinned_width, 900)
+        window.persist_runtime_overlay_state.assert_called_once_with()
+        window.set_status.assert_called_once_with("overlay_resized", width=900, height=640)
+
     def test_persist_runtime_overlay_state_keeps_existing_dirty_flag(self):
         window = MainWindow.__new__(MainWindow)
         window.config = SimpleNamespace()
@@ -190,7 +285,7 @@ class MainWindowRuntimeTests(unittest.TestCase):
 
     def test_handle_overlay_resized_does_not_overwrite_default_overlay_size_when_unpinned(self):
         window = MainWindow.__new__(MainWindow)
-        window.config = SimpleNamespace(overlay_width=440, overlay_height=520)
+        window.config = SimpleNamespace(overlay_width=440, overlay_height=520, overlay_unpinned_width=None)
         window.translation_overlay = SimpleNamespace(is_pinned=False, persist_current_geometry_as_pinned=Mock())
         window.persist_runtime_overlay_state = Mock()
         window.handle_error = Mock()
@@ -202,15 +297,16 @@ class MainWindowRuntimeTests(unittest.TestCase):
 
         self.assertEqual(window.config.overlay_width, 440)
         self.assertEqual(window.config.overlay_height, 520)
+        self.assertEqual(window.config.overlay_unpinned_width, 900)
         window.translation_overlay.persist_current_geometry_as_pinned.assert_not_called()
-        window.persist_runtime_overlay_state.assert_not_called()
+        window.persist_runtime_overlay_state.assert_called_once_with()
         window.overlay_width_spin.setValue.assert_not_called()
         window.overlay_height_spin.setValue.assert_not_called()
         window.set_status.assert_called_once_with("overlay_resized", width=900, height=640)
 
     def test_handle_overlay_resized_persists_pinned_geometry_without_touching_default_size(self):
         window = MainWindow.__new__(MainWindow)
-        window.config = SimpleNamespace(overlay_width=440, overlay_height=520)
+        window.config = SimpleNamespace(overlay_width=440, overlay_height=520, overlay_unpinned_width=700)
         window.translation_overlay = SimpleNamespace(is_pinned=True, persist_current_geometry_as_pinned=Mock())
         window.persist_runtime_overlay_state = Mock()
         window.handle_error = Mock()
@@ -220,6 +316,7 @@ class MainWindowRuntimeTests(unittest.TestCase):
 
         self.assertEqual(window.config.overlay_width, 440)
         self.assertEqual(window.config.overlay_height, 520)
+        self.assertEqual(window.config.overlay_unpinned_width, 700)
         window.translation_overlay.persist_current_geometry_as_pinned.assert_called_once_with()
         window.persist_runtime_overlay_state.assert_called_once_with()
         window.set_status.assert_called_once_with("overlay_resized", width=900, height=640)
@@ -698,6 +795,7 @@ class MainWindowRuntimeTests(unittest.TestCase):
         window.restore_window_after_capture = True
         window.restore_pinned_overlay_after_capture = True
         window.finish_capture_workflow = Mock()
+        window.request_workflow = SimpleNamespace(clear_streaming_response_update_state=Mock())
         window.existing_translation_overlay = lambda: overlay
         window.show_tray_toast = Mock()
         window.tr = lambda key, **kwargs: key
@@ -709,8 +807,34 @@ class MainWindowRuntimeTests(unittest.TestCase):
         self.assertTrue(result)
         window.operation_manager.cancel.assert_called_once_with("translation")
         window.finish_capture_workflow.assert_called_once_with(restore_window=True)
+        window.request_workflow.clear_streaming_response_update_state.assert_called_once_with()
         overlay.restore_last_overlay.assert_called_once_with()
         self.assertFalse(window.restore_pinned_overlay_after_capture)
+        window.show_tray_toast.assert_called_once_with("request_cancelled")
+        window.set_status.assert_called_once_with("request_cancelled")
+
+    def test_cancel_background_operation_marks_visible_partial_result_when_no_restore_target_exists(self):
+        window = MainWindow.__new__(MainWindow)
+        overlay = SimpleNamespace(has_partial_result=lambda: True, set_partial_result_state=Mock())
+        window.operation_manager = SimpleNamespace(current_active=lambda order: "translation", cancel=Mock())
+        window.capture_workflow_active = False
+        window.restore_window_after_capture = False
+        window.restore_pinned_overlay_after_capture = False
+        window.finish_capture_workflow = Mock()
+        window.request_workflow = SimpleNamespace(clear_streaming_response_update_state=Mock())
+        window.existing_translation_overlay = lambda: overlay
+        window.show_tray_toast = Mock()
+        window.tr = lambda key, **kwargs: key
+        window.set_status = Mock()
+        window.log = Mock()
+
+        result = window.cancel_background_operation()
+
+        self.assertTrue(result)
+        window.operation_manager.cancel.assert_called_once_with("translation")
+        window.finish_capture_workflow.assert_called_once_with(restore_window=False)
+        window.request_workflow.clear_streaming_response_update_state.assert_called_once_with()
+        overlay.set_partial_result_state.assert_called_once_with("cancelled")
         window.show_tray_toast.assert_called_once_with("request_cancelled")
         window.set_status.assert_called_once_with("request_cancelled")
 
@@ -849,12 +973,67 @@ class MainWindowRuntimeTests(unittest.TestCase):
         window._show_error_dialog_safe = Mock()
         window.operation_manager = SimpleNamespace(finish=Mock())
         window.existing_translation_overlay = lambda: overlay
+        window.request_workflow = SimpleNamespace(clear_streaming_response_update_state=Mock())
 
         window.handle_error(_TranslationFailure("boom"))
 
         window.finish_capture_workflow.assert_called_once_with(restore_window=True)
         overlay.restore_last_overlay.assert_called_once_with()
         self.assertFalse(window.restore_pinned_overlay_after_capture)
+        window.request_workflow.clear_streaming_response_update_state.assert_called_once_with()
+
+    def test_handle_error_marks_visible_partial_result_failed_when_translation_stream_breaks_without_restore_target(self):
+        class _TranslationFailure(RuntimeError):
+            operation = "translation"
+            task_id = None
+
+        window = MainWindow.__new__(MainWindow)
+        overlay = SimpleNamespace(has_partial_result=lambda: True, set_partial_result_state=Mock())
+        window._handling_error = False
+        window._safe_write_stderr = Mock()
+        window._handle_stale_operation_error = Mock(return_value=False)
+        window.capture_workflow_active = False
+        window.restore_pinned_overlay_after_capture = False
+        window.is_quitting = False
+        window.status_label = object()
+        window.isVisible = lambda: True
+        window.finish_capture_workflow = Mock()
+        window.set_status = Mock()
+        window.log = Mock()
+        window.tr = lambda key, **kwargs: key
+        window.effective_theme_name = lambda: "light"
+        window._show_error_dialog_safe = Mock()
+        window.operation_manager = SimpleNamespace(finish=Mock())
+        window.existing_translation_overlay = lambda: overlay
+        window.request_workflow = SimpleNamespace(clear_streaming_response_update_state=Mock())
+
+        window.handle_error(_TranslationFailure("boom"))
+
+        overlay.set_partial_result_state.assert_called_once_with("failed")
+        window.request_workflow.clear_streaming_response_update_state.assert_called_once_with()
+        window.set_status.assert_called_once_with("translate_failed")
+
+    def test_handle_error_marks_visible_partial_result_cancelled_for_translation_cancellation(self):
+        cancelled = type("_Cancelled", (RuntimeError,), {"operation": "translation", "task_id": None})()
+        cancelled.original = RequestCancelledError()
+        window = MainWindow.__new__(MainWindow)
+        overlay = SimpleNamespace(has_partial_result=lambda: True, set_partial_result_state=Mock())
+        window._handling_error = False
+        window._safe_write_stderr = Mock()
+        window._handle_stale_operation_error = Mock(return_value=False)
+        window.restore_pinned_overlay_after_capture = False
+        window.status_label = object()
+        window.toast_service = SimpleNamespace(hide_message=Mock())
+        window.set_status = Mock()
+        window.log = Mock()
+        window.existing_translation_overlay = lambda: overlay
+        window.request_workflow = SimpleNamespace(clear_streaming_response_update_state=Mock())
+
+        window.handle_error(cancelled)
+
+        overlay.set_partial_result_state.assert_called_once_with("cancelled")
+        window.request_workflow.clear_streaming_response_update_state.assert_called_once_with()
+        window.set_status.assert_called_once_with("request_cancelled")
 
     def test_handle_error_suppresses_recursive_reentry(self):
         window = MainWindow.__new__(MainWindow)

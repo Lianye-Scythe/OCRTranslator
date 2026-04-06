@@ -38,6 +38,7 @@ class SettingsServiceTests(unittest.TestCase):
             "overlay_auto_expand_top_margin": 56,
             "overlay_auto_expand_bottom_margin": 18,
             "toast_duration_seconds": 1.5,
+            "stream_responses": True,
             "check_updates_on_startup": True,
             "close_to_tray_on_close": True,
             "mode": "web_ud",
@@ -211,7 +212,28 @@ class SettingsServiceTests(unittest.TestCase):
         self.assertEqual(candidate_config.overlay_auto_expand_top_margin, 56)
         self.assertEqual(candidate_config.overlay_auto_expand_bottom_margin, 18)
         self.assertEqual(candidate_config.toast_duration_seconds, 1.5)
+        self.assertTrue(candidate_config.stream_responses)
         self.assertTrue(candidate_config.check_updates_on_startup)
+
+    def test_build_candidate_config_clears_saved_unpinned_width_override_when_overlay_width_changes(self):
+        base_config = AppConfig(
+            overlay_width=440,
+            overlay_unpinned_width=620,
+            active_profile_name="Default Gemini",
+            active_prompt_preset_name="翻譯 (Translate)",
+            api_profiles=[ApiProfile(name="Default Gemini", provider="gemini", base_url="https://generativelanguage.googleapis.com", api_keys=["legacy"], model="models/gemini-1.5-flash")],
+            prompt_presets=[PromptPreset(name="翻譯 (Translate)", builtin_id="translate", image_prompt="old-image", text_prompt="old-text")],
+        )
+        snapshot = self._snapshot(overlay_width=500)
+
+        _previous_language, candidate_config, _profile, _prompt_preset = build_candidate_config(
+            base_config,
+            snapshot,
+            current_profile=base_config.api_profiles[0],
+            current_prompt_preset=base_config.prompt_presets[0],
+        )
+
+        self.assertIsNone(candidate_config.overlay_unpinned_width)
 
 
 if __name__ == "__main__":

@@ -18,16 +18,21 @@ class ApiClientError(RuntimeError):
         user_message: str | None = None,
         retryable: bool = True,
         retry_same_key: bool = True,
+        status_code: int | None = None,
+        stream_fallback_allowed: bool = False,
     ):
         super().__init__(technical_message)
         self.user_message = user_message or technical_message
         self.retryable = retryable
         self.retry_same_key = retry_same_key
+        self.status_code = status_code
+        self.stream_fallback_allowed = stream_fallback_allowed
 
 
 class ApiClient:
-    def __init__(self, log_func):
+    def __init__(self, log_func, status_notifier=None):
         self.log = log_func
+        self.status_notifier = status_notifier
         self.profile_key_index: dict[str, int] = {}
         self._providers = {
             "openai": OpenAICompatibleAdapter(self._ensure_success, ApiClientError),
@@ -100,6 +105,7 @@ class ApiClient:
                 user_message=self._http_error_user_message(status_code, detail),
                 retryable=retryable,
                 retry_same_key=retry_same_key,
+                status_code=status_code,
             ) from exc
 
     def _provider_adapter(self, provider: str):
@@ -154,6 +160,82 @@ class ApiClient:
                 raise error
             raise ApiClientError(str(error), user_message=str(error)) from error
         raise ApiClientError(default_message, user_message=user_message)
+
+    @staticmethod
+    def _is_official_provider_base_url(profile: ApiProfile) -> bool:
+        base_url = str(getattr(profile, "base_url", "") or "").strip().lower().rstrip("/")
+        if not base_url:
+            return False
+        if profile.provider == "openai":
+            return base_url.startswith("https://api.openai.com")
+        if profile.provider == "gemini":
+            return "generativelanguage.googleapis.com" in base_url
+        return False
+
+    def _stream_retry_hint(self, profile: ApiProfile) -> str:
+        if self._is_official_provider_base_url(profile):
+            return ""
+        return "如果你使用的是第三方 Compatible 后端，请尝试关闭「流式响应」后再试一次。"
+
+    def _annotate_stream_error(self, exc: Exception, *, profile: ApiProfile):
+        if not isinstance(exc, ApiClientError):
+            return exc
+        hint = self._stream_retry_hint(profile)
+        if not hint:
+            return exc
+        user_message = str(getattr(exc, "user_message", "") or str(exc)).strip()
+        if hint not in user_message:
+            exc.user_message = f"{user_message} {hint}".strip()
+        return exc
+
+    @staticmethod
+    def _should_fallback_without_stream(exc: Exception) -> bool:
+        return isinstance(exc, ApiClientError) and bool(getattr(exc, "stream_fallback_allowed", False))
+
+    def _emit_stream_fallback_status(self, event_name: str, *, profile: ApiProfile) -> None:
+        notifier = getattr(self, "status_notifier", None)
+        if not callable(notifier):
+            return
+        try:
+            notifier(str(event_name or "").strip().lower(), {"provider": profile.provider, "base_url": profile.base_url, "model": profile.model})
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _request_with_optional_stream_fallback(
+        self,
+        *,
+        stream: bool,
+        profile: ApiProfile,
+        request_label: str,
+        stream_request,
+        non_stream_request,
+        request_context: RequestContext | None = None,
+    ):
+        try:
+            return stream_request() if stream else non_stream_request()
+        except Exception as exc:  # noqa: BLE001
+            if not stream or isinstance(exc, RequestCancelledError):
+                raise
+            if not self._should_fallback_without_stream(exc) or self._is_official_provider_base_url(profile):
+                raise self._annotate_stream_error(exc, profile=profile)
+            self._check_cancelled(request_context)
+            self.log(
+                f"{request_label} stream unsupported on compatible backend; retrying without stream | "
+                f"provider={profile.provider} | base_url={profile.base_url} | model={profile.model} | error={exc}"
+            )
+            self._emit_stream_fallback_status("retrying", profile=profile)
+            try:
+                result = non_stream_request()
+            except Exception as fallback_exc:  # noqa: BLE001
+                raise self._annotate_stream_error(fallback_exc, profile=profile) from fallback_exc
+            self._check_cancelled(request_context)
+            self.log(
+                f"{request_label} fallback succeeded without stream | "
+                f"provider={profile.provider} | base_url={profile.base_url} | model={profile.model}"
+            )
+            self._emit_stream_fallback_status("succeeded", profile=profile)
+            return result
+
 
     def _execute_keyed_operation(
         self,
@@ -250,11 +332,12 @@ class ApiClient:
             request_context=request_context,
         )
 
-    def test_profile(self, profile: ApiProfile, *, request_context: RequestContext | None = None) -> str:
+    def test_profile(self, profile: ApiProfile, *, stream: bool = False, request_context: RequestContext | None = None) -> str:
         response = self.request_text(
             "Reply with the single word OK.",
             profile,
             temperature=0.0,
+            stream=stream,
             request_context=request_context,
         )
         preview = self._response_preview(response)
@@ -275,7 +358,7 @@ class ApiClient:
         image.save(buffer, format="PNG")
         return buffer.getvalue()
 
-    def request_image_png(self, png_bytes: bytes, profile: ApiProfile, prompt: str, temperature: float, *, request_context: RequestContext | None = None) -> str:
+    def request_image_png(self, png_bytes: bytes, profile: ApiProfile, prompt: str, temperature: float, *, stream: bool = False, stream_callback=None, request_context: RequestContext | None = None) -> str:
         prompt_text = str(prompt or "").strip()
         if not prompt_text:
             raise ApiClientError("No prompt configured", user_message="目前提示詞不可為空。", retryable=False, retry_same_key=False)
@@ -285,10 +368,21 @@ class ApiClient:
         return self._execute_keyed_operation(
             profile,
             request_label="Image request",
-            request_callable=lambda api_key: (
-                self._translate_openai(profile, api_key, prompt_text, image_base64, temperature, request_context=request_context)
-                if profile.provider == "openai"
-                else self._translate_gemini(profile, api_key, prompt_text, image_base64, temperature, request_context=request_context)
+            request_callable=lambda api_key: self._request_with_optional_stream_fallback(
+                stream=stream,
+                profile=profile,
+                request_label="Image request",
+                stream_request=lambda: (
+                    self._translate_openai(profile, api_key, prompt_text, image_base64, temperature, stream=True, stream_callback=stream_callback, request_context=request_context)
+                    if profile.provider == "openai"
+                    else self._translate_gemini(profile, api_key, prompt_text, image_base64, temperature, stream=True, stream_callback=stream_callback, request_context=request_context)
+                ),
+                non_stream_request=lambda: (
+                    self._translate_openai(profile, api_key, prompt_text, image_base64, temperature, stream=False, stream_callback=None, request_context=request_context)
+                    if profile.provider == "openai"
+                    else self._translate_gemini(profile, api_key, prompt_text, image_base64, temperature, stream=False, stream_callback=None, request_context=request_context)
+                ),
+                request_context=request_context,
             ),
             attempts_total=1 + max(0, int(profile.retry_count)),
             require_non_empty=True,
@@ -299,17 +393,28 @@ class ApiClient:
             request_context=request_context,
         )
 
-    def request_text(self, prompt: str, profile: ApiProfile, temperature: float, *, request_context: RequestContext | None = None) -> str:
+    def request_text(self, prompt: str, profile: ApiProfile, temperature: float, *, stream: bool = False, stream_callback=None, request_context: RequestContext | None = None) -> str:
         prompt_text = str(prompt or "").strip()
         if not prompt_text:
             raise ApiClientError("No prompt configured", user_message="目前提示詞不可為空。", retryable=False, retry_same_key=False)
         return self._execute_keyed_operation(
             profile,
             request_label="Text request",
-            request_callable=lambda api_key: (
-                self._request_openai_prompt(profile, api_key, prompt_text, temperature, request_context=request_context)
-                if profile.provider == "openai"
-                else self._request_gemini_prompt(profile, api_key, prompt_text, temperature, request_context=request_context)
+            request_callable=lambda api_key: self._request_with_optional_stream_fallback(
+                stream=stream,
+                profile=profile,
+                request_label="Text request",
+                stream_request=lambda: (
+                    self._request_openai_prompt(profile, api_key, prompt_text, temperature, stream=True, stream_callback=stream_callback, request_context=request_context)
+                    if profile.provider == "openai"
+                    else self._request_gemini_prompt(profile, api_key, prompt_text, temperature, stream=True, stream_callback=stream_callback, request_context=request_context)
+                ),
+                non_stream_request=lambda: (
+                    self._request_openai_prompt(profile, api_key, prompt_text, temperature, stream=False, stream_callback=None, request_context=request_context)
+                    if profile.provider == "openai"
+                    else self._request_gemini_prompt(profile, api_key, prompt_text, temperature, stream=False, stream_callback=None, request_context=request_context)
+                ),
+                request_context=request_context,
             ),
             attempts_total=1 + max(0, int(profile.retry_count)),
             require_non_empty=True,
@@ -328,6 +433,8 @@ class ApiClient:
         temperature: float,
         *,
         image_base64: str | None = None,
+        stream: bool = False,
+        stream_callback=None,
         request_context: RequestContext | None = None,
     ) -> str:
         return self._provider_adapter("openai").request_prompt(
@@ -336,15 +443,19 @@ class ApiClient:
             prompt,
             temperature,
             image_base64=image_base64,
+            stream=stream,
+            stream_callback=stream_callback,
             request_context=request_context,
         )
 
-    def _translate_openai(self, profile: ApiProfile, api_key: str, prompt: str, image_base64: str, temperature: float, *, request_context: RequestContext | None = None) -> str:
+    def _translate_openai(self, profile: ApiProfile, api_key: str, prompt: str, image_base64: str, temperature: float, *, stream: bool = False, stream_callback=None, request_context: RequestContext | None = None) -> str:
         return self._request_openai_prompt(
             profile,
             api_key,
             prompt,
             temperature,
+            stream=stream,
+            stream_callback=stream_callback,
             request_context=request_context,
             image_base64=image_base64,
         )
@@ -357,6 +468,8 @@ class ApiClient:
         temperature: float,
         *,
         image_base64: str | None = None,
+        stream: bool = False,
+        stream_callback=None,
         request_context: RequestContext | None = None,
     ) -> str:
         return self._provider_adapter("gemini").request_prompt(
@@ -365,15 +478,19 @@ class ApiClient:
             prompt,
             temperature,
             image_base64=image_base64,
+            stream=stream,
+            stream_callback=stream_callback,
             request_context=request_context,
         )
 
-    def _translate_gemini(self, profile: ApiProfile, api_key: str, prompt: str, image_base64: str, temperature: float, *, request_context: RequestContext | None = None) -> str:
+    def _translate_gemini(self, profile: ApiProfile, api_key: str, prompt: str, image_base64: str, temperature: float, *, stream: bool = False, stream_callback=None, request_context: RequestContext | None = None) -> str:
         return self._request_gemini_prompt(
             profile,
             api_key,
             prompt,
             temperature,
+            stream=stream,
+            stream_callback=stream_callback,
             request_context=request_context,
             image_base64=image_base64,
         )

@@ -6,6 +6,22 @@
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-04-06
+
+### Added
+- 新增預設啟用的「流式回應」設定，並在進階設定提供顯式開關；`OpenAI Compatible` / `Gemini Compatible` 的文字與圖片請求現在都支援流式增量更新
+- 新增部分結果狀態標記與相關提示文案；串流中斷時會保留可見內容並標示 `串流中 / 已取消 / 請求失敗`
+
+### Changed
+- `Test API` 現在會跟隨目前的流式回應設定，第三方 Compatible 後端在流式不相容時會顯示狀態提示並嘗試自動回退為非流式
+- 浮窗幾何策略調整為更穩定的兩段式行為：單次串流請求期間鎖定寬度、未 Pin 浮窗會沿用使用者執行期間手動調整過的寬度，且可跨重啟保留
+- 部分結果 UI 更新改為 16ms latest-only frame coalescing，並縮減可見增量更新時不必要的 refresh / topmost / geometry / text work
+
+### Fixed
+- 修正 SSE 串流在 UTF-8 / CJK 內容下可能出現亂碼的問題
+- 修正取消 / 失敗 / pinned restore 等中斷情境下的部分結果浮窗狀態，避免覆寫既有結果並讓複製與標題文案保持一致
+- 修正未儲存 `overlay_width` 表單改動時，已保存的 `overlay_unpinned_width` 可能被提前寫盤清除的邊界問題
+
 ## [1.0.3] - 2026-04-06
 
 ### Added

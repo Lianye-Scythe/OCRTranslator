@@ -137,6 +137,23 @@ class ConfigStoreMigrationTests(unittest.TestCase):
 
         self.assertFalse(config.overlay_pinned)
 
+    def test_migrate_overlay_unpinned_width_accepts_and_clamps_optional_value(self):
+        config = _migrate_legacy_config(
+            {
+                "overlay_unpinned_width": "10000",
+                "api_profiles": [
+                    {
+                        "name": "Default Gemini",
+                        "provider": "gemini",
+                        "api_keys": ["demo-key"],
+                    }
+                ],
+            }
+        )
+
+        self.assertEqual(config.overlay_unpinned_width, 1600)
+
+
     def test_migrate_zero_overlay_opacity_is_clamped_to_one(self):
         config = _migrate_legacy_config(
             {
@@ -184,6 +201,25 @@ class ConfigStoreMigrationTests(unittest.TestCase):
         )
 
         self.assertEqual(config.toast_duration_seconds, 0.0)
+
+    def test_migrate_stream_responses_defaults_to_true(self):
+        config = _migrate_legacy_config(
+            {
+                "api_profiles": [
+                    {
+                        "name": "Default Gemini",
+                        "provider": "gemini",
+                        "api_keys": ["demo-key"],
+                    }
+                ],
+            }
+        )
+
+        self.assertTrue(config.stream_responses)
+
+    def test_migrate_stream_responses_accepts_explicit_false(self):
+        config = _migrate_legacy_config({"stream_responses": False, "api_profiles": [{"name": "Default Gemini", "provider": "gemini", "api_keys": ["demo-key"]}]})
+        self.assertFalse(config.stream_responses)
 
     def test_migrate_check_updates_on_startup_flag(self):
         config = _migrate_legacy_config(

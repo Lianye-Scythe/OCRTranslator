@@ -1,6 +1,6 @@
 import time
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import QApplication
 
@@ -13,8 +13,29 @@ PromptInputDialog = None
 
 
 class RequestWorkflowController:
+    PARTIAL_STREAM_FRAME_INTERVAL_MS = 16
+
     def __init__(self, window):
         self.window = window
+        self._active_stream_partial_request_token = None
+        self._latest_stream_partial_payload = None
+        self._scheduled_stream_partial_request_token = None
+
+    def _begin_streaming_response_update_state(self):
+        request_token = object()
+        self._active_stream_partial_request_token = request_token
+        self._latest_stream_partial_payload = None
+        self._scheduled_stream_partial_request_token = None
+        return request_token
+
+    def clear_streaming_response_update_state(self):
+        self._active_stream_partial_request_token = None
+        self._latest_stream_partial_payload = None
+        self._scheduled_stream_partial_request_token = None
+
+    def _complete_streaming_response_update_state(self, request_token):
+        if request_token is not None and request_token is self._active_stream_partial_request_token:
+            self.clear_streaming_response_update_state()
 
     def _existing_translation_overlay(self):
         getter = getattr(self.window, "existing_translation_overlay", None)
@@ -76,6 +97,64 @@ class RequestWorkflowController:
             return False
         return self.profile_request_signature(current_profile, include_model=include_model) == signature
 
+    def _stream_locked_width(self) -> int | None:
+        width_getter = getattr(self.window, "current_request_overlay_width", None)
+        if callable(width_getter):
+            try:
+                return int(width_getter())
+            except Exception:  # noqa: BLE001
+                return None
+        return None
+
+    def _queue_streaming_response_update(self, payload: dict) -> None:
+        bridge = getattr(self.window, "bridge", None)
+        signal = getattr(bridge, "invoke_main_thread", None)
+        if signal is None or not hasattr(signal, "emit"):
+            self._handle_streaming_response_update(payload)
+            return
+        signal.emit(self._handle_streaming_response_update, payload)
+
+    def _render_streaming_response_update(self, payload: dict):
+        kwargs = {
+            "preset_name": str(payload.get("preset_name") or ""),
+            "preserve_manual_position": bool(payload.get("preserve_manual_position", False)),
+            "preserve_geometry": bool(payload.get("preserve_geometry", False)),
+            "locked_width": payload.get("locked_width"),
+            "partial": True,
+        }
+        bbox = payload.get("bbox")
+        if bbox is not None:
+            self.window.overlay_presenter.show_response(str(payload.get("text") or ""), bbox=bbox, **kwargs)
+            return
+        self.window.overlay_presenter.show_response(str(payload.get("text") or ""), anchor_point=payload.get("anchor_point"), **kwargs)
+
+    def _flush_streaming_response_update(self, request_token):
+        if self._scheduled_stream_partial_request_token is not request_token:
+            return
+        self._scheduled_stream_partial_request_token = None
+        if request_token is not self._active_stream_partial_request_token:
+            return
+        payload = self._latest_stream_partial_payload
+        if not isinstance(payload, dict) or payload.get("_stream_request_token") is not request_token:
+            return
+        self._latest_stream_partial_payload = None
+        self._render_streaming_response_update(payload)
+
+    def _handle_streaming_response_update(self, payload: dict):
+        if not isinstance(payload, dict):
+            return
+        request_token = payload.get("_stream_request_token")
+        if request_token is None or request_token is not self._active_stream_partial_request_token:
+            return
+        text = str(payload.get("text") or "")
+        if not text.strip():
+            return
+        self._latest_stream_partial_payload = dict(payload)
+        if self._scheduled_stream_partial_request_token is request_token:
+            return
+        self._scheduled_stream_partial_request_token = request_token
+        QTimer.singleShot(self.PARTIAL_STREAM_FRAME_INTERVAL_MS, lambda request_token=request_token: self._flush_streaming_response_update(request_token))
+
     def fetch_models(self):
         if self.window.fetch_models_in_progress or self.window.test_profile_in_progress or self.window.translation_in_progress:
             return
@@ -131,10 +210,13 @@ class RequestWorkflowController:
             return
         profile = self.window.build_profile_from_form(validate_name=False)
         request_id = self.window._test_profile_request_id = self.window._test_profile_request_id + 1
+        stream_enabled = bool(getattr(self.window, "current_stream_responses", lambda: True)())
         request_signature = self.profile_request_signature(profile, include_model=True)
         self.window.log_tr("log_test_started", name=profile.name, model=profile.model)
         self.window.run_worker(
-            lambda request_context: (request_id, request_signature, self.window.api_client.test_profile(profile, request_context=request_context)),
+            lambda request_context, stream_enabled=stream_enabled: (
+                request_id, request_signature, self.window.api_client.test_profile(profile, stream=stream_enabled, request_context=request_context)
+            ),
             self.on_test_success,
             operation_key="test_profile",
             cancellable=True,
@@ -162,17 +244,48 @@ class RequestWorkflowController:
             and not preserve_pinned_geometry
         )
         temperature = self.window.current_temperature()
+        stream_enabled = bool(getattr(self.window, "current_stream_responses", lambda: True)())
+        stream_request_token = self._begin_streaming_response_update_state() if stream_enabled else None
+        stream_locked_width = self._stream_locked_width() if stream_enabled else None
+
+        stream_callback = None
+        if stream_enabled:
+            stream_callback = lambda partial_text, anchor_point=anchor_point, preset_name=prompt_preset.name, preserve_manual_position=preserve_manual_position, preserve_pinned_geometry=preserve_pinned_geometry, stream_locked_width=stream_locked_width, stream_request_token=stream_request_token: self._queue_streaming_response_update(
+                {
+                    "text": partial_text,
+                    "anchor_point": anchor_point,
+                    "preset_name": preset_name,
+                    "preserve_manual_position": preserve_manual_position,
+                    "preserve_geometry": preserve_pinned_geometry,
+                    "_stream_request_token": stream_request_token,
+                    "locked_width": stream_locked_width,
+                }
+            )
+        else:
+            self.clear_streaming_response_update_state()
+
+        def handle_text_request_success(result, *, anchor_point=anchor_point, preset_name=prompt_preset.name, preserve_manual_position=preserve_manual_position, preserve_pinned_geometry=preserve_pinned_geometry, stream_request_token=stream_request_token):
+            self._complete_streaming_response_update_state(stream_request_token)
+            kwargs = {
+                "anchor_point": anchor_point,
+                "preset_name": preset_name,
+                "preserve_manual_position": preserve_manual_position,
+                "preserve_geometry": preserve_pinned_geometry,
+            }
+            if stream_locked_width is not None:
+                kwargs["locked_width"] = stream_locked_width
+            self.window.overlay_presenter.show_response(result, **kwargs)
+
         self.window.run_worker(
-            lambda request_context, prompt=prompt, profile=profile, temperature=temperature: self.window.api_client.request_text(
-                prompt, profile, temperature, request_context=request_context
+            lambda request_context, prompt=prompt, profile=profile, temperature=temperature, stream_enabled=stream_enabled, stream_callback=stream_callback: self.window.api_client.request_text(
+                prompt,
+                profile,
+                temperature,
+                stream=stream_enabled,
+                stream_callback=stream_callback,
+                request_context=request_context,
             ),
-            lambda result, anchor_point=anchor_point, preset_name=prompt_preset.name, preserve_manual_position=preserve_manual_position, preserve_pinned_geometry=preserve_pinned_geometry: self.window.overlay_presenter.show_response(
-                result,
-                anchor_point=anchor_point,
-                preset_name=preset_name,
-                preserve_manual_position=preserve_manual_position,
-                preserve_geometry=preserve_pinned_geometry,
-            ),
+            handle_text_request_success,
             operation_key="translation",
             cancellable=True,
         )
@@ -323,14 +436,15 @@ class RequestWorkflowController:
         self.window.set_status("capture_cancelled")
         self.window.show_tray_toast(self.window.tr("capture_cancelled"))
 
-    def _handle_image_translation_success(self, text: str, *, bbox, preset_name: str, capture_started_at: float, request_started_at: float, capture_elapsed: float, payload_bytes: int):
+    def _handle_image_translation_success(self, text: str, *, bbox, preset_name: str, capture_started_at: float, request_started_at: float, capture_elapsed: float, payload_bytes: int, locked_width: int | None = None):
         overlay = self._existing_translation_overlay()
-        self.window.overlay_presenter.show_translation(
-            bbox,
-            text,
-            preset_name=preset_name,
-            preserve_geometry=bool(overlay.is_pinned) if overlay is not None else False,
-        )
+        kwargs = {
+            "preset_name": preset_name,
+            "preserve_geometry": bool(overlay.is_pinned) if overlay is not None else False,
+        }
+        if locked_width is not None:
+            kwargs["locked_width"] = locked_width
+        self.window.overlay_presenter.show_translation(bbox, text, **kwargs)
         request_elapsed = time.perf_counter() - request_started_at
         total_elapsed = time.perf_counter() - capture_started_at
         self.window.log(
@@ -352,7 +466,27 @@ class RequestWorkflowController:
         prompt_preset = self.window.pending_capture_prompt_preset or self.window.build_prompt_preset_from_form(validate_name=False)
         prompt = build_image_request_prompt(prompt_preset.image_prompt, target_language=target_language)
         temperature = self.window.current_temperature()
+        overlay = self._existing_translation_overlay()
         capture_started_at = time.perf_counter()
+        stream_enabled = bool(getattr(self.window, "current_stream_responses", lambda: True)())
+        stream_request_token = self._begin_streaming_response_update_state() if stream_enabled else None
+        stream_locked_width = self._stream_locked_width() if stream_enabled else None
+
+        stream_callback = None
+        if stream_enabled:
+            stream_callback = lambda partial_text, bbox=bbox, preset_name=prompt_preset.name, overlay=overlay, stream_locked_width=stream_locked_width, stream_request_token=stream_request_token: self._queue_streaming_response_update(
+                {
+                    "text": partial_text,
+                    "bbox": bbox,
+                    "preset_name": preset_name,
+                    "preserve_manual_position": False,
+                    "preserve_geometry": bool(overlay.is_pinned) if overlay is not None else False,
+                    "_stream_request_token": stream_request_token,
+                    "locked_width": stream_locked_width,
+                }
+            )
+        else:
+            self.clear_streaming_response_update_state()
 
         def capture_and_request(request_context):
             if request_context is not None and request_context.is_cancelled():
@@ -369,13 +503,15 @@ class RequestWorkflowController:
                 profile,
                 prompt,
                 temperature,
+                stream=stream_enabled,
+                stream_callback=stream_callback,
                 request_context=request_context,
             )
             return text, capture_elapsed, len(png_bytes), request_started_at
 
-        self.window.run_worker(
-            capture_and_request,
-            lambda result, bbox=bbox, preset_name=prompt_preset.name, capture_started_at=capture_started_at: self._handle_image_translation_success(
+        def handle_image_request_success(result, *, bbox=bbox, preset_name=prompt_preset.name, capture_started_at=capture_started_at, stream_request_token=stream_request_token):
+            self._complete_streaming_response_update_state(stream_request_token)
+            self._handle_image_translation_success(
                 result[0],
                 bbox=bbox,
                 preset_name=preset_name,
@@ -383,7 +519,12 @@ class RequestWorkflowController:
                 request_started_at=result[3],
                 capture_elapsed=result[1],
                 payload_bytes=result[2],
-            ),
+                locked_width=stream_locked_width,
+            )
+
+        self.window.run_worker(
+            capture_and_request,
+            handle_image_request_success,
             operation_key="translation",
             cancellable=True,
         )

@@ -64,6 +64,8 @@ class RequestWorkflowControllerTests(unittest.TestCase):
             fetch_models_in_progress=False,
             test_profile_in_progress=False,
             translation_in_progress=False,
+            _fetch_models_request_id=0,
+            _test_profile_request_id=0,
             selected_text_capture_in_progress=False,
             selected_text_capture_session=None,
             translation_overlay=_FakeOverlay(),
@@ -82,7 +84,13 @@ class RequestWorkflowControllerTests(unittest.TestCase):
             ),
             current_selection_hotkey=lambda: "Shift+Win+C",
             current_temperature=lambda: 0.2,
-            api_client=SimpleNamespace(request_text=Mock(return_value="done"), request_image_png=Mock(return_value="done")),
+            current_overlay_width=lambda: 440,
+            current_request_overlay_width=lambda: 440,
+            api_client=SimpleNamespace(
+                request_text=Mock(return_value="done"),
+                request_image_png=Mock(return_value="done"),
+                test_profile=Mock(return_value="OK | provider=openai | model=gpt-4o-mini | response=OK"),
+            ),
             set_status=Mock(),
             log_tr=Mock(),
             log=Mock(),
@@ -98,6 +106,7 @@ class RequestWorkflowControllerTests(unittest.TestCase):
             pending_capture_profile=None,
             pending_capture_target_language="English",
             pending_capture_prompt_preset=None,
+            current_stream_responses=lambda: True,
         )
         window.background_busy = (
             lambda: window.fetch_models_in_progress
@@ -125,6 +134,27 @@ class RequestWorkflowControllerTests(unittest.TestCase):
 
         self.assertNotEqual(signature_without_model, signature_with_model)
         self.assertEqual(signature_with_model[-1], "gpt-4o-mini")
+
+    def test_test_profile_uses_current_stream_response_setting(self):
+        window = self._build_window()
+        controller = RequestWorkflowController(window)
+
+        controller.test_profile()
+
+        worker_target = window.run_worker.call_args.args[0]
+        result = worker_target(None)
+
+        self.assertEqual(result[2], "OK | provider=openai | model=gpt-4o-mini | response=OK")
+        window.api_client.test_profile.assert_called_once_with(unittest.mock.ANY, stream=True, request_context=None)
+
+        window.api_client.test_profile.reset_mock()
+        window.run_worker.reset_mock()
+        window.current_stream_responses = lambda: False
+
+        controller.test_profile()
+        worker_target = window.run_worker.call_args.args[0]
+        worker_target(None)
+        window.api_client.test_profile.assert_called_once_with(unittest.mock.ANY, stream=False, request_context=None)
 
     def test_translate_selected_text_starts_async_session_before_request_submission(self):
         window = self._build_window()
@@ -163,6 +193,7 @@ class RequestWorkflowControllerTests(unittest.TestCase):
         overlay.is_pinned = True
         overlay.last_geometry = object()
         overlay.manual_positioned = True
+        window.current_stream_responses = lambda: False
         window.run_worker = Mock()
 
         controller.submit_text_request(
@@ -187,6 +218,7 @@ class RequestWorkflowControllerTests(unittest.TestCase):
         overlay = window.translation_overlay
         overlay.is_pinned = True
         overlay.last_geometry = None
+        window.current_stream_responses = lambda: False
         window.run_worker = Mock()
 
         controller.submit_text_request(
@@ -204,6 +236,115 @@ class RequestWorkflowControllerTests(unittest.TestCase):
         window.overlay_presenter.show_response.assert_called_once_with(
             "done", anchor_point="anchor", preset_name="Translate", preserve_manual_position=False, preserve_geometry=True
         )
+
+    def test_submit_text_request_streams_partial_response_updates_when_enabled(self):
+        window = self._build_window()
+        controller = RequestWorkflowController(window)
+        overlay = window.translation_overlay
+        overlay.is_pinned = False
+        scheduled_callbacks = []
+
+        def fake_request_text(prompt, profile, temperature, **kwargs):
+            self.assertTrue(kwargs["stream"])
+            kwargs["stream_callback"]("Hel")
+            kwargs["stream_callback"]("Hello")
+            return "Hello"
+
+        window.api_client.request_text = Mock(side_effect=fake_request_text)
+
+        with patch("app.services.request_workflow.QTimer.singleShot", side_effect=lambda _ms, callback: scheduled_callbacks.append(callback) or None):
+            controller.submit_text_request(
+                "Hello",
+                profile=window.build_profile_from_form(),
+                target_language="English",
+                prompt_preset=window.build_prompt_preset_from_form(),
+                anchor_point="anchor",
+                source_key="manual_input_processing",
+            )
+
+            worker_target = window.run_worker.call_args.args[0]
+            result = worker_target(None)
+            success_callback = window.run_worker.call_args.args[1]
+
+            self.assertEqual(result, "Hello")
+            self.assertEqual(len(scheduled_callbacks), 1)
+            scheduled_callbacks[0]()
+
+        self.assertEqual(window.overlay_presenter.show_response.call_count, 1)
+        first_call = window.overlay_presenter.show_response.call_args_list[0]
+        self.assertEqual(first_call.args[0], "Hello")
+        self.assertEqual(first_call.kwargs["anchor_point"], "anchor")
+        self.assertEqual(first_call.kwargs["locked_width"], 440)
+        self.assertTrue(first_call.kwargs["partial"])
+        success_callback(result)
+        final_call = window.overlay_presenter.show_response.call_args_list[-1]
+        self.assertEqual(final_call.args[0], "Hello")
+        self.assertEqual(final_call.kwargs["locked_width"], 440)
+        self.assertNotIn("partial", final_call.kwargs)
+
+    def test_submit_text_request_coalesces_partial_updates_until_next_frame(self):
+        window = self._build_window()
+        controller = RequestWorkflowController(window)
+        delays = []
+        scheduled_callbacks = []
+
+        def fake_request_text(prompt, profile, temperature, **kwargs):
+            kwargs["stream_callback"]("Hel")
+            kwargs["stream_callback"]("Hello")
+            return "Hello"
+
+        window.api_client.request_text = Mock(side_effect=fake_request_text)
+
+        with patch("app.services.request_workflow.QTimer.singleShot", side_effect=lambda delay, callback: delays.append(delay) or scheduled_callbacks.append(callback) or None):
+            controller.submit_text_request(
+                "Hello",
+                profile=window.build_profile_from_form(),
+                target_language="English",
+                prompt_preset=window.build_prompt_preset_from_form(),
+                anchor_point="anchor",
+                source_key="manual_input_processing",
+            )
+            worker_target = window.run_worker.call_args.args[0]
+            worker_target(None)
+
+        self.assertEqual(delays, [16])
+        self.assertEqual(window.overlay_presenter.show_response.call_count, 0)
+        self.assertEqual(len(scheduled_callbacks), 1)
+        scheduled_callbacks[0]()
+        self.assertEqual(window.overlay_presenter.show_response.call_count, 1)
+        partial_call = window.overlay_presenter.show_response.call_args_list[0]
+        self.assertEqual(partial_call.args[0], "Hello")
+        self.assertTrue(partial_call.kwargs["partial"])
+
+    def test_submit_text_request_final_result_invalidates_pending_partial_flush(self):
+        window = self._build_window()
+        controller = RequestWorkflowController(window)
+        scheduled_callbacks = []
+
+        def fake_request_text(prompt, profile, temperature, **kwargs):
+            kwargs["stream_callback"]("Hello")
+            return "Hello"
+
+        window.api_client.request_text = Mock(side_effect=fake_request_text)
+
+        with patch("app.services.request_workflow.QTimer.singleShot", side_effect=lambda _delay, callback: scheduled_callbacks.append(callback) or None):
+            controller.submit_text_request(
+                "Hello",
+                profile=window.build_profile_from_form(),
+                target_language="English",
+                prompt_preset=window.build_prompt_preset_from_form(),
+                anchor_point="anchor",
+                source_key="manual_input_processing",
+            )
+            worker_target = window.run_worker.call_args.args[0]
+            result = worker_target(None)
+            success_callback = window.run_worker.call_args.args[1]
+            success_callback(result)
+
+        self.assertEqual(window.overlay_presenter.show_response.call_count, 1)
+        scheduled_callbacks[0]()
+        self.assertEqual(window.overlay_presenter.show_response.call_count, 1)
+        self.assertEqual(window.overlay_presenter.show_response.call_args_list[0].args[0], "Hello")
 
     def test_cancel_selected_text_capture_cleans_up_without_submitting_request(self):
         window = self._build_window()
@@ -300,7 +441,15 @@ class RequestWorkflowControllerTests(unittest.TestCase):
         request_context = SimpleNamespace(is_cancelled=lambda: False)
         self.assertEqual(request_callable(request_context), ("done", unittest.mock.ANY, 8, unittest.mock.ANY))
         window.screen_capture_service.capture_bbox_png_bytes_threadsafe.assert_called_once_with((10, 20, 110, 120))
-        window.api_client.request_image_png.assert_called_once_with(b"png-data", unittest.mock.ANY, "image-prompt", 0.2, request_context=request_context)
+        window.api_client.request_image_png.assert_called_once_with(
+            b"png-data",
+            unittest.mock.ANY,
+            "image-prompt",
+            0.2,
+            stream=True,
+            stream_callback=unittest.mock.ANY,
+            request_context=request_context,
+        )
         window.update_preview.assert_called_once_with(preview_pixmap="preview-pixmap")
         self.assertEqual(events[0], ("update_preview", "preview-pixmap"))
         self.assertEqual(events[1], "request_image")

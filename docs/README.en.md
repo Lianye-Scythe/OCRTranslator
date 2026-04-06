@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml/badge.svg)](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D6)](packaging.en.md)
-[![Release](https://img.shields.io/badge/release-v1.0.3-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
+[![Release](https://img.shields.io/badge/release-v1.0.4-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
 [![License](https://img.shields.io/badge/license-GPLv3-4F46E5)](../LICENSE)
 
 OCRTranslator is a **portable OCR / AI request tool** built around **desktop reading workflows**.
@@ -21,6 +21,8 @@ It is not just a screenshot translator. It is a desktop AI workspace organized a
 - Prompt preset system with four built-in presets: `Translate`, `Answer`, `Polish`, and `Raw OCR`
 - Multiple API profiles for `Gemini Compatible` and `OpenAI Compatible` providers
 - API key rotation, retry, and model-switching support
+- Stream responses are enabled by default and can be disabled in Advanced Settings; `Test API` now uses the same mode so backend behavior is easier to validate before saving
+- Third-party compatible backends can surface an explicit status hint and retry without streaming when stream mode is unsupported; interrupted streams also keep visible partial results with state labels
 - A workflow-first settings layout: `Connection and model → Translation workflow → Appearance and advanced`
 - Request flows stay as non-blocking as possible, with app-managed toasts and tray notifications for status feedback
 - Result overlay supports:
@@ -29,7 +31,7 @@ It is not just a screenshot translator. It is a desktop AI workspace organized a
   - direct opacity percentage input
   - drag to move and corner resize
   - `Ctrl + mouse wheel` font zoom
-- Pinned overlays keep their size and position; unpinned overlays reopen from the saved default size
+- Pinned overlays keep their size and position; unpinned overlays reopen from the saved default size and remember the most recent runtime-resized width
 - Light / dark / follow-system theme modes
 - Global hotkeys, system tray, single-instance forwarding, and quick `--capture` launch support
 - Versioned ZIP releases, `SHA256SUMS.txt`, and trilingual documentation

@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml/badge.svg)](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D6)](packaging.zh-CN.md)
-[![Release](https://img.shields.io/badge/release-v1.0.3-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
+[![Release](https://img.shields.io/badge/release-v1.0.4-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
 [![License](https://img.shields.io/badge/license-GPLv3-4F46E5)](../LICENSE)
 
 OCRTranslator 是一款以 **桌面即时阅读** 为核心的 **便携式 OCR / AI 请求工具**。
@@ -21,6 +21,8 @@ OCRTranslator 是一款以 **桌面即时阅读** 为核心的 **便携式 OCR /
 - 支持 **Prompt Preset** 方案系统，内建 `翻译 (Translate)`、`解答 (Answer)`、`润色 (Polish)`、`OCR 原文 (Raw OCR)` 四组预设方案
 - 支持多个 API Profile，可接入 `Gemini Compatible` / `OpenAI Compatible`
 - 支持多 Key 轮替、失败重试与模型切换
+- 流式响应默认启用，可在进阶设置中关闭；`Test API` 也会沿用相同模式验证实际后端行为
+- 第三方 Compatible 后端如果不支持流式，会提示当前状态并自动回退到非流式；流式中断时也会保留部分结果与状态标记
 - 设置页采用“连接与模型 → 翻译方式与快捷键 → 界面与进阶”三段式流程，更容易完成首次配置
 - 请求流程尽量保持非阻塞，并通过应用内短时气泡 / 系统托盘通知反馈当前状态
 - 结果浮窗支持：
@@ -29,7 +31,7 @@ OCRTranslator 是一款以 **桌面即时阅读** 为核心的 **便携式 OCR /
   - 直接输入透明度百分比
   - 拖拽移动与角落拖拽改尺寸
   - `Ctrl + 鼠标滚轮` 缩放字体
-- 已 Pin 的结果浮窗可保留位置与尺寸；未 Pin 状态则会从默认尺寸重新展开
+- 已 Pin 的结果浮窗可保留位置与尺寸；未 Pin 状态则会从默认尺寸重新展开，并记住你最近一次手动调整过的宽度
 - 支持 `浅色 / 深色 / 跟随系统` 三态主题切换
 - 支持全局快捷键、系统托盘、单实例唤回与 `--capture` 快速启动
 - 提供版本化 ZIP 发布、`SHA256SUMS.txt` 校验与完整三语文档

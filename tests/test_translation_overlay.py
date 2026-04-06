@@ -18,6 +18,9 @@ class _FakeAppWindow:
         translations = {
             "overlay_title": "结果",
             "copy_response": "复制",
+            "overlay_partial_streaming": "流式接收中…",
+            "overlay_partial_cancelled": "部分结果（已取消）",
+            "overlay_partial_failed": "部分结果（请求失败）",
             "toggle_overlay_pin": "切换是否保留浮窗",
             "decrease_overlay_opacity": "降低浮窗透明度",
             "increase_overlay_opacity": "提高浮窗透明度",
@@ -168,3 +171,49 @@ class TranslationOverlayTests(unittest.TestCase):
             ]
         )
         self.assertEqual(mock_clear_focus.call_count, 6)
+
+    def test_partial_result_title_uses_streaming_and_interrupted_labels(self):
+        self.overlay.set_partial_result_state("streaming", preset_name="翻译")
+        self.assertEqual(self.overlay.title_label.text(), "结果 · 翻译 · 流式接收中…")
+
+        self.overlay.set_partial_result_state("failed")
+        self.assertEqual(self.overlay.title_label.text(), "结果 · 翻译 · 部分结果（请求失败）")
+
+        self.overlay.set_partial_result_state("cancelled")
+        self.assertEqual(self.overlay.title_label.text(), "结果 · 翻译 · 部分结果（已取消）")
+
+    def test_copy_text_uses_visible_partial_content_when_partial_result_is_active(self):
+        self.overlay.last_text = "old persisted result"
+        self.overlay.set_partial_result_state("streaming", preset_name="翻译")
+        self.overlay.body.setPlainText("partial text")
+
+        self.overlay.copy_text()
+
+        self.assertEqual(QApplication.clipboard().text(), "partial text")
+        self.assertEqual(self.window.status_calls[-1], ("overlay_copied", {}))
+
+    def test_show_text_partial_visible_update_skips_refresh_and_raise_when_overlay_is_already_visible(self):
+        self.overlay.set_partial_result_state("streaming", preset_name="翻译")
+
+        with patch.object(self.overlay, "isVisible", return_value=True), patch.object(self.overlay, "refresh_language") as mock_refresh, patch.object(self.overlay, "_show_as_topmost") as mock_show_topmost, patch.object(
+            self.overlay, "_sync_topbar_hover_state"
+        ) as mock_sync_hover:
+            self.overlay.show_text("partial text", 120, 140, 500, 360, remember_state=False)
+
+        mock_refresh.assert_not_called()
+        mock_show_topmost.assert_not_called()
+        mock_sync_hover.assert_not_called()
+
+    def test_show_text_partial_visible_update_skips_redundant_geometry_and_text_work_when_unchanged(self):
+        self.overlay.set_partial_result_state("streaming", preset_name="翻译")
+        self.overlay.setGeometry(120, 140, 500, 360)
+        self.overlay.body.setPlainText("partial text")
+
+        with patch.object(self.overlay, "isVisible", return_value=True), patch.object(self.overlay, "setGeometry") as mock_set_geometry, patch.object(
+            self.overlay.body, "setPlainText"
+        ) as mock_set_plain_text, patch.object(self.overlay, "_show_as_topmost") as mock_show_topmost:
+            self.overlay.show_text("partial text", 120, 140, 500, 360, remember_state=False)
+
+        mock_set_geometry.assert_not_called()
+        mock_set_plain_text.assert_not_called()
+        mock_show_topmost.assert_not_called()

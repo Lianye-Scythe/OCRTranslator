@@ -26,6 +26,7 @@ class SettingsFormSnapshot:
     overlay_auto_expand_top_margin: int = 42
     overlay_auto_expand_bottom_margin: int = 24
     toast_duration_seconds: float = 1.5
+    stream_responses: bool = True
     check_updates_on_startup: bool = False
     close_to_tray_on_close: bool = False
     mode: str = "book_lr"

@@ -6,6 +6,22 @@
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-04-06
+
+### Added
+- 新增默认启用的“流式响应”设置，并在进阶设置提供显式开关；`OpenAI Compatible` / `Gemini Compatible` 的文本与图片请求现在都支持流式增量更新
+- 新增部分结果状态标记与相关提示文案；流式中断时会保留可见内容并标示 `流式接收中 / 已取消 / 请求失败`
+
+### Changed
+- `Test API` 现在会跟随当前的流式响应设置，第三方 Compatible 后端在流式不兼容时会显示状态提示并尝试自动回退到非流式
+- 浮窗几何策略调整为更稳定的两段式行为：单次流式请求期间锁定宽度、未 Pin 浮窗会沿用用户运行时手动调整过的宽度，并可跨重启保留
+- 部分结果 UI 更新改为 16ms latest-only frame coalescing，并减少可见增量更新时不必要的 refresh / topmost / geometry / text work
+
+### Fixed
+- 修复 SSE 流式在 UTF-8 / CJK 内容下可能出现乱码的问题
+- 修复取消 / 失败 / pinned restore 等中断场景下的部分结果浮窗状态，避免覆盖既有结果，并让复制与标题文案保持一致
+- 修复未保存 `overlay_width` 表单改动时，已保存的 `overlay_unpinned_width` 可能被提前写盘清除的边界问题
+
 ## [1.0.3] - 2026-04-06
 
 ### Added
