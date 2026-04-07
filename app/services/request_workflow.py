@@ -519,6 +519,11 @@ class RequestWorkflowController:
             and overlay.is_pinned
             and overlay.last_text.strip()
         )
+        # Recreate the selection overlay for each capture so Windows/DWM does not
+        # briefly reuse the previous transparent top-level surface on the first frame.
+        recreate_selection_overlay = getattr(self.window, "recreate_selection_overlay", None)
+        if callable(recreate_selection_overlay):
+            recreate_selection_overlay()
         self.window.log_tr("log_capture_started", preset=self.window.pending_capture_prompt_preset.name, target=self.window.pending_capture_target_language)
         self.window.capture_workflow_active = True
         self.window.restore_window_after_capture = restore_window_after_capture

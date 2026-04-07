@@ -119,9 +119,8 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self.pending_capture_prompt_preset = None
         self.capture_desktop_snapshot = None
         self.capture_hidden_owned_windows = []
-        self.selection_overlay = SelectionOverlay()
-        self.selection_overlay.selected.connect(self.handle_selection)
-        self.selection_overlay.cancelled.connect(self.handle_capture_cancelled)
+        self.selection_overlay = None
+        self.create_selection_overlay()
 
         self._translation_overlay = None
         self._overlay_presenter = None
@@ -166,6 +165,51 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self._startup_services_initialized = False
         self.set_unsaved_changes(False)
         self.startup_timing.mark("mainwindow_init_complete")
+
+    @staticmethod
+    def _dispose_selection_overlay_widget(overlay) -> None:
+        if overlay is None:
+            return
+        for method_name in ("hide", "close", "deleteLater"):
+            method = getattr(overlay, method_name, None)
+            if callable(method):
+                try:
+                    method()
+                except Exception:  # noqa: BLE001
+                    continue
+
+    def _sync_selection_overlay_ui(self, overlay) -> None:
+        if overlay is None:
+            return
+        apply_theme = getattr(overlay, "apply_theme", None)
+        if callable(apply_theme):
+            apply_theme()
+        set_hint_text = getattr(overlay, "set_hint_text", None)
+        if callable(set_hint_text):
+            set_hint_text(self.tr("selection_hint"))
+
+    def create_selection_overlay(self):
+        overlay = SelectionOverlay()
+        selected_signal = getattr(overlay, "selected", None)
+        if hasattr(selected_signal, "connect"):
+            selected_signal.connect(self.handle_selection)
+        cancelled_signal = getattr(overlay, "cancelled", None)
+        if hasattr(cancelled_signal, "connect"):
+            cancelled_signal.connect(self.handle_capture_cancelled)
+        self._sync_selection_overlay_ui(overlay)
+        self.selection_overlay = overlay
+        return overlay
+
+    def recreate_selection_overlay(self):
+        previous_overlay = getattr(self, "selection_overlay", None)
+        self._dispose_selection_overlay_widget(previous_overlay)
+        return self.create_selection_overlay()
+
+    def ensure_selection_overlay(self):
+        overlay = getattr(self, "selection_overlay", None)
+        if overlay is None:
+            return self.create_selection_overlay()
+        return overlay
 
     def get_api_client_class(self):
         if self._api_client_class is None:

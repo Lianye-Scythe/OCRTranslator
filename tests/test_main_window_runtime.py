@@ -40,6 +40,34 @@ class _FakeWidget:
 
 
 class MainWindowRuntimeTests(unittest.TestCase):
+    @patch("app.ui.main_window.SelectionOverlay")
+    def test_recreate_selection_overlay_replaces_old_widget_and_syncs_new_one(self, mock_selection_overlay_cls):
+        old_overlay = SimpleNamespace(hide=Mock(), close=Mock(), deleteLater=Mock())
+        new_overlay = SimpleNamespace(
+            selected=SimpleNamespace(connect=Mock()),
+            cancelled=SimpleNamespace(connect=Mock()),
+            apply_theme=Mock(),
+            set_hint_text=Mock(),
+        )
+        mock_selection_overlay_cls.return_value = new_overlay
+        window = MainWindow.__new__(MainWindow)
+        window.selection_overlay = old_overlay
+        window.handle_selection = Mock()
+        window.handle_capture_cancelled = Mock()
+        window.tr = lambda key, **kwargs: "Select an area"
+
+        recreated_overlay = window.recreate_selection_overlay()
+
+        self.assertIs(recreated_overlay, new_overlay)
+        self.assertIs(window.selection_overlay, new_overlay)
+        old_overlay.hide.assert_called_once_with()
+        old_overlay.close.assert_called_once_with()
+        old_overlay.deleteLater.assert_called_once_with()
+        new_overlay.selected.connect.assert_called_once_with(window.handle_selection)
+        new_overlay.cancelled.connect.assert_called_once_with(window.handle_capture_cancelled)
+        new_overlay.apply_theme.assert_called_once_with()
+        new_overlay.set_hint_text.assert_called_once_with("Select an area")
+
     def test_current_theme_mode_prefers_live_theme_buttons(self):
         window = MainWindow.__new__(MainWindow)
         window.config = SimpleNamespace(theme_mode="system")

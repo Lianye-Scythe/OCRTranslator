@@ -482,9 +482,12 @@ class RequestWorkflowControllerTests(unittest.TestCase):
         overlay.last_text = ""
         window.isVisible = lambda: False
         window.isMinimized = lambda: False
+        old_selection_overlay = SimpleNamespace(show_overlay=Mock(), set_snapshot_background=Mock(), clear_snapshot_background=Mock(), hide=Mock(), close=Mock(), deleteLater=Mock())
+        new_selection_overlay = SimpleNamespace(show_overlay=Mock(), set_snapshot_background=Mock(), clear_snapshot_background=Mock())
+        window.selection_overlay = old_selection_overlay
+        window.recreate_selection_overlay = Mock(side_effect=lambda: setattr(window, "selection_overlay", new_selection_overlay) or new_selection_overlay)
         dialog = SimpleNamespace(isVisible=lambda: True, hide=Mock(), show=Mock(), raise_=Mock(), activateWindow=Mock())
         window._active_error_dialogs = [dialog]
-        window.selection_overlay = SimpleNamespace(show_overlay=Mock(), set_snapshot_background=Mock(), clear_snapshot_background=Mock())
         window.screen_capture_service = SimpleNamespace(
             capture_desktop_snapshot=Mock(return_value=SimpleNamespace(virtual_rect=(0, 0, 1920, 1080), segments=(object(), object()))),
             build_snapshot_background_pixmap=Mock(return_value="snapshot-background"),
@@ -497,9 +500,13 @@ class RequestWorkflowControllerTests(unittest.TestCase):
         self.assertTrue(window.restore_window_after_capture)
         mock_barrier.assert_called_once_with()
         window.toast_service.hide_message.assert_called_once_with()
+        window.recreate_selection_overlay.assert_called_once_with()
         dialog.hide.assert_called_once_with()
-        window.selection_overlay.show_overlay.assert_called_once_with()
-        window.selection_overlay.set_snapshot_background.assert_called_once_with("snapshot-background", virtual_rect=(0, 0, 1920, 1080))
+        old_selection_overlay.show_overlay.assert_not_called()
+        old_selection_overlay.set_snapshot_background.assert_not_called()
+        new_selection_overlay.clear_snapshot_background.assert_called_once_with()
+        new_selection_overlay.show_overlay.assert_called_once_with()
+        new_selection_overlay.set_snapshot_background.assert_called_once_with("snapshot-background", virtual_rect=(0, 0, 1920, 1080))
         window.screen_capture_service.capture_desktop_snapshot.assert_called_once_with()
         window.screen_capture_service.build_snapshot_background_pixmap.assert_called_once()
         self.assertIsNotNone(window.capture_desktop_snapshot)
