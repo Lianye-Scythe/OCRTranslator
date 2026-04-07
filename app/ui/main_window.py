@@ -33,6 +33,7 @@ from ..services.update_checker import UpdateCheckService
 from ..workers import AppBridge, WorkerThread
 from .theme_tokens import color, resolve_theme_name, set_theme_mode
 from .main_window_layout import MainWindowLayoutMixin
+from .focus_utils import clear_focus_if_alive
 from .main_window_settings_layout import MainWindowSettingsLayoutMixin
 from .main_window_prompts import MainWindowPromptPresetsMixin
 from .main_window_profiles import MainWindowProfilesMixin
@@ -843,10 +844,32 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         setattr(self, f"{operation}_in_progress", active)
         self.update_action_states()
 
+    def _clear_settings_focus_before_disabling_controls(self):
+        focus_widget = QApplication.focusWidget()
+        settings_tab = getattr(self, "settings_tab", None)
+        if focus_widget is None or settings_tab is None or focus_widget is self:
+            return
+        try:
+            should_clear = bool(
+                focus_widget is settings_tab
+                or (hasattr(settings_tab, "isAncestorOf") and settings_tab.isAncestorOf(focus_widget))
+            )
+        except Exception:  # noqa: BLE001
+            should_clear = False
+        if not should_clear:
+            return
+        clear_focus_if_alive(focus_widget)
+        try:
+            self.setFocus(Qt.OtherFocusReason)
+        except Exception:  # noqa: BLE001
+            pass
+
     def update_action_states(self):
         if not hasattr(self, "fetch_models_button"):
             return
         any_background_busy = self.background_busy()
+        if any_background_busy:
+            self._clear_settings_focus_before_disabling_controls()
         capture_busy = self.capture_workflow_active or any_background_busy
         cancel_available = bool(self.operation_manager.current_active(("translation", "test_profile", "fetch_models")) or self.selected_text_capture_in_progress or (self.capture_workflow_active and self.selection_overlay.isVisible()))
         for widget_name in (

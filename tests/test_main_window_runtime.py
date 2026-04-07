@@ -68,6 +68,66 @@ class MainWindowRuntimeTests(unittest.TestCase):
         new_overlay.apply_theme.assert_called_once_with()
         new_overlay.set_hint_text.assert_called_once_with("Select an area")
 
+    @patch("app.ui.main_window_settings_layout.install_mouse_click_focus_clear_many")
+    def test_install_settings_button_focus_clear_covers_scroll_area_action_buttons(self, mock_install_focus_clear):
+        buttons = {name: SimpleNamespace(setFocusPolicy=Mock()) for name in (
+            "new_profile_button",
+            "delete_profile_button",
+            "fetch_models_button",
+            "test_button",
+            "cancel_button",
+            "discard_changes_button",
+            "save_button",
+            "api_keys_toggle_button",
+            "new_prompt_preset_button",
+            "delete_prompt_preset_button",
+            "hotkey_record_button",
+            "selection_hotkey_record_button",
+            "input_hotkey_record_button",
+            "advanced_toggle_button",
+            "check_updates_now_button",
+        )}
+        window = MainWindow.__new__(MainWindow)
+        for name, button in buttons.items():
+            setattr(window, name, button)
+
+        window._install_settings_button_focus_clear()
+
+        mock_install_focus_clear.assert_called_once_with(*buttons.values())
+        for button in buttons.values():
+            button.setFocusPolicy.assert_called_once()
+        self.assertEqual(window._settings_mouse_focus_clear_filters, mock_install_focus_clear.return_value)
+
+    @patch("app.ui.main_window.clear_focus_if_alive")
+    @patch("app.ui.main_window.QApplication.focusWidget")
+    def test_clear_settings_focus_before_disabling_controls_moves_focus_off_settings_area(self, mock_focus_widget, mock_clear_focus):
+        focus_widget = object()
+        mock_focus_widget.return_value = focus_widget
+        settings_tab = SimpleNamespace(isAncestorOf=lambda widget: widget is focus_widget)
+        window = MainWindow.__new__(MainWindow)
+        window.settings_tab = settings_tab
+        window.setFocus = Mock()
+
+        window._clear_settings_focus_before_disabling_controls()
+
+        mock_clear_focus.assert_called_once_with(focus_widget)
+        window.setFocus.assert_called_once_with(unittest.mock.ANY)
+
+    @patch("app.ui.main_window.clear_focus_if_alive")
+    @patch("app.ui.main_window.QApplication.focusWidget")
+    def test_clear_settings_focus_before_disabling_controls_ignores_non_settings_focus(self, mock_focus_widget, mock_clear_focus):
+        focus_widget = object()
+        mock_focus_widget.return_value = focus_widget
+        settings_tab = SimpleNamespace(isAncestorOf=lambda widget: False)
+        window = MainWindow.__new__(MainWindow)
+        window.settings_tab = settings_tab
+        window.setFocus = Mock()
+
+        window._clear_settings_focus_before_disabling_controls()
+
+        mock_clear_focus.assert_not_called()
+        window.setFocus.assert_not_called()
+
     def test_current_theme_mode_prefers_live_theme_buttons(self):
         window = MainWindow.__new__(MainWindow)
         window.config = SimpleNamespace(theme_mode="system")

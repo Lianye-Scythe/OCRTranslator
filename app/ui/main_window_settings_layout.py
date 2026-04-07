@@ -2,6 +2,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QCheckBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QScrollArea, QVBoxLayout, QWidget
 
+from .focus_utils import install_mouse_click_focus_clear_many
 from .ime_aware_text_edit import ImeAwarePlainTextEdit
 from .main_window_layout import ScrollSafeComboBox, ScrollSafeDoubleSpinBox, ScrollSafeFontComboBox, ScrollSafeSpinBox
 
@@ -31,11 +32,39 @@ class MainWindowSettingsLayoutMixin:
         self._build_translation_section(content_layout)
         self._build_advanced_section(content_layout)
         self._multiline_editor_surfaces = getattr(self, "_multiline_editor_surfaces", {})
+        self._install_settings_button_focus_clear()
         self._connect_settings_form_signals()
 
         self.image_prompt_edit.setTabChangesFocus(True)
         self.text_prompt_edit.setTabChangesFocus(True)
         content_layout.addStretch(1)
+
+    def _install_settings_button_focus_clear(self):
+        button_names = (
+            "new_profile_button",
+            "delete_profile_button",
+            "fetch_models_button",
+            "test_button",
+            "cancel_button",
+            "discard_changes_button",
+            "save_button",
+            "api_keys_toggle_button",
+            "new_prompt_preset_button",
+            "delete_prompt_preset_button",
+            "hotkey_record_button",
+            "selection_hotkey_record_button",
+            "input_hotkey_record_button",
+            "advanced_toggle_button",
+            "check_updates_now_button",
+        )
+        buttons = []
+        for name in button_names:
+            widget = getattr(self, name, None)
+            if widget is not None and hasattr(widget, "setFocusPolicy"):
+                widget.setFocusPolicy(Qt.TabFocus)
+            if widget is not None:
+                buttons.append(widget)
+        self._settings_mouse_focus_clear_filters = install_mouse_click_focus_clear_many(*buttons)
 
     def _build_connection_section(self, content_layout):
         self.connection_group, connection_layout, self.connection_group_title_label = self.create_section_card()
