@@ -164,6 +164,51 @@ class RequestWorkflowControllerTests(unittest.TestCase):
         worker_target(None)
         window.api_client.test_profile.assert_called_once_with(unittest.mock.ANY, stream=False, request_context=None)
 
+    def test_translate_selected_text_uses_in_app_selection_before_clipboard_capture(self):
+        window = self._build_window()
+        controller = RequestWorkflowController(window)
+        window.current_stream_responses = lambda: False
+        active_window = object()
+        selected_widget = SimpleNamespace(selectedText=lambda: "Hello from UI", parentWidget=lambda: active_window)
+        fake_cursor = Mock()
+        fake_cursor.pos.return_value = "anchor"
+
+        with patch("app.services.request_workflow.QApplication.activeWindow", return_value=active_window), patch(
+            "app.services.request_workflow.QApplication.focusWidget", return_value=selected_widget
+        ), patch("app.services.request_workflow.QApplication.setOverrideCursor") as mock_set_cursor, patch(
+            "app.services.request_workflow.SelectedTextCaptureSession"
+        ) as mock_capture_session, patch("app.services.request_workflow.QCursor", fake_cursor):
+            controller.translate_selected_text()
+
+        mock_capture_session.assert_not_called()
+        mock_set_cursor.assert_not_called()
+        self.assertFalse(window.selected_text_capture_in_progress)
+        self.assertIsNone(window.selected_text_capture_session)
+        window.run_worker.assert_called_once()
+        worker_target = window.run_worker.call_args.args[0]
+        result = worker_target(None)
+        self.assertEqual(result, "done")
+        window.api_client.request_text.assert_called_once_with(
+            "Translate to English\n\n<text-input>\nHello from UI\n</text-input>",
+            unittest.mock.ANY,
+            0.2,
+            stream=False,
+            stream_callback=None,
+            request_context=None,
+        )
+
+    def test_capture_in_app_selected_text_reads_text_cursor_selection_and_normalizes_newlines(self):
+        window = self._build_window()
+        controller = RequestWorkflowController(window)
+        active_window = object()
+        cursor = SimpleNamespace(hasSelection=lambda: True, selectedText=lambda: "Line 1\u2029Line 2")
+        selected_widget = SimpleNamespace(textCursor=lambda: cursor, parentWidget=lambda: active_window)
+
+        with patch("app.services.request_workflow.QApplication.activeWindow", return_value=active_window), patch(
+            "app.services.request_workflow.QApplication.focusWidget", return_value=selected_widget
+        ):
+            self.assertEqual(controller._capture_in_app_selected_text(), "Line 1\nLine 2")
+
     def test_translate_selected_text_starts_async_session_before_request_submission(self):
         window = self._build_window()
         controller = RequestWorkflowController(window)

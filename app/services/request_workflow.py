@@ -43,6 +43,53 @@ class RequestWorkflowController:
             return getter()
         return getattr(self.window, "translation_overlay", None)
 
+    @staticmethod
+    def _normalize_internal_selected_text(text) -> str:
+        return str(text or "").replace("\u2029", "\n").replace("\u2028", "\n").strip()
+
+    def _read_selected_text_from_widget(self, widget) -> str:
+        if widget is None:
+            return ""
+        selected_text_getter = getattr(widget, "selectedText", None)
+        if callable(selected_text_getter):
+            try:
+                selected_text = self._normalize_internal_selected_text(selected_text_getter())
+            except Exception:  # noqa: BLE001
+                selected_text = ""
+            if selected_text:
+                return selected_text
+        text_cursor_getter = getattr(widget, "textCursor", None)
+        if callable(text_cursor_getter):
+            try:
+                cursor = text_cursor_getter()
+            except Exception:  # noqa: BLE001
+                cursor = None
+            if cursor is not None and hasattr(cursor, "hasSelection") and cursor.hasSelection():
+                try:
+                    selected_text = self._normalize_internal_selected_text(cursor.selectedText())
+                except Exception:  # noqa: BLE001
+                    selected_text = ""
+                if selected_text:
+                    return selected_text
+        return ""
+
+    def _capture_in_app_selected_text(self) -> str:
+        active_window = QApplication.activeWindow()
+        focus_widget = QApplication.focusWidget()
+        if active_window is None or focus_widget is None:
+            return ""
+        widget = focus_widget
+        while widget is not None:
+            selected_text = self._read_selected_text_from_widget(widget)
+            if selected_text:
+                return selected_text
+            parent_getter = getattr(widget, "parentWidget", None)
+            widget = parent_getter() if callable(parent_getter) else None
+            if widget is active_window:
+                selected_text = self._read_selected_text_from_widget(widget)
+                return selected_text or ""
+        return ""
+
     def _selection_overlay(self):
         return getattr(self.window, "selection_overlay", None)
 
@@ -468,6 +515,18 @@ class RequestWorkflowController:
     def translate_selected_text(self):
         request_context = self.prepare_request_context(focus_first_invalid=True, validation_scope="text_request")
         if not request_context:
+            return
+        selected_text = self._capture_in_app_selected_text()
+        if selected_text:
+            self.window.log("Using in-app selected text without clipboard capture")
+            self.submit_text_request(
+                selected_text,
+                profile=request_context["profile"],
+                target_language=request_context["target_language"],
+                prompt_preset=request_context["prompt_preset"],
+                anchor_point=QCursor.pos(),
+                source_key="selected_text_processing",
+            )
             return
         anchor_point = QCursor.pos()
         SelectedTextCaptureSession = self._selected_text_capture_session_class()
