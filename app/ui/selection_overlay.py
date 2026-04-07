@@ -1,5 +1,5 @@
-from PySide6.QtCore import QPoint, QRect, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QGuiApplication, QMouseEvent, QPainter, QPen
+from PySide6.QtCore import QPoint, QRect, QSize, Qt, Signal
+from PySide6.QtGui import QColor, QGuiApplication, QMouseEvent, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QRubberBand, QWidget
 
 from .theme_tokens import color, qcolor
@@ -20,6 +20,7 @@ class SelectionOverlay(QWidget):
         self.hint_text = ""
         self.virtual_rect = self._get_virtual_rect()
         self.setGeometry(self.virtual_rect)
+        self.background_pixmap = QPixmap()
         self.apply_theme()
 
     def _get_virtual_rect(self) -> QRect:
@@ -44,8 +45,20 @@ class SelectionOverlay(QWidget):
         self.rubber_band.setStyleSheet(self._rubber_band_style_sheet())
         self.update()
 
+    def set_snapshot_background(self, pixmap: QPixmap | None, *, virtual_rect=None):
+        if virtual_rect is not None:
+            self.virtual_rect = QRect(*virtual_rect) if not isinstance(virtual_rect, QRect) else QRect(virtual_rect)
+            self.setGeometry(self.virtual_rect)
+        self.background_pixmap = QPixmap(pixmap) if pixmap is not None else QPixmap()
+        self.update()
+
+    def clear_snapshot_background(self):
+        self.background_pixmap = QPixmap()
+        self.update()
+
     def show_overlay(self):
-        self.virtual_rect = self._get_virtual_rect()
+        if self.background_pixmap.isNull():
+            self.virtual_rect = self._get_virtual_rect()
         self.setGeometry(self.virtual_rect)
         self.rubber_band.hide()
         self.show()
@@ -85,7 +98,7 @@ class SelectionOverlay(QWidget):
             self.cancelled.emit()
             return
         selection = (rect.left(), rect.top(), rect.right() + 1, rect.bottom() + 1)
-        QTimer.singleShot(0, lambda selection=selection: self.selected.emit(selection))
+        self.selected.emit(selection)
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
@@ -94,6 +107,8 @@ class SelectionOverlay(QWidget):
 
     def paintEvent(self, event):
         painter = QPainter(self)
+        if not self.background_pixmap.isNull():
+            painter.drawPixmap(self.rect(), self.background_pixmap)
         painter.fillRect(self.rect(), QColor(7, 11, 17, 160))
         painter.setPen(QPen(qcolor("primary_container", alpha=180), 1))
         painter.drawRect(self.rect().adjusted(0, 0, -1, -1))

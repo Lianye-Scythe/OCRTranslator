@@ -117,6 +117,8 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self._runtime_unpinned_overlay_width = None
         self.pending_capture_target_language = self.config.target_language
         self.pending_capture_prompt_preset = None
+        self.capture_desktop_snapshot = None
+        self.capture_hidden_owned_windows = []
         self.selection_overlay = SelectionOverlay()
         self.selection_overlay.selected.connect(self.handle_selection)
         self.selection_overlay.cancelled.connect(self.handle_capture_cancelled)

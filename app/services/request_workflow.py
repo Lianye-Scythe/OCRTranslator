@@ -43,6 +43,128 @@ class RequestWorkflowController:
             return getter()
         return getattr(self.window, "translation_overlay", None)
 
+    def _selection_overlay(self):
+        return getattr(self.window, "selection_overlay", None)
+
+    def _set_capture_desktop_snapshot(self, snapshot, background_pixmap) -> None:
+        self.window.capture_desktop_snapshot = snapshot
+        overlay = self._selection_overlay()
+        if overlay is None:
+            return
+        setter = getattr(overlay, "set_snapshot_background", None)
+        if callable(setter):
+            setter(background_pixmap, virtual_rect=getattr(snapshot, "virtual_rect", None))
+
+    def _clear_capture_desktop_snapshot(self) -> None:
+        self.window.capture_desktop_snapshot = None
+        overlay = self._selection_overlay()
+        if overlay is None:
+            return
+        clearer = getattr(overlay, "clear_snapshot_background", None)
+        if callable(clearer):
+            clearer()
+
+    def _capture_desktop_snapshot(self):
+        snapshot = self.window.screen_capture_service.capture_desktop_snapshot()
+        background_pixmap = self.window.screen_capture_service.build_snapshot_background_pixmap(snapshot)
+        return snapshot, background_pixmap
+
+    def _capture_conceal_targets(self, overlay) -> list[object]:
+        targets = []
+        candidates = [self.window, overlay, *list(getattr(self.window, "_active_error_dialogs", []) or [])]
+        for widget in candidates:
+            if widget is None or widget in targets:
+                continue
+            try:
+                if hasattr(widget, "isVisible") and widget.isVisible():
+                    targets.append(widget)
+            except Exception:  # noqa: BLE001
+                continue
+        return targets
+
+    def _apply_capture_window_concealment(self, widgets) -> list[dict]:
+        from ..platform.windows.capture_visibility import begin_temporary_capture_conceal
+
+        states: list[dict] = []
+        method_counts: dict[str, int] = {}
+        for widget in widgets or []:
+            state = begin_temporary_capture_conceal(widget)
+            if not state:
+                continue
+            states.append(state)
+            method = str(state.get("method") or "unknown")
+            method_counts[method] = method_counts.get(method, 0) + 1
+        if method_counts:
+            methods_text = ", ".join(f"{name}:{count}" for name, count in sorted(method_counts.items()))
+            self.window.log(f"截圖瞬時隱身已套用｜widgets={len(states)}｜methods={methods_text}")
+        return states
+
+    def _restore_capture_window_concealment(self, states) -> None:
+        from ..platform.windows.capture_visibility import restore_temporary_capture_conceal
+
+        for state in reversed(list(states or [])):
+            restore_temporary_capture_conceal(state)
+        app = QApplication.instance()
+        if app is not None:
+            try:
+                app.processEvents()
+            except Exception:  # noqa: BLE001
+                pass
+
+    def _hide_app_owned_windows_for_capture(self) -> int:
+        hidden_windows = []
+        toast_service = getattr(self.window, "toast_service", None)
+        if toast_service is not None and hasattr(toast_service, "hide_message"):
+            try:
+                toast_service.hide_message()
+            except Exception:  # noqa: BLE001
+                pass
+        for dialog in list(getattr(self.window, "_active_error_dialogs", []) or []):
+            if dialog is None:
+                continue
+            try:
+                if hasattr(dialog, "isVisible") and dialog.isVisible() and hasattr(dialog, "hide"):
+                    dialog.hide()
+                    hidden_windows.append(dialog)
+            except Exception:  # noqa: BLE001
+                continue
+        self.window.capture_hidden_owned_windows = hidden_windows
+        return len(hidden_windows)
+
+    def _restore_hidden_app_owned_windows_after_capture(self) -> None:
+        hidden_windows = list(getattr(self.window, "capture_hidden_owned_windows", []) or [])
+        self.window.capture_hidden_owned_windows = []
+        for widget in hidden_windows:
+            if widget is None:
+                continue
+            try:
+                if hasattr(widget, "show"):
+                    widget.show()
+                if hasattr(widget, "raise_"):
+                    widget.raise_()
+                if hasattr(widget, "activateWindow"):
+                    widget.activateWindow()
+            except Exception:  # noqa: BLE001
+                continue
+
+    def _run_capture_hide_barrier(self) -> tuple[float, bool]:
+        app = QApplication.instance()
+        if app is not None:
+            try:
+                app.processEvents()
+            except Exception:  # noqa: BLE001
+                pass
+        from ..platform.windows.compositor_sync import flush_window_composition
+
+        barrier_started_at = time.perf_counter()
+        dwm_flushed = flush_window_composition()
+        if app is not None:
+            try:
+                app.processEvents()
+            except Exception:  # noqa: BLE001
+                pass
+        return time.perf_counter() - barrier_started_at, dwm_flushed
+
     @staticmethod
     def _selected_text_capture_session_class():
         global SelectedTextCaptureSession
@@ -401,14 +523,37 @@ class RequestWorkflowController:
         self.window.capture_workflow_active = True
         self.window.restore_window_after_capture = restore_window_after_capture
         self.window.update_action_states()
-        self.window.hide()
-        if overlay is not None:
-            overlay.hide()
+        conceal_states = self._apply_capture_window_concealment(self._capture_conceal_targets(overlay))
+        try:
+            self.window.hide()
+            if overlay is not None:
+                overlay.hide()
+            hidden_dialog_count = self._hide_app_owned_windows_for_capture()
+            self._clear_capture_desktop_snapshot()
+            barrier_elapsed, dwm_flushed = self._run_capture_hide_barrier()
+            self.window.log(
+                "截圖隱藏屏障完成｜"
+                f"barrier={barrier_elapsed * 1000:.0f}ms｜"
+                f"dwm_flush={'yes' if dwm_flushed else 'no'}｜"
+                f"hidden_dialogs={hidden_dialog_count}"
+            )
+            snapshot_started_at = time.perf_counter()
+            snapshot, background_pixmap = self._capture_desktop_snapshot()
+            snapshot_elapsed = time.perf_counter() - snapshot_started_at
+        finally:
+            self._restore_capture_window_concealment(conceal_states)
+        self._set_capture_desktop_snapshot(snapshot, background_pixmap)
+        self.window.log(
+            "截圖快照已凍結｜"
+            f"snapshot={snapshot_elapsed * 1000:.0f}ms｜"
+            f"screens={len(getattr(snapshot, 'segments', ()))}"
+        )
         self.window.selection_overlay.show_overlay()
 
     def finish_capture_workflow(self, restore_window: bool = False, *, clear_restore_window_state: bool = True):
         should_restore = restore_window and self.window.restore_window_after_capture
         self.window.capture_workflow_active = False
+        self._clear_capture_desktop_snapshot()
         if clear_restore_window_state:
             self.window.restore_window_after_capture = False
         self.window.pending_capture_profile = None
@@ -417,6 +562,10 @@ class RequestWorkflowController:
         self.window.update_action_states()
         if should_restore:
             self.window.show_main_window()
+            self._restore_hidden_app_owned_windows_after_capture()
+        else:
+            self.window.capture_hidden_owned_windows = []
+
 
     def _handle_capture_ready(self, png_bytes: bytes):
         self._update_preview_from_png_bytes(png_bytes)
@@ -460,17 +609,41 @@ class RequestWorkflowController:
 
     def handle_selection(self, bbox):
         self.window.set_status("capturing")
+        capture_started_at = time.perf_counter()
+        capture_plan = self.window.screen_capture_service.build_capture_plan(bbox)
+        self.window.screen_capture_service.log_capture_plan(bbox, capture_plan)
+        snapshot = getattr(self.window, "capture_desktop_snapshot", None)
+        if snapshot is not None:
+            png_bytes = self.window.screen_capture_service.capture_bbox_png_bytes_from_snapshot(
+                snapshot,
+                bbox,
+                capture_plan=capture_plan,
+            )
+            capture_log_label = "snapshot_crop"
+        else:
+            png_bytes = self.window.screen_capture_service.capture_bbox_png_bytes_threadsafe(
+                bbox,
+                capture_plan=capture_plan,
+            )
+            capture_log_label = "main_thread_capture"
+        capture_elapsed = time.perf_counter() - capture_started_at
+        payload_bytes = len(png_bytes)
+        self._clear_capture_desktop_snapshot()
+        self.window.log(
+            f"截圖同步抓取完成｜{capture_log_label}={capture_elapsed * 1000:.0f}ms｜png={payload_bytes / 1024:.1f}KB"
+        )
         self.window.show_tray_toast(self.window.tr("tray_capturing"))
+
         profile = self.window.pending_capture_profile or self.window.build_profile_from_form(validate_name=False)
         target_language = self.window.pending_capture_target_language or self.window.current_target_language()
         prompt_preset = self.window.pending_capture_prompt_preset or self.window.build_prompt_preset_from_form(validate_name=False)
         prompt = build_image_request_prompt(prompt_preset.image_prompt, target_language=target_language)
         temperature = self.window.current_temperature()
         overlay = self._existing_translation_overlay()
-        capture_started_at = time.perf_counter()
         stream_enabled = bool(getattr(self.window, "current_stream_responses", lambda: True)())
         stream_request_token = self._begin_streaming_response_update_state() if stream_enabled else None
         stream_locked_width = self._stream_locked_width() if stream_enabled else None
+        self._handle_capture_ready(png_bytes)
 
         stream_callback = None
         if stream_enabled:
@@ -491,12 +664,6 @@ class RequestWorkflowController:
         def capture_and_request(request_context):
             if request_context is not None and request_context.is_cancelled():
                 raise RequestCancelledError()
-            png_bytes = self.window.screen_capture_service.capture_bbox_png_bytes_threadsafe(bbox)
-            capture_elapsed = time.perf_counter() - capture_started_at
-            self.window.log(f"截圖已就緒｜capture={capture_elapsed * 1000:.0f}ms｜png={len(png_bytes) / 1024:.1f}KB")
-            self.window.bridge.invoke_main_thread.emit(self._handle_capture_ready, png_bytes)
-            if request_context is not None and request_context.is_cancelled():
-                raise RequestCancelledError()
             request_started_at = time.perf_counter()
             text = self.window.api_client.request_image_png(
                 png_bytes,
@@ -507,7 +674,7 @@ class RequestWorkflowController:
                 stream_callback=stream_callback,
                 request_context=request_context,
             )
-            return text, capture_elapsed, len(png_bytes), request_started_at
+            return text, capture_elapsed, payload_bytes, request_started_at
 
         def handle_image_request_success(result, *, bbox=bbox, preset_name=prompt_preset.name, capture_started_at=capture_started_at, stream_request_token=stream_request_token):
             self._complete_streaming_response_update_state(stream_request_token)

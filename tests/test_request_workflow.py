@@ -103,10 +103,18 @@ class RequestWorkflowControllerTests(unittest.TestCase):
             tr=lambda key, **kwargs: key,
             restore_window_after_capture=False,
             restore_pinned_overlay_after_capture=False,
+            capture_desktop_snapshot=None,
+            capture_hidden_owned_windows=[],
             pending_capture_profile=None,
             pending_capture_target_language="English",
             pending_capture_prompt_preset=None,
             current_stream_responses=lambda: True,
+            _active_error_dialogs=[],
+            screen_capture_service=SimpleNamespace(
+                capture_desktop_snapshot=Mock(return_value="desktop-snapshot"),
+                build_snapshot_background_pixmap=Mock(return_value="snapshot-background"),
+            ),
+            toast_service=SimpleNamespace(hide_message=Mock()),
         )
         window.background_busy = (
             lambda: window.fetch_models_in_progress
@@ -409,13 +417,19 @@ class RequestWorkflowControllerTests(unittest.TestCase):
         self.assertFalse(window.capture_workflow_active)
 
     @patch("app.services.request_workflow.build_image_request_prompt", return_value="image-prompt")
-    def test_handle_selection_captures_in_worker_and_dispatches_preview(self, _mock_prompt):
+    def test_handle_selection_captures_before_worker_and_dispatches_preview(self, _mock_prompt):
         window = self._build_window()
         controller = RequestWorkflowController(window)
         events = []
+        capture_order = []
+        window.capture_desktop_snapshot = "desktop-snapshot"
 
         window.screen_capture_service = SimpleNamespace(
-            capture_bbox_png_bytes_threadsafe=Mock(return_value=b"png-data"),
+            build_capture_plan=Mock(side_effect=lambda bbox: capture_order.append("build") or "capture-plan"),
+            log_capture_plan=Mock(side_effect=lambda bbox, plan: capture_order.append("log")),
+            capture_bbox_png_bytes_from_snapshot=Mock(
+                side_effect=lambda snapshot, bbox, *, capture_plan=None: capture_order.append("crop") or b"png-data"
+            ),
             build_preview_pixmap_from_bytes=Mock(return_value="preview-pixmap"),
         )
         window.pending_capture_profile = None
@@ -436,11 +450,15 @@ class RequestWorkflowControllerTests(unittest.TestCase):
         controller.handle_selection((10, 20, 110, 120))
 
         window.run_worker.assert_called_once()
+        window.screen_capture_service.build_capture_plan.assert_called_once_with((10, 20, 110, 120))
+        window.screen_capture_service.log_capture_plan.assert_called_once_with((10, 20, 110, 120), "capture-plan")
+        window.screen_capture_service.capture_bbox_png_bytes_from_snapshot.assert_called_once_with("desktop-snapshot", (10, 20, 110, 120), capture_plan="capture-plan")
+        self.assertEqual(capture_order[:3], ["build", "log", "crop"])
         request_callable = window.run_worker.call_args.args[0]
-        window.screen_capture_service.capture_bbox_png_bytes_threadsafe.assert_not_called()
         request_context = SimpleNamespace(is_cancelled=lambda: False)
         self.assertEqual(request_callable(request_context), ("done", unittest.mock.ANY, 8, unittest.mock.ANY))
-        window.screen_capture_service.capture_bbox_png_bytes_threadsafe.assert_called_once_with((10, 20, 110, 120))
+        self.assertIsNone(window.capture_desktop_snapshot)
+        self.assertTrue(window.log.call_args_list[0].args[0].startswith("截圖同步抓取完成｜snapshot_crop="))
         window.api_client.request_image_png.assert_called_once_with(
             b"png-data",
             unittest.mock.ANY,
@@ -464,17 +482,61 @@ class RequestWorkflowControllerTests(unittest.TestCase):
         overlay.last_text = ""
         window.isVisible = lambda: False
         window.isMinimized = lambda: False
-        window.selection_overlay = SimpleNamespace(show_overlay=Mock())
+        dialog = SimpleNamespace(isVisible=lambda: True, hide=Mock(), show=Mock(), raise_=Mock(), activateWindow=Mock())
+        window._active_error_dialogs = [dialog]
+        window.selection_overlay = SimpleNamespace(show_overlay=Mock(), set_snapshot_background=Mock(), clear_snapshot_background=Mock())
+        window.screen_capture_service = SimpleNamespace(
+            capture_desktop_snapshot=Mock(return_value=SimpleNamespace(virtual_rect=(0, 0, 1920, 1080), segments=(object(), object()))),
+            build_snapshot_background_pixmap=Mock(return_value="snapshot-background"),
+        )
 
-        controller.start_selection(restore_window_after_capture=True)
+        with patch.object(RequestWorkflowController, "_run_capture_hide_barrier", return_value=(0.012, True)) as mock_barrier:
+            controller.start_selection(restore_window_after_capture=True)
 
         self.assertTrue(window.capture_workflow_active)
         self.assertTrue(window.restore_window_after_capture)
+        mock_barrier.assert_called_once_with()
+        window.toast_service.hide_message.assert_called_once_with()
+        dialog.hide.assert_called_once_with()
         window.selection_overlay.show_overlay.assert_called_once_with()
+        window.selection_overlay.set_snapshot_background.assert_called_once_with("snapshot-background", virtual_rect=(0, 0, 1920, 1080))
+        window.screen_capture_service.capture_desktop_snapshot.assert_called_once_with()
+        window.screen_capture_service.build_snapshot_background_pixmap.assert_called_once()
+        self.assertIsNotNone(window.capture_desktop_snapshot)
         self.assertIsNotNone(window.pending_capture_profile)
         self.assertIsNotNone(window.pending_capture_prompt_preset)
         self.assertEqual(window.pending_capture_target_language, "English")
         window.hide.assert_called_once_with()
+
+    def test_finish_capture_workflow_restores_hidden_app_owned_windows_when_window_should_return(self):
+        window = self._build_window()
+        controller = RequestWorkflowController(window)
+        dialog = SimpleNamespace(show=Mock(), raise_=Mock(), activateWindow=Mock())
+        window.capture_hidden_owned_windows = [dialog]
+        window.restore_window_after_capture = True
+        window.capture_workflow_active = True
+
+        controller.finish_capture_workflow(restore_window=True)
+
+        window.show_main_window.assert_called_once_with()
+        dialog.show.assert_called_once_with()
+        dialog.raise_.assert_called_once_with()
+        dialog.activateWindow.assert_called_once_with()
+        self.assertEqual(window.capture_hidden_owned_windows, [])
+
+    def test_finish_capture_workflow_clears_hidden_app_owned_windows_when_window_stays_hidden(self):
+        window = self._build_window()
+        controller = RequestWorkflowController(window)
+        dialog = SimpleNamespace(show=Mock(), raise_=Mock(), activateWindow=Mock())
+        window.capture_hidden_owned_windows = [dialog]
+        window.restore_window_after_capture = False
+        window.capture_workflow_active = True
+
+        controller.finish_capture_workflow(restore_window=False)
+
+        window.show_main_window.assert_not_called()
+        dialog.show.assert_not_called()
+        self.assertEqual(window.capture_hidden_owned_windows, [])
 
 
 if __name__ == "__main__":
