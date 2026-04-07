@@ -73,7 +73,7 @@ OCRTranslator/
 │  ├─ profile_utils.py               # provider/model normalization and string helpers
 │  ├─ prompt_utils.py                # prompt template rendering and text-request wrapping
 │  ├─ runtime_paths.py               # base dir, lock file, server name, config paths
-│  ├─ selected_text_capture.py       # legacy facade forwarding to platform/windows/selected_text.py
+│  ├─ selected_text_capture.py       # Windows selected-text capture facade reused by the external clipboard path
 │  ├─ settings_models.py             # settings snapshot and validation result models
 │  ├─ settings_service.py            # validation rules, per-operation validation scopes, candidate config construction
 │  ├─ workers.py                     # background threads and Qt signal bridge
@@ -101,7 +101,7 @@ OCRTranslator/
 │  │  ├─ instance_server.py          # single-instance wake-up and capture forwarding server
 │  │  ├─ operation_manager.py        # background task ids, cancellation, and stale-state management
 │  │  ├─ overlay_presenter.py        # result overlay sizing, positioning, and reflow control
-│  │  ├─ request_workflow.py         # capture / selected text / manual input workflow orchestration with two-phase screenshot control
+│  │  ├─ request_workflow.py         # capture / selected text / manual input orchestration with two-phase screenshots and direct in-app selection reads
 │  │  ├─ runtime_log.py              # in-memory runtime log store
 │  │  └─ system_tray.py              # system tray creation, updates, and action binding
 │  │

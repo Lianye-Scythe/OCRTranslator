@@ -6,6 +6,21 @@ This file records important OCRTranslator changes.
 
 ## [Unreleased]
 
+## [1.0.6] - 2026-04-07
+
+### Changed
+- The capture workflow now recreates `SelectionOverlay` for every selection session so Windows does not briefly reuse the previous transparent top-level surface and flash the last frozen frame
+- Settings-page action buttons such as `Fetch Models`, `Test API`, `Save Settings`, and `Check Updates` now use steadier focus handling so busy-state transitions are less likely to auto-scroll the form to the bottom
+- The selected-text workflow now checks the current in-app focused widget for an existing text selection first; when usable text is already selected inside the app, it submits the text request directly instead of forcing the clipboard-capture path
+
+### Fixed
+- Fixed the intermittent one-frame flash of the previous frozen snapshot when a new screenshot overlay first appears during repeated captures
+- Fixed the main-window settings form auto-scrolling to the bottom after buttons like `Fetch Models` or `Test API` disable controls and trigger focus fallback
+- Fixed in-app selected text still reporting "No usable selected text was captured" when the selected-text shortcut was triggered from the main window
+
+### Test
+- Added regression coverage for per-capture overlay recreation, settings-button focus clearing, and direct in-app selected-text reads with newline normalization
+
 ## [1.0.5] - 2026-04-07
 
 ### Added

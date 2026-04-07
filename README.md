@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml/badge.svg)](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D6)](docs/packaging.md)
-[![Release](https://img.shields.io/badge/release-v1.0.5-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
+[![Release](https://img.shields.io/badge/release-v1.0.6-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
 [![License](https://img.shields.io/badge/license-GPLv3-4F46E5)](LICENSE)
 
 OCRTranslator 是一款以 **桌面即時閱讀** 為核心的 **便攜式 OCR / AI 請求工具**。
@@ -54,7 +54,10 @@ OCRTranslator 是一款以 **桌面即時閱讀** 為核心的 **便攜式 OCR /
 - 流式回應預設啟用，可在進階設定中關閉；`Test API` 也會沿用相同模式驗證實際後端行為
 - 第三方 Compatible 後端若不支援流式，會提示目前狀態並自動回退為非流式；流式中斷時也會保留部分結果與狀態標記
 - 設定頁採用「連線與模型 → 翻譯方式與快捷鍵 → 介面與進階」三段式流程，較容易完成首次配置
+- 應用內選取文字現在會優先直接讀取目前焦點控件的文字選區；若沒有可用的應用內選字，才回退到原本的系統剪貼簿擷取路徑
 - 螢幕框選現在會先凍結桌面快照再裁切選區，降低高 DPI / 多螢幕偏移、hover 新 UI 混入與主視窗殘影
+- 每次截圖都會重建新的選取遮罩，降低 Windows 上偶發閃出上一張截圖背景的機率
+- 設定頁中的 `Fetch Models` / `Test API` / `Save Settings` 等動作按鈕已補上更穩定的焦點處理，避免 busy 狀態切換時把頁面自動捲到底
 - 請求流程盡量維持非阻塞，並以應用內短時氣泡 / 系統匣通知回饋目前狀態
 - 結果浮窗支援：
   - 複製、圖釘固定 / 取消固定

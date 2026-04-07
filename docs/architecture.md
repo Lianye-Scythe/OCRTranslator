@@ -73,7 +73,7 @@ OCRTranslator/
 │  ├─ profile_utils.py               # Provider / 模型值正規化與字串工具
 │  ├─ prompt_utils.py                # Prompt 模板渲染與文字請求包裝
 │  ├─ runtime_paths.py               # 根目錄、鎖檔、server 名稱、config 路徑
-│  ├─ selected_text_capture.py       # 舊入口 facade，轉發到 platform/windows/selected_text.py
+│  ├─ selected_text_capture.py       # Windows 選字擷取 facade，供外部剪貼簿擷取路徑重用
 │  ├─ settings_models.py             # 設定表單快照與驗證結果模型
 │  ├─ settings_service.py            # 設定校驗規則、不同操作 scope 驗證、candidate config 建構
 │  ├─ workers.py                     # 背景執行緒與 Qt signal bridge
@@ -101,7 +101,7 @@ OCRTranslator/
 │  │  ├─ instance_server.py          # 單實例喚回與 capture 轉發 server
 │  │  ├─ operation_manager.py        # 背景操作 task id / 取消 / stale 狀態管理
 │  │  ├─ overlay_presenter.py        # 結果浮窗尺寸、位置與重排控制
-│  │  ├─ request_workflow.py         # capture / selected text / manual input 三流程編排與兩階段截圖控制
+│  │  ├─ request_workflow.py         # capture / selected text / manual input 三流程編排、兩階段截圖與應用內選字直讀
 │  │  ├─ runtime_log.py              # 記憶體中的執行日誌 store
 │  │  └─ system_tray.py              # 系統匣建立、更新與動作綁定
 │  │
