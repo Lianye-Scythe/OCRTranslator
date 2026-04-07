@@ -6,6 +6,19 @@
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-04-07
+
+### Added
+- 新增 Windows 專用的截圖瞬時隱身與 compositor flush 輔助模組，並補上 frozen snapshot / concealment / compositor sync 的回歸測試與診斷日誌
+
+### Changed
+- 螢幕框選流程改為兩階段：先暫時隱藏應用自有視窗並凍結桌面快照，再顯示框選遮罩；完成框選後直接從 frozen snapshot 裁切，不再回頭對 live desktop 重抓
+- 框選遮罩現在會以 frozen desktop background 作為底圖，截圖提示則延後到裁切完成後再顯示，降低截圖前自家 UI 干擾畫面的機率
+
+### Fixed
+- 修正 Win11 下主視窗、結果浮窗或 hover 觸發的新 UI 容易在截圖過渡期間混入畫面的問題
+- 修正高 DPI / 多螢幕下框選區域與實際截圖不一致的問題，同時維持原始 PNG bytes 直送，不做額外圖片預處理
+
 ## [1.0.4] - 2026-04-06
 
 ### Added

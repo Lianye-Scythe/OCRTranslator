@@ -85,6 +85,8 @@ OCRTranslator/
 │  │
 │  ├─ platform/
 │  │  └─ windows/
+│  │     ├─ capture_visibility.py     # Windows 截圖前的瞬時隱身 / 還原輔助
+│  │     ├─ compositor_sync.py        # Windows DWM compositor flush 輔助
 │  │     ├─ hotkeys.py               # Windows 全域快捷鍵低階監聽與衝突判定
 │  │     └─ selected_text.py         # Windows 選取文字擷取、剪貼簿保存與還原
 │  │
@@ -95,11 +97,11 @@ OCRTranslator/
 │  │
 │  ├─ services/
 │  │  ├─ background_task_runner.py   # 背景 worker 執行、錯誤回傳、stale result 保護
-│  │  ├─ image_capture.py            # 螢幕截圖、跨螢幕 fallback、預覽圖生成
+│  │  ├─ image_capture.py            # 截圖規劃、frozen snapshot、多螢幕 mixed-DPI 合成與預覽圖生成
 │  │  ├─ instance_server.py          # 單實例喚回與 capture 轉發 server
 │  │  ├─ operation_manager.py        # 背景操作 task id / 取消 / stale 狀態管理
 │  │  ├─ overlay_presenter.py        # 結果浮窗尺寸、位置與重排控制
-│  │  ├─ request_workflow.py         # capture / selected text / manual input 三流程編排
+│  │  ├─ request_workflow.py         # capture / selected text / manual input 三流程編排與兩階段截圖控制
 │  │  ├─ runtime_log.py              # 記憶體中的執行日誌 store
 │  │  └─ system_tray.py              # 系統匣建立、更新與動作綁定
 │  │

@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml/badge.svg)](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D6)](packaging.en.md)
-[![Release](https://img.shields.io/badge/release-v1.0.4-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
+[![Release](https://img.shields.io/badge/release-v1.0.5-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
 [![License](https://img.shields.io/badge/license-GPLv3-4F46E5)](../LICENSE)
 
 OCRTranslator is a **portable OCR / AI request tool** built around **desktop reading workflows**.
@@ -24,6 +24,7 @@ It is not just a screenshot translator. It is a desktop AI workspace organized a
 - Stream responses are enabled by default and can be disabled in Advanced Settings; `Test API` now uses the same mode so backend behavior is easier to validate before saving
 - Third-party compatible backends can surface an explicit status hint and retry without streaming when stream mode is unsupported; interrupted streams also keep visible partial results with state labels
 - A workflow-first settings layout: `Connection and model → Translation workflow → Appearance and advanced`
+- Screen capture now freezes a desktop snapshot before selection and crops from that frozen frame, reducing high-DPI / multi-monitor mismatch, hover-triggered UI leakage, and app-window ghosting
 - Request flows stay as non-blocking as possible, with app-managed toasts and tray notifications for status feedback
 - Result overlay supports:
   - copy, pin / unpin

@@ -85,6 +85,8 @@ OCRTranslator/
 │  │
 │  ├─ platform/
 │  │  └─ windows/
+│  │     ├─ capture_visibility.py     # temporary conceal / restore helpers before Windows snapshot capture
+│  │     ├─ compositor_sync.py        # Windows DWM compositor flush helper
 │  │     ├─ hotkeys.py               # low-level Windows global hotkeys and conflict detection
 │  │     └─ selected_text.py         # Windows selected-text capture, clipboard save/restore
 │  │
@@ -95,11 +97,11 @@ OCRTranslator/
 │  │
 │  ├─ services/
 │  │  ├─ background_task_runner.py   # background worker execution, error propagation, stale-result protection
-│  │  ├─ image_capture.py            # screen capture, cross-screen fallback, preview generation
+│  │  ├─ image_capture.py            # capture planning, frozen desktop snapshots, mixed-DPI composition, preview generation
 │  │  ├─ instance_server.py          # single-instance wake-up and capture forwarding server
 │  │  ├─ operation_manager.py        # background task ids, cancellation, and stale-state management
 │  │  ├─ overlay_presenter.py        # result overlay sizing, positioning, and reflow control
-│  │  ├─ request_workflow.py         # capture / selected text / manual input workflow orchestration
+│  │  ├─ request_workflow.py         # capture / selected text / manual input workflow orchestration with two-phase screenshot control
 │  │  ├─ runtime_log.py              # in-memory runtime log store
 │  │  └─ system_tray.py              # system tray creation, updates, and action binding
 │  │

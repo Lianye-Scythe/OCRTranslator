@@ -6,6 +6,19 @@ This file records important OCRTranslator changes.
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-04-07
+
+### Added
+- Added Windows-specific temporary capture concealment and compositor-flush helpers, plus regression coverage and diagnostics for the frozen-snapshot / concealment / compositor-sync path
+
+### Changed
+- Reworked screen capture into a two-phase flow: app-owned windows are hidden and a frozen desktop snapshot is prepared before the selection overlay appears, and the final image is cropped from that frozen snapshot instead of re-grabbing the live desktop after selection
+- The selection overlay now renders on top of a frozen desktop background, and the capture-status toast is delayed until cropping finishes so app-owned UI is less likely to leak into the capture path
+
+### Fixed
+- Fixed Win11 capture transitions where the main window, result overlay, or newly hovered UI could leak into screenshots while the desktop was still changing
+- Fixed high-DPI and multi-monitor selection mismatch while keeping the original PNG bytes on the direct request path without extra image preprocessing
+
 ## [1.0.4] - 2026-04-06
 
 ### Added
