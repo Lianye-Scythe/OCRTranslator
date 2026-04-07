@@ -15,6 +15,36 @@ It is not just a screenshot translator. It is a desktop AI workspace organized a
 2. **Selected text**: capture the currently selected text and submit it as a text request
 3. **Manual input**: open an input dialog and send text directly to AI
 
+## Screenshots
+
+If you want a quick feel for the product first, start with the current main-window and overlay visuals, then continue into the feature highlights below.
+
+### Animated preview
+
+<p align="center">
+  <img src="images/screenshots/ocrtranslator-preview.gif" width="88%" alt="Animated preview of OCRTranslator" />
+</p>
+
+### Static screenshots
+
+#### Main window
+
+<p align="center">
+  <img src="images/screenshots/main-window-light.png" width="49%" alt="Light theme main window" />
+  <img src="images/screenshots/main-window-dark.png" width="49%" alt="Dark theme main window" />
+</p>
+
+#### Translation overlay
+
+<p align="center">
+  <img src="images/screenshots/overlay-light-manga.png" width="49%" alt="Light theme translation overlay for manga text" />
+  <img src="images/screenshots/overlay-light-novel.png" width="49%" alt="Light theme translation overlay for novel text" />
+</p>
+<p align="center">
+  <img src="images/screenshots/overlay-dark-novel.png" width="49%" alt="Dark theme translation overlay for novel text" />
+  <img src="images/screenshots/overlay-dark-manga.png" width="49%" alt="Dark theme translation overlay for manga text" />
+</p>
+
 ## Highlights
 
 - Three request entry points: capture / selected text / manual input
@@ -36,36 +66,6 @@ It is not just a screenshot translator. It is a desktop AI workspace organized a
 - Light / dark / follow-system theme modes
 - Global hotkeys, system tray, single-instance forwarding, and quick `--capture` launch support
 - Versioned ZIP releases, `SHA256SUMS.txt`, and trilingual documentation
-
-## Screenshots
-
-Current visuals for the main workspace and translation overlay:
-
-### Animated preview
-
-<p align="center">
-  <img src="images/screenshots/ocrtranslator-preview.gif" width="88%" alt="Animated preview of OCRTranslator" />
-</p>
-
-### Static screenshots
-
-### Main window
-
-<p align="center">
-  <img src="images/screenshots/main-window-light.png" width="49%" alt="Light theme main window" />
-  <img src="images/screenshots/main-window-dark.png" width="49%" alt="Dark theme main window" />
-</p>
-
-### Translation overlay
-
-<p align="center">
-  <img src="images/screenshots/overlay-light-manga.png" width="49%" alt="Light theme translation overlay for manga text" />
-  <img src="images/screenshots/overlay-light-novel.png" width="49%" alt="Light theme translation overlay for novel text" />
-</p>
-<p align="center">
-  <img src="images/screenshots/overlay-dark-novel.png" width="49%" alt="Dark theme translation overlay for novel text" />
-  <img src="images/screenshots/overlay-dark-manga.png" width="49%" alt="Dark theme translation overlay for manga text" />
-</p>
 
 ## Release and trust information
 

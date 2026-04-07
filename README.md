@@ -15,6 +15,36 @@ OCRTranslator 是一款以 **桌面即時閱讀** 為核心的 **便攜式 OCR /
 2. **選取文字**：擷取目前選取的文字，直接走文字請求
 3. **手動輸入**：打開輸入框，把一段內容直接送給 AI
 
+## 介面預覽
+
+如果你想先快速掌握產品外觀，可以先看目前主視窗與翻譯浮窗的實際效果，再往下看功能總覽。
+
+### 動態預覽
+
+<p align="center">
+  <img src="docs/images/screenshots/ocrtranslator-preview.gif" width="88%" alt="OCRTranslator 動態預覽" />
+</p>
+
+### 靜態截圖
+
+#### 主視窗
+
+<p align="center">
+  <img src="docs/images/screenshots/main-window-light.png" width="49%" alt="淺色主題主視窗" />
+  <img src="docs/images/screenshots/main-window-dark.png" width="49%" alt="深色主題主視窗" />
+</p>
+
+#### 翻譯浮窗
+
+<p align="center">
+  <img src="docs/images/screenshots/overlay-light-manga.png" width="49%" alt="淺色主題翻譯浮窗（漫畫）" />
+  <img src="docs/images/screenshots/overlay-light-novel.png" width="49%" alt="淺色主題翻譯浮窗（小說）" />
+</p>
+<p align="center">
+  <img src="docs/images/screenshots/overlay-dark-novel.png" width="49%" alt="深色主題翻譯浮窗（小說）" />
+  <img src="docs/images/screenshots/overlay-dark-manga.png" width="49%" alt="深色主題翻譯浮窗（漫畫）" />
+</p>
+
 ## 特色總覽
 
 - 支援 **截圖 / 選取文字 / 手動輸入** 三種請求入口
@@ -36,36 +66,6 @@ OCRTranslator 是一款以 **桌面即時閱讀** 為核心的 **便攜式 OCR /
 - 支援 `淺色 / 深色 / 跟隨系統` 三態主題切換
 - 支援全域快捷鍵、系統匣、單實例喚回與 `--capture` 快速啟動
 - 提供版本化 ZIP 發佈、`SHA256SUMS.txt` 校驗與完整三語文件
-
-## 介面預覽
-
-主視窗與翻譯浮窗目前的視覺效果如下：
-
-### 動態預覽
-
-<p align="center">
-  <img src="docs/images/screenshots/ocrtranslator-preview.gif" width="88%" alt="OCRTranslator 動態預覽" />
-</p>
-
-### 靜態截圖
-
-### 主視窗
-
-<p align="center">
-  <img src="docs/images/screenshots/main-window-light.png" width="49%" alt="淺色主題主視窗" />
-  <img src="docs/images/screenshots/main-window-dark.png" width="49%" alt="深色主題主視窗" />
-</p>
-
-### 翻譯浮窗
-
-<p align="center">
-  <img src="docs/images/screenshots/overlay-light-manga.png" width="49%" alt="淺色主題翻譯浮窗（漫畫）" />
-  <img src="docs/images/screenshots/overlay-light-novel.png" width="49%" alt="淺色主題翻譯浮窗（小說）" />
-</p>
-<p align="center">
-  <img src="docs/images/screenshots/overlay-dark-novel.png" width="49%" alt="深色主題翻譯浮窗（小說）" />
-  <img src="docs/images/screenshots/overlay-dark-manga.png" width="49%" alt="深色主題翻譯浮窗（漫畫）" />
-</p>
 
 ## 發佈與信任資訊
 

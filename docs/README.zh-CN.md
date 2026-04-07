@@ -15,6 +15,36 @@ OCRTranslator 是一款以 **桌面即时阅读** 为核心的 **便携式 OCR /
 2. **选中文本**：抓取当前选中的文字，直接走文本请求
 3. **手动输入**：打开输入框，把一段内容直接发送给 AI
 
+## 界面预览
+
+如果你想先快速了解产品外观，可以先看当前主窗口与翻译浮窗的实际效果，再继续往下阅读功能总览。
+
+### 动态预览
+
+<p align="center">
+  <img src="images/screenshots/ocrtranslator-preview.gif" width="88%" alt="OCRTranslator 动态预览" />
+</p>
+
+### 静态截图
+
+#### 主窗口
+
+<p align="center">
+  <img src="images/screenshots/main-window-light.png" width="49%" alt="浅色主题主窗口" />
+  <img src="images/screenshots/main-window-dark.png" width="49%" alt="深色主题主窗口" />
+</p>
+
+#### 翻译浮窗
+
+<p align="center">
+  <img src="images/screenshots/overlay-light-manga.png" width="49%" alt="浅色主题翻译浮窗（漫画）" />
+  <img src="images/screenshots/overlay-light-novel.png" width="49%" alt="浅色主题翻译浮窗（小说）" />
+</p>
+<p align="center">
+  <img src="images/screenshots/overlay-dark-novel.png" width="49%" alt="深色主题翻译浮窗（小说）" />
+  <img src="images/screenshots/overlay-dark-manga.png" width="49%" alt="深色主题翻译浮窗（漫画）" />
+</p>
+
 ## 特性总览
 
 - 支持 **截图 / 选中文本 / 手动输入** 三种请求入口
@@ -36,36 +66,6 @@ OCRTranslator 是一款以 **桌面即时阅读** 为核心的 **便携式 OCR /
 - 支持 `浅色 / 深色 / 跟随系统` 三态主题切换
 - 支持全局快捷键、系统托盘、单实例唤回与 `--capture` 快速启动
 - 提供版本化 ZIP 发布、`SHA256SUMS.txt` 校验与完整三语文档
-
-## 界面预览
-
-主窗口与翻译浮窗当前的视觉效果如下：
-
-### 动态预览
-
-<p align="center">
-  <img src="images/screenshots/ocrtranslator-preview.gif" width="88%" alt="OCRTranslator 动态预览" />
-</p>
-
-### 静态截图
-
-### 主窗口
-
-<p align="center">
-  <img src="images/screenshots/main-window-light.png" width="49%" alt="浅色主题主窗口" />
-  <img src="images/screenshots/main-window-dark.png" width="49%" alt="深色主题主窗口" />
-</p>
-
-### 翻译浮窗
-
-<p align="center">
-  <img src="images/screenshots/overlay-light-manga.png" width="49%" alt="浅色主题翻译浮窗（漫画）" />
-  <img src="images/screenshots/overlay-light-novel.png" width="49%" alt="浅色主题翻译浮窗（小说）" />
-</p>
-<p align="center">
-  <img src="images/screenshots/overlay-dark-novel.png" width="49%" alt="深色主题翻译浮窗（小说）" />
-  <img src="images/screenshots/overlay-dark-manga.png" width="49%" alt="深色主题翻译浮窗（漫画）" />
-</p>
 
 ## 发布与信任信息
 
