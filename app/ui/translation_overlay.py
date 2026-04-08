@@ -433,15 +433,40 @@ class TranslationOverlay(QWidget):
         self._partial_result_state = None
         self._partial_preset_name = ""
 
-    def refresh_language(self):
+    def _title_text_for_state(self, *, preset_name: str | None = None, partial_state: str | None = None) -> str:
+        normalized_partial = self._partial_result_state if partial_state is None else (str(partial_state or "").strip().lower() or None)
+        if normalized_partial:
+            resolved_preset_name = str(preset_name or self._partial_preset_name or self.last_preset_name or "").strip()
+        else:
+            resolved_preset_name = str(self.last_preset_name if preset_name is None else (preset_name or "")).strip()
+
         title = self.app_window.tr("overlay_title")
-        preset_name = self._partial_preset_name if self._partial_result_state else self.last_preset_name
-        if preset_name:
-            title = f"{title} · {preset_name}"
-        if self._partial_result_state:
-            partial_label = self.app_window.tr(f"overlay_partial_{self._partial_result_state}")
+        if resolved_preset_name:
+            title = f"{title} · {resolved_preset_name}"
+        if normalized_partial:
+            partial_label = self.app_window.tr(f"overlay_partial_{normalized_partial}")
             title = f"{title} · {partial_label}"
-        self.title_label.setText(title)
+        return title
+
+    def _measure_header_width(self, title_text: str) -> int:
+        previous_title = self.title_label.text()
+        title_changed = previous_title != title_text
+        header_layout = self.header.layout()
+        card_layout = self.card.layout()
+        if title_changed:
+            self.title_label.setText(title_text)
+        try:
+            if header_layout is not None:
+                header_layout.activate()
+            if card_layout is not None:
+                card_layout.activate()
+            return max(self.MIN_WIDTH, self.header.minimumSizeHint().width(), self.header.sizeHint().width(), self.card.minimumSizeHint().width(), self.card.sizeHint().width())
+        finally:
+            if title_changed:
+                self.title_label.setText(previous_title)
+
+    def refresh_language(self):
+        self.title_label.setText(self._title_text_for_state())
         self.copy_button.setText(self.app_window.tr("copy_response"))
         self.pin_button.setToolTip(self.app_window.tr("toggle_overlay_pin"))
         self.opacity_down_button.setToolTip(self.app_window.tr("decrease_overlay_opacity"))
@@ -467,14 +492,16 @@ class TranslationOverlay(QWidget):
     def apply_typography(self):
         self.body.setFont(QFont(self.app_window.current_overlay_font_family(), self.app_window.current_overlay_font_size()))
 
-    def calculate_size(self, text: str, *, base_width: int | None = None):
+    def calculate_size(self, text: str, *, base_width: int | None = None, preset_name: str | None = None, partial_state: str | None = None):
         lines = text.splitlines() or [text]
         metrics = QFontMetrics(self.body.font())
         longest_width = max((metrics.horizontalAdvance(line or " ") for line in lines), default=240)
         line_spacing = metrics.lineSpacing()
         configured_width = max(self.MIN_WIDTH, int(base_width if base_width is not None else (self.app_window.current_overlay_width() or 440)))
         configured_height = max(self.MIN_HEIGHT, int(self.app_window.current_overlay_height() or 520))
-        width = min(860, max(configured_width, longest_width + 136))
+        title_text = self._title_text_for_state(preset_name=preset_name, partial_state=partial_state)
+        header_width = self._measure_header_width(title_text)
+        width = min(860, max(configured_width, longest_width + 136, header_width))
         height = min(900, max(configured_height, len(lines) * line_spacing + 132))
         return width, height
 

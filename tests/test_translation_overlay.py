@@ -172,6 +172,19 @@ class TranslationOverlayTests(unittest.TestCase):
         )
         self.assertEqual(mock_clear_focus.call_count, 6)
 
+    def test_calculate_size_accounts_for_header_width_for_partial_title(self):
+        title_text = self.overlay._title_text_for_state(preset_name="翻译 (Translate)", partial_state="streaming")
+        header_width = self.overlay._measure_header_width(title_text)
+
+        width, _height = self.overlay.calculate_size(
+            "短文本",
+            base_width=440,
+            preset_name="翻译 (Translate)",
+            partial_state="streaming",
+        )
+
+        self.assertGreaterEqual(width, header_width)
+
     def test_partial_result_title_uses_streaming_and_interrupted_labels(self):
         self.overlay.set_partial_result_state("streaming", preset_name="翻译")
         self.assertEqual(self.overlay.title_label.text(), "结果 · 翻译 · 流式接收中…")

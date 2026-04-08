@@ -19,12 +19,15 @@ class _FakeOverlay:
         self.show_calls = []
         self.context_calls = []
         self.partial_state_calls = []
+        self._visible = True
+        self._geometry = QRect(self.last_geometry)
+        self.minimum_runtime_width = None
         self._has_partial_result = False
 
     def apply_typography(self):
         return None
 
-    def calculate_size(self, _text, *, base_width=None):
+    def calculate_size(self, _text, *, base_width=None, preset_name=None, partial_state=None):
         return ((base_width if base_width is not None else 860), 900)
 
     def show_text(self, text, x, y, width, height, *, keep_manual_position=False, remember_state=True):
@@ -40,6 +43,12 @@ class _FakeOverlay:
             }
         )
         self._has_partial_result = not remember_state
+        actual_width = int(width)
+        if self.minimum_runtime_width is not None:
+            actual_width = max(actual_width, int(self.minimum_runtime_width))
+        self._visible = True
+        self._geometry = QRect(int(x), int(y), actual_width, int(height))
+        self.last_geometry = QRect(self._geometry)
 
     def remember_context(self, bbox, text, *, anchor_point=None, preset_name=""):
         self.context_calls.append(
@@ -61,8 +70,14 @@ class _FakeOverlay:
     def measure_content_height(self, text, width):
         return 400
 
+    def geometry(self):
+        return QRect(self._geometry)
+
+    def frameGeometry(self):
+        return QRect(self._geometry)
+
     def isVisible(self):
-        return True
+        return self._visible
 
 
 class OverlayPresenterTests(unittest.TestCase):
@@ -78,6 +93,7 @@ class OverlayPresenterTests(unittest.TestCase):
             finish_capture_workflow=Mock(),
             restore_pinned_overlay_after_capture=True,
             set_status=Mock(),
+            current_overlay_font_size=lambda: 12,
             log_tr=Mock(),
             translation_in_progress=False,
             config=SimpleNamespace(overlay_font_size=12),
@@ -235,6 +251,95 @@ class OverlayPresenterTests(unittest.TestCase):
         window.log_tr.assert_not_called()
         window.finish_capture_workflow.assert_not_called()
         window.toast_service.hide_message.assert_called_once_with()
+
+    @patch("app.services.overlay_presenter.QTimer.singleShot", side_effect=lambda _ms, callback: callback())
+    @patch("app.services.overlay_presenter.compute_overlay_position", return_value=(1162, 212))
+    @patch("app.services.overlay_presenter.fit_overlay_size", return_value=(320, 300))
+    def test_show_translation_logs_bbox_diagnostics_for_first_visible_capture_overlay(self, _mock_fit_size, _mock_position, _mock_timer):
+        window = self._build_window()
+        window.log = Mock()
+        overlay = _FakeOverlay()
+        overlay.is_pinned = False
+        overlay.manual_positioned = False
+        overlay._visible = False
+        window.translation_overlay = overlay
+        presenter = OverlayPresenter(window)
+
+        presenter.show_translation(
+            (1500, 200, 1800, 500),
+            "captured text",
+            preset_name="Translate",
+            preserve_geometry=False,
+        )
+
+        diagnostic_messages = [
+            call.args[0]
+            for call in window.log.call_args_list
+            if call.args and isinstance(call.args[0], str) and call.args[0].startswith("浮窗定位诊断｜")
+        ]
+        self.assertEqual(len(diagnostic_messages), 2)
+        self.assertIn("stage=immediate", diagnostic_messages[0])
+        self.assertIn("phase=first_visible_final", diagnostic_messages[0])
+        self.assertIn("planned=1162,212,320x300", diagnostic_messages[0])
+        self.assertIn("geom=1162,212,320x300", diagnostic_messages[0])
+        self.assertIn("planned_overlap=none", diagnostic_messages[0])
+        self.assertIn("stage=deferred", diagnostic_messages[1])
+
+    @patch("app.services.overlay_presenter.QTimer.singleShot", side_effect=lambda _ms, callback: callback())
+    @patch("app.services.overlay_presenter.compute_overlay_position", return_value=(1120, 212))
+    @patch("app.services.overlay_presenter.fit_overlay_size", return_value=(360, 320))
+    def test_adjust_font_size_logs_bbox_diagnostics_for_reflow(self, _mock_fit_size, _mock_position, _mock_timer):
+        window = self._build_window()
+        window.log = Mock()
+        overlay = _FakeOverlay()
+        overlay.is_pinned = False
+        overlay.manual_positioned = False
+        overlay.last_bbox = (1500, 200, 1800, 500)
+        overlay.last_text = "captured text"
+        overlay.last_preset_name = "Translate"
+        window.translation_overlay = overlay
+        presenter = OverlayPresenter(window)
+
+        presenter.adjust_font_size(1)
+
+        diagnostic_messages = [
+            call.args[0]
+            for call in window.log.call_args_list
+            if call.args and isinstance(call.args[0], str) and call.args[0].startswith("浮窗定位诊断｜")
+        ]
+        self.assertEqual(len(diagnostic_messages), 2)
+        self.assertIn("stage=immediate", diagnostic_messages[0])
+        self.assertIn("phase=reflow", diagnostic_messages[0])
+        self.assertIn("planned=1120,212,360x320", diagnostic_messages[0])
+        self.assertIn("stage=deferred", diagnostic_messages[1])
+
+    @patch("app.services.overlay_presenter.compute_overlay_position")
+    @patch("app.services.overlay_presenter.fit_overlay_size", return_value=(440, 520))
+    def test_show_response_repositions_capture_overlay_when_runtime_geometry_expands_beyond_planned_width(self, _mock_fit_size, mock_compute_position):
+        mock_compute_position.side_effect = lambda _config, _bbox, width, _height: (146, 42) if int(width) == 440 else (18, 42)
+        window = self._build_window()
+        overlay = _FakeOverlay()
+        overlay.is_pinned = False
+        overlay.manual_positioned = False
+        overlay._visible = False
+        overlay.minimum_runtime_width = 570
+        window.translation_overlay = overlay
+        presenter = OverlayPresenter(window)
+
+        presenter.show_response(
+            "partial",
+            bbox=(604, 16, 1321, 1024),
+            preset_name="Translate",
+            preserve_manual_position=False,
+            preserve_geometry=False,
+            partial=True,
+        )
+
+        self.assertEqual(len(overlay.show_calls), 2)
+        self.assertEqual(overlay.show_calls[0]["x"], 146)
+        self.assertEqual(overlay.show_calls[0]["width"], 440)
+        self.assertEqual(overlay.show_calls[1]["x"], 18)
+        self.assertEqual(overlay.show_calls[1]["width"], 570)
 
 
 if __name__ == "__main__":
