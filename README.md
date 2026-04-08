@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml/badge.svg)](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D6)](docs/packaging.md)
-[![Release](https://img.shields.io/badge/release-v1.0.6-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
+[![Release](https://img.shields.io/badge/release-v1.0.7-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
 [![License](https://img.shields.io/badge/license-GPLv3-4F46E5)](LICENSE)
 
 OCRTranslator 是一款以 **桌面即時閱讀** 為核心的 **便攜式 OCR / AI 請求工具**。
@@ -58,6 +58,8 @@ OCRTranslator 是一款以 **桌面即時閱讀** 為核心的 **便攜式 OCR /
 - 螢幕框選現在會先凍結桌面快照再裁切選區，降低高 DPI / 多螢幕偏移、hover 新 UI 混入與主視窗殘影
 - 每次截圖都會重建新的選取遮罩，降低 Windows 上偶發閃出上一張截圖背景的機率
 - 設定頁中的 `Fetch Models` / `Test API` / `Save Settings` 等動作按鈕已補上更穩定的焦點處理，避免 busy 狀態切換時把頁面自動捲到底
+- 左右模式下的結果浮窗現在會更準確地量測標題與工具列寬度，首次顯示時更不容易壓到選區
+- 流式圖片翻譯的浮窗更新策略已進一步穩定：首次 partial 顯示不再先出現再橫向跳位，持續更新時也會盡量避免靠近底部時的抖動
 - 請求流程盡量維持非阻塞，並以應用內短時氣泡 / 系統匣通知回饋目前狀態
 - 結果浮窗支援：
   - 複製、圖釘固定 / 取消固定
@@ -68,6 +70,7 @@ OCRTranslator 是一款以 **桌面即時閱讀** 為核心的 **便攜式 OCR /
 - 已 Pin 的結果浮窗可保留位置與尺寸；未 Pin 狀態則會從預設尺寸重新展開，且會記住你最近一次手動調整過的寬度
 - 支援 `淺色 / 深色 / 跟隨系統` 三態主題切換
 - 支援全域快捷鍵、系統匣、單實例喚回與 `--capture` 快速啟動
+- 進階設定新增可切換的除錯 Log；預設只保留一般使用者可理解的執行紀錄，開啟後才會額外顯示定位診斷、截圖規劃與 API 底層重試細節
 - 提供版本化 ZIP 發佈、`SHA256SUMS.txt` 校驗與完整三語文件
 
 ## 發佈與信任資訊

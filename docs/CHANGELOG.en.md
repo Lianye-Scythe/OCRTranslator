@@ -6,6 +6,24 @@ This file records important OCRTranslator changes.
 
 ## [Unreleased]
 
+## [1.0.7] - 2026-04-08
+
+### Added
+- Added a toggleable `Debug log` switch in Advanced Settings. Runtime logs now stay user-facing by default, while positioning diagnostics, capture planning, and low-level API retry details are shown only when debug logging is enabled
+
+### Changed
+- Refined API / runtime log layering so user-visible API retry and stream-fallback events remain in the normal activity log, while noisier technical details move behind the debug-log switch
+- Reordered the Advanced Settings help text and toggles so the unpinned / pinned geometry note, stream responses, close-to-tray behavior, and debug logging read in a more natural sequence
+
+### Fixed
+- Fixed the left-right result overlay underestimating header / toolbar width on the first visible screenshot translation result, which could leave the overlay slightly overlapping the captured selection until font zoom triggered a reflow
+- Fixed the first streamed partial overlay appearing at an estimated position and then jumping sideways to its corrected position during image translation
+- Fixed streamed image-translation overlays flickering during ongoing partial updates by keeping position and width steadier, allowing height growth only when safe, and preferring append-based text updates instead of rewriting the whole buffer every time
+- Improved stability when the overlay grows near the bottom edge by freezing the current geometry instead of repeatedly pushing the window upward during continued streaming growth
+
+### Test
+- Added regression coverage for header-width measurement, first-partial correction, continuing-partial geometry freeze, append-based partial text updates, and diagnostics that preserve both original and corrected overlay rectangles
+
 ## [1.0.6] - 2026-04-07
 
 ### Changed

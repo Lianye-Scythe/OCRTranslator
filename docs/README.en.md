@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml/badge.svg)](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D6)](packaging.en.md)
-[![Release](https://img.shields.io/badge/release-v1.0.6-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
+[![Release](https://img.shields.io/badge/release-v1.0.7-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
 [![License](https://img.shields.io/badge/license-GPLv3-4F46E5)](../LICENSE)
 
 OCRTranslator is a **portable OCR / AI request tool** built around **desktop reading workflows**.
@@ -58,6 +58,8 @@ If you want a quick feel for the product first, start with the current main-wind
 - Screen capture now freezes a desktop snapshot before selection and crops from that frozen frame, reducing high-DPI / multi-monitor mismatch, hover-triggered UI leakage, and app-window ghosting
 - Each capture now recreates the selection overlay, reducing the chance that Windows briefly flashes the previous screenshot background on the first frame
 - Settings-page action buttons such as `Fetch Models`, `Test API`, and `Save Settings` now use steadier focus handling so busy-state transitions do not auto-scroll the form to the bottom
+- In left-right mode, the result overlay now measures header and toolbar width more accurately, so the first visible placement is less likely to overlap the captured selection
+- Streaming image-translation overlays are now more stable: the first partial result no longer appears and then jumps sideways, and ongoing updates try to avoid jitter when the window grows near the bottom edge
 - Request flows stay as non-blocking as possible, with app-managed toasts and tray notifications for status feedback
 - Result overlay supports:
   - copy, pin / unpin
@@ -68,6 +70,7 @@ If you want a quick feel for the product first, start with the current main-wind
 - Pinned overlays keep their size and position; unpinned overlays reopen from the saved default size and remember the most recent runtime-resized width
 - Light / dark / follow-system theme modes
 - Global hotkeys, system tray, single-instance forwarding, and quick `--capture` launch support
+- Advanced Settings now include a toggleable debug log mode; default runtime logs stay user-facing, while positioning diagnostics, capture planning, and low-level API retry details appear only when debug logging is enabled
 - Versioned ZIP releases, `SHA256SUMS.txt`, and trilingual documentation
 
 ## Release and trust information
