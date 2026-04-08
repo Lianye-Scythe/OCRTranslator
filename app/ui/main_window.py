@@ -79,7 +79,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self._startup_prewarm_queue = []
         self.hotkey_listener = None
         self._hotkey_listener_class = None
-        self.operation_manager = OperationManager(self.set_operation_state, log_func=self.log)
+        self.operation_manager = OperationManager(self.set_operation_state, log_func=self.log_debug)
         self.hotkey_record_listener = None
         self.hotkey_listener_paused_for_recording = False
         self.registered_hotkeys: dict[str, str] = {}
@@ -129,20 +129,20 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             self.operation_manager,
             self.bridge,
             error_handler=self.handle_error,
-            log_func=self.log,
+            log_func=self.log_debug,
             worker_cls=WorkerThread,
         )
         self.sync_runtime_unpinned_overlay_width_from_config()
 
         self.request_workflow = RequestWorkflowController(self)
-        self.instance_server_service = InstanceServerService(self, APP_SERVER_NAME, log_func=self.log)
+        self.instance_server_service = InstanceServerService(self, APP_SERVER_NAME, log_func=self.log_debug, error_log_func=self.log_error)
         self.tray = None
         self.tray_show_action = None
         self.tray_capture_action = None
         self.tray_manual_input_action = None
         self.tray_cancel_action = None
         self.tray_quit_action = None
-        self.tray_service = SystemTrayService(self, self.icon, log_func=self.log)
+        self.tray_service = SystemTrayService(self, self.icon, log_func=self.log, debug_log_func=self.log_debug)
         self.toast_service = TransientToastService(self, log_func=self.log)
         self.update_check_service = UpdateCheckService(log_func=self.log)
         self.update_check_in_progress = False
@@ -1277,7 +1277,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             listener = hotkey_listener_cls(
                 hotkey_actions,
                 lambda action: self.bridge.action_requested.emit(action),
-                log_func=self.log,
+                log_func=self.log_debug,
             )
             listener.start()
             self.hotkey_listener = listener
@@ -1292,20 +1292,20 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
                 self.set_status("hotkeys_registered")
             return True
         except Exception as exc:  # noqa: BLE001
-            self.log(f"Hotkey registration failed: {exc}")
+            self.log_error(f"Hotkey registration failed: {exc}")
             if previous_hotkeys:
                 try:
                     restored_listener = hotkey_listener_cls(
                         previous_hotkeys,
                         lambda action: self.bridge.action_requested.emit(action),
-                        log_func=self.log,
+                        log_func=self.log_debug,
                     )
                     restored_listener.start()
                     self.hotkey_listener = restored_listener
                     self.registered_hotkeys = previous_hotkeys
                     self.log("Previous hotkeys restored after registration failure")
                 except Exception as restore_exc:  # noqa: BLE001
-                    self.log(f"Failed to restore previous hotkeys: {restore_exc}")
+                    self.log_error(f"Failed to restore previous hotkeys: {restore_exc}")
             if hasattr(self, "status_label"):
                 self.set_status("hotkey_register_failed", error=exc)
             if not initial:

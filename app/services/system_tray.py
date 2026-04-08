@@ -7,10 +7,11 @@ from ..ui.theme_tokens import color, resolve_theme_name
 
 
 class SystemTrayService:
-    def __init__(self, window, icon, *, log_func=None):
+    def __init__(self, window, icon, *, log_func=None, debug_log_func=None):
         self.window = window
         self.icon = icon
         self.log = log_func or (lambda message: None)
+        self.log_debug = debug_log_func or self.log
         self.tray: QSystemTrayIcon | None = None
         self.show_action: QAction | None = None
         self.capture_action: QAction | None = None
@@ -107,7 +108,7 @@ class SystemTrayService:
             return False
         now = time.monotonic()
         if text == self._last_message and (now - self._last_message_at) < 1.6:
-            self.log(f"Suppressed duplicate tray message: {text}")
+            self.log_debug(f"Suppressed duplicate tray message: {text}")
             return False
         self._last_message = text
         self._last_message_at = now

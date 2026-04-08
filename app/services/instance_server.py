@@ -3,10 +3,11 @@ from PySide6.QtNetwork import QLocalServer
 
 
 class InstanceServerService:
-    def __init__(self, window, server_name: str, *, log_func=None):
+    def __init__(self, window, server_name: str, *, log_func=None, error_log_func=None):
         self.window = window
         self.server_name = server_name
         self.log = log_func or (lambda message: None)
+        self.log_error = error_log_func or self.log
         self.server: QLocalServer | None = None
         self._socket_buffers: dict[int, bytearray] = {}
 
@@ -18,7 +19,7 @@ class InstanceServerService:
         self.server = QLocalServer(self.window)
         self.server.newConnection.connect(self._handle_new_connection)
         if not self.server.listen(self.server_name):
-            self.log(f"Instance server listen failed: {self.server.errorString()}")
+            self.log_error(f"Instance server listen failed: {self.server.errorString()}")
         self.window.instance_server = self.server
         return self.server
 

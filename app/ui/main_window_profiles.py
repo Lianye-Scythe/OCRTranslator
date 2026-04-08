@@ -119,7 +119,7 @@ class MainWindowProfilesMixin:
         try:
             self.setup_hotkey_listener(initial=True, config=self.config, raise_on_error=True)
         except Exception as exc:  # noqa: BLE001
-            self.log(f"Failed to restore saved hotkeys: {exc}")
+            self.log_error(f"Failed to restore saved hotkeys: {exc}")
             self.handle_error(exc)
 
     def discard_unsaved_changes(self):
@@ -245,7 +245,7 @@ class MainWindowProfilesMixin:
                 self.model_combo.setCurrentText(self.display_model_name(default_model, provider))
         self._form_provider = provider
         self.on_form_input_changed()
-        self.log(f"Provider changed to: {provider}")
+        self.log_debug(f"Provider changed to: {provider}")
 
     def refresh_profile_combo(self):
         self.ensure_profile_list()
@@ -777,13 +777,13 @@ class MainWindowProfilesMixin:
         valid, first_error = self.validate_form_inputs(scope="hotkeys")
         if not valid:
             self.set_status("hotkey_register_failed", error=first_error)
-            self.log(f"Recorded hotkey kept in form but not applied: {first_error}")
+            self.log_error(f"Recorded hotkey kept in form but not applied: {first_error}")
             return
         try:
             self.setup_hotkey_listener(initial=True, hotkey_actions=self.runtime_hotkey_actions_from_form(), raise_on_error=True)
         except Exception as exc:  # noqa: BLE001
             self.set_status("hotkey_register_failed", error=exc)
-            self.log(f"Recorded hotkey kept in form but runtime apply failed: {exc}")
+            self.log_error(f"Recorded hotkey kept in form but runtime apply failed: {exc}")
             return
         self.set_status("hotkeys_registered_pending_save")
         self.log(
@@ -989,9 +989,9 @@ class MainWindowProfilesMixin:
                 try:
                     self.setup_hotkey_listener(initial=True, config=previous_runtime_config, raise_on_error=True)
                 except Exception as restore_exc:  # noqa: BLE001
-                    self.log(f"Failed to restore previous hotkeys after save abort: {restore_exc}")
+                    self.log_error(f"Failed to restore previous hotkeys after save abort: {restore_exc}")
                 self.set_status("hotkey_register_failed", error=exc)
-                self.log(f"Settings not saved because hotkey registration failed: {exc}")
+                self.log_error(f"Settings not saved because hotkey registration failed: {exc}")
                 show_critical_message(self, self.tr("error_title"), self.tr("save_settings_aborted_hotkeys", error=exc))
                 return False
 
@@ -1014,7 +1014,7 @@ class MainWindowProfilesMixin:
                     self.sync_runtime_unpinned_overlay_width_from_config()
                 self.setup_hotkey_listener(initial=True, config=restored_config, raise_on_error=True)
             except Exception as restore_exc:  # noqa: BLE001
-                self.log(f"Failed to restore runtime state after save error: {restore_exc}")
+                self.log_error(f"Failed to restore runtime state after save error: {restore_exc}")
             self.handle_error(exc)
             return False
 

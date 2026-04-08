@@ -275,6 +275,26 @@ class MainWindowRuntimeTests(unittest.TestCase):
         self.assertEqual(result, "client")
         window._api_client_class.assert_called_once_with(window.log_debug, status_notifier=window.notify_stream_fallback_status, event_notifier=window.notify_api_event)
 
+    def test_log_error_always_forwards_to_runtime_log(self):
+        window = MainWindow.__new__(MainWindow)
+        window.log = Mock()
+        window.config = SimpleNamespace(debug_logging_enabled=False)
+
+        window.log_error("boom")
+
+        window.log.assert_called_once_with("boom")
+
+    def test_screen_capture_service_uses_debug_logger(self):
+        window = MainWindow.__new__(MainWindow)
+        window._screen_capture_service = None
+        window._screen_capture_service_class = Mock(return_value="capture-service")
+        window.log_debug = Mock()
+
+        result = window.get_screen_capture_service()
+
+        self.assertEqual(result, "capture-service")
+        window._screen_capture_service_class.assert_called_once_with(window.log_debug)
+
     def test_log_debug_respects_runtime_setting(self):
         window = MainWindow.__new__(MainWindow)
         window.log = Mock()
