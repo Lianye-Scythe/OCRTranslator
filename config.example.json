@@ -9,6 +9,7 @@
   "overlay_auto_expand_bottom_margin": 24,
   "toast_duration_seconds": 1.5,
   "stream_responses": true,
+  "debug_logging_enabled": false,
   "check_updates_on_startup": false,
   "ui_language": "zh-TW",
   "theme_mode": "system",

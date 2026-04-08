@@ -474,6 +474,7 @@ class MainWindowProfilesMixin:
             overlay_auto_expand_bottom_margin=self.overlay_auto_expand_bottom_margin_spin.value(),
             toast_duration_seconds=self.toast_duration_spin.value(),
             stream_responses=self.stream_responses_checkbox.isChecked(),
+            debug_logging_enabled=self.debug_logging_checkbox.isChecked(),
             check_updates_on_startup=self.check_updates_on_startup_checkbox.isChecked(),
             close_to_tray_on_close=self.close_to_tray_on_close_checkbox.isChecked(),
             mode=self.mode_combo.currentData() or self.config.mode,
@@ -856,6 +857,7 @@ class MainWindowProfilesMixin:
             self.overlay_auto_expand_bottom_margin_spin.setValue(int(getattr(self.config, "overlay_auto_expand_bottom_margin", 24)))
             self.toast_duration_spin.setValue(float(getattr(self.config, "toast_duration_seconds", 1.5)))
             self.stream_responses_checkbox.setChecked(bool(getattr(self.config, "stream_responses", True)))
+            self.debug_logging_checkbox.setChecked(bool(getattr(self.config, "debug_logging_enabled", False)))
             self.check_updates_on_startup_checkbox.setChecked(bool(getattr(self.config, "check_updates_on_startup", False)))
             self.close_to_tray_on_close_checkbox.setChecked(bool(getattr(self.config, "close_to_tray_on_close", False)))
             self.update_mode_options(self.config.mode)

@@ -108,6 +108,8 @@
   "toast_duration_hint": "設為 0 可停用請求提示氣泡。",
   "stream_responses": "使用流式回應",
   "stream_responses_hint": "預設會逐步顯示模型回覆；關閉後會等完整回應返回再一次顯示。",
+  "debug_logging": "啟用除錯 Log",
+  "debug_logging_hint": "關閉時只保留一般使用者看得懂且常用的執行紀錄；開啟後會額外記錄請求嘗試、截圖規劃、效能計時與浮窗定位診斷等除錯資訊。",
   "overlay_auto_expand_top_margin": "浮窗自動擴展頂部安全邊距",
   "overlay_auto_expand_bottom_margin": "浮窗自動擴展底部安全邊距",
   "save_settings": "儲存設定",

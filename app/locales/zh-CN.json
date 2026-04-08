@@ -108,6 +108,8 @@
   "toast_duration_hint": "设为 0 可禁用请求提示气泡。",
   "stream_responses": "使用流式响应",
   "stream_responses_hint": "默认会逐步显示模型回复；关闭后会等待完整回复返回再一次显示。",
+  "debug_logging": "启用调试日志",
+  "debug_logging_hint": "关闭时只保留一般用户能看懂且常用的运行日志；开启后会额外记录请求尝试、截图规划、性能计时与浮窗定位诊断等调试信息。",
   "overlay_auto_expand_top_margin": "浮窗自动扩展顶部安全边距",
   "overlay_auto_expand_bottom_margin": "浮窗自动扩展底部安全边距",
   "save_settings": "保存设置",

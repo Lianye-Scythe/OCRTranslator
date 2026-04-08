@@ -3,7 +3,7 @@ import time
 import unittest
 import sys
 import types
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 
 if "pynput" not in sys.modules:
@@ -268,11 +268,30 @@ class MainWindowRuntimeTests(unittest.TestCase):
         window._api_client = None
         window._api_client_class = Mock(return_value="client")
         window.log = Mock()
+        window.config = SimpleNamespace(debug_logging_enabled=False)
 
         result = window.get_api_client()
 
         self.assertEqual(result, "client")
-        window._api_client_class.assert_called_once_with(window.log, status_notifier=window.notify_stream_fallback_status)
+        window._api_client_class.assert_called_once_with(window.log_debug, status_notifier=window.notify_stream_fallback_status)
+
+    def test_log_debug_respects_runtime_setting(self):
+        window = MainWindow.__new__(MainWindow)
+        window.log = Mock()
+        window.config = SimpleNamespace(debug_logging_enabled=False)
+
+        window.log_debug("hidden")
+        window.config.debug_logging_enabled = True
+        window.log_debug("visible")
+
+        self.assertEqual(window.log.call_args_list, [call("visible")])
+
+    def test_current_debug_logging_enabled_prefers_checkbox_state(self):
+        window = MainWindow.__new__(MainWindow)
+        window.config = SimpleNamespace(debug_logging_enabled=False)
+        window.debug_logging_checkbox = SimpleNamespace(isChecked=lambda: True)
+
+        self.assertTrue(window.current_debug_logging_enabled())
 
     def test_notify_stream_fallback_status_updates_status_on_main_thread(self):
         window = MainWindow.__new__(MainWindow)

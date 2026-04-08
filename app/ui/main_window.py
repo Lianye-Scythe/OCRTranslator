@@ -221,7 +221,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
 
     def get_api_client(self):
         if self._api_client is None:
-            self._api_client = self.get_api_client_class()(self.log, status_notifier=self.notify_stream_fallback_status)
+            self._api_client = self.get_api_client_class()(self.log_debug, status_notifier=self.notify_stream_fallback_status)
         return self._api_client
 
     def notify_stream_fallback_status(self, event_name: str, payload: dict | None = None):
@@ -262,7 +262,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
 
     def get_screen_capture_service(self):
         if self._screen_capture_service is None:
-            self._screen_capture_service = self.get_screen_capture_service_class()(self.log)
+            self._screen_capture_service = self.get_screen_capture_service_class()(self.log_debug)
         return self._screen_capture_service
 
     @property
@@ -440,7 +440,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             ),
         )
         if summary:
-            self.log(summary)
+            self.log_debug(summary)
         if self.startup_timing.verbose:
             mark_line = self.startup_timing.describe_segments(
                 "Startup detail",
@@ -453,7 +453,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
                 ),
             )
             if mark_line:
-                self.log(mark_line)
+                self.log_debug(mark_line)
         self._startup_summary_logged = True
 
     def _log_startup_prewarm_summary_if_ready(self):
@@ -461,7 +461,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             return
         summary = self.startup_timing.describe_durations("Startup prewarm", prefix="prewarm.")
         if summary:
-            self.log(summary)
+            self.log_debug(summary)
         self._startup_prewarm_summary_logged = True
 
     def _run_idle_prewarm_step(self):
@@ -498,7 +498,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         try:
             self.startup_timing.measure(f"prewarm.{name}", callback)
         except Exception as exc:  # noqa: BLE001
-            self.log(f"Startup prewarm skipped for {name}: {exc}")
+            self.log_debug(f"Startup prewarm skipped for {name}: {exc}")
 
         if queue:
             self.schedule_idle_prewarm(delay_ms=int(step.get("next_delay_ms", 90) or 90))
@@ -667,6 +667,12 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             return bool(self.stream_responses_checkbox.isChecked())
         config = getattr(self, "config", None)
         return bool(getattr(config, "stream_responses", True))
+
+    def current_debug_logging_enabled(self) -> bool:
+        if hasattr(self, "debug_logging_checkbox"):
+            return bool(self.debug_logging_checkbox.isChecked())
+        config = getattr(self, "config", None)
+        return bool(getattr(config, "debug_logging_enabled", False))
 
     def current_app_version(self) -> str:
         return APP_VERSION
@@ -907,6 +913,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             "overlay_auto_expand_bottom_margin_spin",
             "toast_duration_spin",
             "stream_responses_checkbox",
+            "debug_logging_checkbox",
             "close_to_tray_on_close_checkbox",
         ):
             if hasattr(self, widget_name):
@@ -965,6 +972,10 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
 
     def log(self, message: str):
         self.bridge.log_message.emit(str(message))
+
+    def log_debug(self, message: str):
+        if self.current_debug_logging_enabled():
+            self.log(message)
 
     def _invoke_main_thread(self, callback, payload):
         if not callable(callback):

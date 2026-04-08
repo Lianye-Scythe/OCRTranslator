@@ -59,7 +59,7 @@ class OverlayPresenter:
         return cls._format_rect(overlap)
 
     def _log_bbox_overlay_diagnostics(self, *, phase: str, mode: str, bbox, planned_rect: QRect):
-        log_func = getattr(self.window, "log", None)
+        log_func = getattr(self.window, "log_debug", None) or getattr(self.window, "log", None)
         if not callable(log_func):
             return
 

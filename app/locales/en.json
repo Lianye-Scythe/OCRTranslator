@@ -108,6 +108,8 @@
   "toast_duration_hint": "Set to 0 to disable transient request toasts.",
   "stream_responses": "Use streaming responses",
   "stream_responses_hint": "Enabled by default. Partial model output is shown progressively instead of waiting for the full reply.",
+  "debug_logging": "Enable debug logging",
+  "debug_logging_hint": "When off, only user-facing runtime entries are kept. When on, extra diagnostics such as request attempts, capture planning, performance timings, and overlay positioning traces are also recorded.",
   "overlay_auto_expand_top_margin": "Overlay Auto-expand Top Safe Margin",
   "overlay_auto_expand_bottom_margin": "Overlay Auto-expand Bottom Safe Margin",
   "save_settings": "Save Settings",

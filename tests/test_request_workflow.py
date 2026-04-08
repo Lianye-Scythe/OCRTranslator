@@ -94,6 +94,7 @@ class RequestWorkflowControllerTests(unittest.TestCase):
             set_status=Mock(),
             log_tr=Mock(),
             log=Mock(),
+            log_debug=Mock(),
             show_tray_toast=Mock(),
             update_action_states=Mock(),
             run_worker=Mock(),
@@ -503,7 +504,7 @@ class RequestWorkflowControllerTests(unittest.TestCase):
         request_context = SimpleNamespace(is_cancelled=lambda: False)
         self.assertEqual(request_callable(request_context), ("done", unittest.mock.ANY, 8, unittest.mock.ANY))
         self.assertIsNone(window.capture_desktop_snapshot)
-        self.assertTrue(window.log.call_args_list[0].args[0].startswith("截圖同步抓取完成｜snapshot_crop="))
+        self.assertTrue(window.log_debug.call_args_list[0].args[0].startswith("截圖同步抓取完成｜snapshot_crop="))
         window.api_client.request_image_png.assert_called_once_with(
             b"png-data",
             unittest.mock.ANY,

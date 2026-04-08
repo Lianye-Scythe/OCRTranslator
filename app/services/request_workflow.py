@@ -595,12 +595,14 @@ class RequestWorkflowController:
             hidden_dialog_count = self._hide_app_owned_windows_for_capture()
             self._clear_capture_desktop_snapshot()
             barrier_elapsed, dwm_flushed = self._run_capture_hide_barrier()
-            self.window.log(
-                "截圖隱藏屏障完成｜"
-                f"barrier={barrier_elapsed * 1000:.0f}ms｜"
-                f"dwm_flush={'yes' if dwm_flushed else 'no'}｜"
-                f"hidden_dialogs={hidden_dialog_count}"
-            )
+            log_debug = getattr(self.window, "log_debug", None)
+            if callable(log_debug):
+                log_debug(
+                    "截圖隱藏屏障完成｜"
+                    f"barrier={barrier_elapsed * 1000:.0f}ms｜"
+                    f"dwm_flush={'yes' if dwm_flushed else 'no'}｜"
+                    f"hidden_dialogs={hidden_dialog_count}"
+                )
             snapshot_started_at = time.perf_counter()
             snapshot, background_pixmap = self._capture_desktop_snapshot()
             snapshot_elapsed = time.perf_counter() - snapshot_started_at
@@ -660,13 +662,15 @@ class RequestWorkflowController:
         self.window.overlay_presenter.show_translation(bbox, text, **kwargs)
         request_elapsed = time.perf_counter() - request_started_at
         total_elapsed = time.perf_counter() - capture_started_at
-        self.window.log(
-            "圖片請求完成｜"
-            f"capture={capture_elapsed * 1000:.0f}ms｜"
-            f"request={request_elapsed:.2f}s｜"
-            f"total={total_elapsed:.2f}s｜"
-            f"png={payload_bytes / 1024:.1f}KB"
-        )
+        log_debug = getattr(self.window, "log_debug", None)
+        if callable(log_debug):
+            log_debug(
+                "圖片請求完成｜"
+                f"capture={capture_elapsed * 1000:.0f}ms｜"
+                f"request={request_elapsed:.2f}s｜"
+                f"total={total_elapsed:.2f}s｜"
+                f"png={payload_bytes / 1024:.1f}KB"
+            )
 
     def _update_preview_from_png_bytes(self, png_bytes: bytes):
         self.window.update_preview(preview_pixmap=self.window.screen_capture_service.build_preview_pixmap_from_bytes(png_bytes))
@@ -693,9 +697,11 @@ class RequestWorkflowController:
         capture_elapsed = time.perf_counter() - capture_started_at
         payload_bytes = len(png_bytes)
         self._clear_capture_desktop_snapshot()
-        self.window.log(
-            f"截圖同步抓取完成｜{capture_log_label}={capture_elapsed * 1000:.0f}ms｜png={payload_bytes / 1024:.1f}KB"
-        )
+        log_debug = getattr(self.window, "log_debug", None)
+        if callable(log_debug):
+            log_debug(
+                f"截圖同步抓取完成｜{capture_log_label}={capture_elapsed * 1000:.0f}ms｜png={payload_bytes / 1024:.1f}KB"
+            )
         self.window.show_tray_toast(self.window.tr("tray_capturing"))
 
         profile = self.window.pending_capture_profile or self.window.build_profile_from_form(validate_name=False)
