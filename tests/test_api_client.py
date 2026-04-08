@@ -51,14 +51,14 @@ class ApiClientTests(unittest.TestCase):
         with patch.object(self.client, "request_text", return_value="OK") as mock_request_text:
             result = self.client.test_profile(self.profile)
 
-        mock_request_text.assert_called_once_with("Reply with the single word OK.", self.profile, temperature=0.0, stream=False, request_context=None)
+        mock_request_text.assert_called_once_with("Reply with the single word OK.", self.profile, temperature=0.0, stream=False, request_label="Test request", request_context=None)
         self.assertEqual(result, "OK | provider=openai | model=gpt-4o-mini | response=OK")
 
     def test_test_profile_can_use_streaming_request_chain(self):
         with patch.object(self.client, "request_text", return_value="OK") as mock_request_text:
             result = self.client.test_profile(self.profile, stream=True)
 
-        mock_request_text.assert_called_once_with("Reply with the single word OK.", self.profile, temperature=0.0, stream=True, request_context=None)
+        mock_request_text.assert_called_once_with("Reply with the single word OK.", self.profile, temperature=0.0, stream=True, request_label="Test request", request_context=None)
         self.assertEqual(result, "OK | provider=openai | model=gpt-4o-mini | response=OK")
 
     def test_request_text_stream_falls_back_to_non_stream_for_third_party_compatible_backend(self):
@@ -93,6 +93,7 @@ class ApiClientTests(unittest.TestCase):
             ["retrying", "succeeded"],
         )
         self.assertEqual(status_events[0][1]["provider"], "openai")
+        self.assertEqual(status_events[0][1]["request_kind"], "text")
         self.assertEqual(status_events[0][1]["base_url"], "https://compat.example.com/openai")
 
     def test_request_text_stream_fallback_checks_cancellation_before_retrying_non_stream(self):
@@ -370,6 +371,30 @@ class ApiClientTests(unittest.TestCase):
 
         self.assertEqual(mock_translate.call_count, 2)
         mock_sleep.assert_not_called()
+
+    def test_request_image_emits_user_facing_retry_event_when_another_attempt_will_run(self):
+        profile = ApiProfile(
+            name="Retry Notify",
+            provider="openai",
+            base_url="https://api.openai.com",
+            api_keys=["key-1", "key-2"],
+            model="gpt-4o-mini",
+            retry_count=1,
+            retry_interval=0,
+        )
+        events = []
+        self.client.event_notifier = lambda event_name, payload: events.append((event_name, payload))
+
+        with patch.object(self.client, "_translate_openai", side_effect=[RuntimeError("boom"), "OK"]):
+            result = self.client.request_image(Mock(), profile, "Translate into 繁體中文", 0.2)
+
+        self.assertEqual(result, "OK")
+        self.assertEqual(
+            events,
+            [
+                ("retrying", {"request_kind": "image", "attempt": 2, "total": 2}),
+            ],
+        )
 
     def test_translate_image_stops_retrying_when_error_is_non_retryable(self):
         profile = ApiProfile(

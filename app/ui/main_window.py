@@ -221,8 +221,37 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
 
     def get_api_client(self):
         if self._api_client is None:
-            self._api_client = self.get_api_client_class()(self.log_debug, status_notifier=self.notify_stream_fallback_status)
+            self._api_client = self.get_api_client_class()(self.log_debug, status_notifier=self.notify_stream_fallback_status, event_notifier=self.notify_api_event)
         return self._api_client
+
+    def notify_api_event(self, event_name: str, payload: dict | None = None):
+        data = {"event_name": str(event_name or "").strip().lower(), "payload": dict(payload or {})}
+        bridge = getattr(self, "bridge", None)
+        signal = getattr(bridge, "invoke_main_thread", None)
+        if signal is None or not hasattr(signal, "emit"):
+            self._handle_api_event_notification(data)
+            return
+        signal.emit(self._handle_api_event_notification, data)
+
+    def _api_request_kind_label(self, request_kind: str) -> str:
+        key = {
+            "text": "api_request_kind_text",
+            "image": "api_request_kind_image",
+            "model_list": "api_request_kind_model_list",
+            "test": "api_request_kind_test",
+        }.get(str(request_kind or "").strip().lower(), "api_request_kind_generic")
+        return self.tr(key)
+
+    def _handle_api_event_notification(self, payload: dict):
+        if getattr(self, "is_quitting", False) or not isinstance(payload, dict):
+            return
+        event_name = str(payload.get("event_name") or "").strip().lower()
+        data = payload.get("payload") if isinstance(payload.get("payload"), dict) else {}
+        if event_name == "retrying":
+            request_kind = self._api_request_kind_label(str(data.get("request_kind") or ""))
+            attempt = max(1, int(data.get("attempt") or 1))
+            total = max(attempt, int(data.get("total") or attempt))
+            self.log_tr("log_api_retrying", kind=request_kind, attempt=attempt, total=total)
 
     def notify_stream_fallback_status(self, event_name: str, payload: dict | None = None):
         data = {"event_name": str(event_name or "").strip().lower(), "payload": dict(payload or {})}
@@ -234,16 +263,24 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         signal.emit(self._handle_stream_fallback_status_notification, data)
 
     def _handle_stream_fallback_status_notification(self, payload: dict):
-        if getattr(self, "is_quitting", False) or not isinstance(payload, dict) or not hasattr(self, "status_label"):
+        if getattr(self, "is_quitting", False) or not isinstance(payload, dict):
             return
         event_name = str(payload.get("event_name") or "").strip().lower()
+        data = payload.get("payload") if isinstance(payload.get("payload"), dict) else {}
         status_key = {
             "retrying": "stream_fallback_retrying",
             "succeeded": "stream_fallback_succeeded",
         }.get(event_name)
+        log_key = {
+            "retrying": "log_api_stream_fallback_retrying",
+            "succeeded": "log_api_stream_fallback_succeeded",
+        }.get(event_name)
+        if log_key:
+            self.log_tr(log_key, kind=self._api_request_kind_label(str(data.get("request_kind") or "")))
         if not status_key:
             return
-        self.set_status(status_key)
+        if hasattr(self, "status_label"):
+            self.set_status(status_key)
 
     @property
     def api_client(self):
@@ -977,6 +1014,9 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         if self.current_debug_logging_enabled():
             self.log(message)
 
+    def log_error(self, message: str):
+        self.log(message)
+
     def _invoke_main_thread(self, callback, payload):
         if not callable(callback):
             return
@@ -1500,7 +1540,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
                 self.toast_service.hide_message()
             if hasattr(self, "status_label"):
                 self.set_status("translate_failed" if is_capture_error else "operation_failed")
-            self.log(f"Error: {actual_exc}")
+            self.log_error(f"Error: {actual_exc}")
             if not self.isVisible() and not self.is_quitting:
                 try:
                     self.show_main_window()

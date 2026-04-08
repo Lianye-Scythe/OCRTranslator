@@ -273,7 +273,7 @@ class MainWindowRuntimeTests(unittest.TestCase):
         result = window.get_api_client()
 
         self.assertEqual(result, "client")
-        window._api_client_class.assert_called_once_with(window.log_debug, status_notifier=window.notify_stream_fallback_status)
+        window._api_client_class.assert_called_once_with(window.log_debug, status_notifier=window.notify_stream_fallback_status, event_notifier=window.notify_api_event)
 
     def test_log_debug_respects_runtime_setting(self):
         window = MainWindow.__new__(MainWindow)
@@ -298,14 +298,36 @@ class MainWindowRuntimeTests(unittest.TestCase):
         window.is_quitting = False
         window.status_label = object()
         window.set_status = Mock()
+        window.log_tr = Mock()
         window.bridge = SimpleNamespace(invoke_main_thread=SimpleNamespace(emit=lambda callback, payload: callback(payload)))
+        window.tr = lambda key, **kwargs: key
 
-        window.notify_stream_fallback_status("retrying", {"provider": "openai"})
-        window.notify_stream_fallback_status("succeeded", {"provider": "openai"})
+        window.notify_stream_fallback_status("retrying", {"provider": "openai", "request_kind": "image"})
+        window.notify_stream_fallback_status("succeeded", {"provider": "openai", "request_kind": "image"})
 
         self.assertEqual(
             [call.args[0] for call in window.set_status.call_args_list],
             ["stream_fallback_retrying", "stream_fallback_succeeded"],
+        )
+        self.assertEqual(
+            [call.args[0] for call in window.log_tr.call_args_list],
+            ["log_api_stream_fallback_retrying", "log_api_stream_fallback_succeeded"],
+        )
+
+    def test_notify_api_event_logs_retrying_message_on_main_thread(self):
+        window = MainWindow.__new__(MainWindow)
+        window.is_quitting = False
+        window.log_tr = Mock()
+        window.bridge = SimpleNamespace(invoke_main_thread=SimpleNamespace(emit=lambda callback, payload: callback(payload)))
+        window.tr = lambda key, **kwargs: key
+
+        window.notify_api_event("retrying", {"request_kind": "text", "attempt": 2, "total": 3})
+
+        window.log_tr.assert_called_once_with(
+            "log_api_retrying",
+            kind="api_request_kind_text",
+            attempt=2,
+            total=3,
         )
 
 
