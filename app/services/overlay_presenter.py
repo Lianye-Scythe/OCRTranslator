@@ -193,6 +193,11 @@ class OverlayPresenter:
                         target_screen_rect.top() + soft_top_margin,
                         min(current_rect.y(), target_screen_rect.bottom() - height - soft_bottom_margin + 1),
                     )
+                    if x != current_rect.x() or y != current_rect.y():
+                        x = current_rect.x()
+                        y = current_rect.y()
+                        width = current_rect.width()
+                        height = current_rect.height()
                     keep_manual_position = False
                     initial_planned_rect = QRect(int(x), int(y), int(width), int(height))
                     planned_rect = QRect(initial_planned_rect)

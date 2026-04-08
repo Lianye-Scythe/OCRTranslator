@@ -1,5 +1,5 @@
 from PySide6.QtCore import QEvent, QPoint, QPointF, QRect, QRectF, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QCursor, QFont, QFontMetrics, QGuiApplication, QIcon, QIntValidator, QKeySequence, QMouseEvent, QPainter, QPainterPath, QPen, QPixmap, QShortcut, QTextDocument, QTransform
+from PySide6.QtGui import QColor, QCursor, QFont, QFontMetrics, QGuiApplication, QIcon, QIntValidator, QKeySequence, QMouseEvent, QPainter, QPainterPath, QPen, QPixmap, QShortcut, QTextCursor, QTextDocument, QTransform
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
@@ -623,7 +623,20 @@ class TranslationOverlay(QWidget):
             self.last_geometry = self.geometry()
         current_text = self.body.toPlainText()
         if current_text != text:
-            self.body.setPlainText(text)
+            can_append_partial = bool(
+                not remember_state
+                and self._partial_result_state
+                and current_text
+                and str(text).startswith(current_text)
+            )
+            if can_append_partial:
+                suffix = str(text)[len(current_text) :]
+                if suffix:
+                    cursor = self.body.textCursor()
+                    cursor.movePosition(QTextCursor.End)
+                    cursor.insertText(suffix)
+            else:
+                self.body.setPlainText(text)
         if remember_state:
             self.last_text = text
         self.manual_positioned = bool(keep_manual_position)

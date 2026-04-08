@@ -396,6 +396,36 @@ class OverlayPresenterTests(unittest.TestCase):
         self.assertEqual(overlay.show_calls[0]["width"], 500)
         self.assertEqual(overlay.show_calls[0]["height"], 420)
 
+    @patch("app.services.overlay_presenter.get_target_screen_rect", return_value=QRect(0, 0, 1920, 1080))
+    @patch("app.services.overlay_presenter.clamp_overlay_size_to_screen", return_value=(500, 420))
+    def test_show_response_partial_stream_update_freezes_geometry_when_more_growth_would_require_vertical_reposition(self, _mock_clamp_size, _mock_screen_rect):
+        window = self._build_window()
+        overlay = _FakeOverlay()
+        overlay.is_pinned = False
+        overlay.manual_positioned = False
+        overlay._visible = True
+        overlay._has_partial_result = True
+        overlay._geometry = QRect(120, 650, 500, 360)
+        overlay.last_geometry = QRect(overlay._geometry)
+        overlay.calculate_size = Mock(side_effect=AssertionError("calculate_size should not run for continuing partial stream updates"))
+        window.translation_overlay = overlay
+        presenter = OverlayPresenter(window)
+
+        presenter.show_response(
+            "partial near bottom",
+            bbox=(604, 16, 1321, 1024),
+            preset_name="Translate",
+            preserve_manual_position=False,
+            preserve_geometry=False,
+            partial=True,
+        )
+
+        self.assertEqual(len(overlay.show_calls), 1)
+        self.assertEqual(overlay.show_calls[0]["x"], 120)
+        self.assertEqual(overlay.show_calls[0]["y"], 650)
+        self.assertEqual(overlay.show_calls[0]["width"], 500)
+        self.assertEqual(overlay.show_calls[0]["height"], 360)
+
 
 if __name__ == "__main__":
     unittest.main()

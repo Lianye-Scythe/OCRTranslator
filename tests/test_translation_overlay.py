@@ -230,3 +230,23 @@ class TranslationOverlayTests(unittest.TestCase):
         mock_set_geometry.assert_not_called()
         mock_set_plain_text.assert_not_called()
         mock_show_topmost.assert_not_called()
+
+    def test_show_text_partial_visible_update_appends_incremental_suffix_without_replacing_full_text(self):
+        self.overlay.set_partial_result_state("streaming", preset_name="翻译")
+        self.overlay.setGeometry(120, 140, 500, 360)
+        self.overlay.body.setPlainText("Hello")
+
+        with patch.object(self.overlay, "isVisible", return_value=True), patch.object(self.overlay.body, "setPlainText") as mock_set_plain_text:
+            self.overlay.show_text("Hello world", 120, 140, 500, 360, remember_state=False)
+
+        mock_set_plain_text.assert_not_called()
+        self.assertEqual(self.overlay.body.toPlainText(), "Hello world")
+
+    def test_show_text_partial_visible_update_falls_back_to_full_replace_when_stream_text_is_not_prefix_append(self):
+        self.overlay.set_partial_result_state("streaming", preset_name="翻译")
+        self.overlay.setGeometry(120, 140, 500, 360)
+        self.overlay.body.setPlainText("Hello")
+
+        self.overlay.show_text("Hi", 120, 140, 500, 360, remember_state=False)
+
+        self.assertEqual(self.overlay.body.toPlainText(), "Hi")
