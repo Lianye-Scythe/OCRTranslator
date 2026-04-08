@@ -7,6 +7,17 @@ from PySide6.QtCore import QPoint, QRect
 from app.services.overlay_presenter import OverlayPresenter
 
 
+class _FakeBody:
+    def __init__(self):
+        self._text = ""
+
+    def toPlainText(self):
+        return self._text
+
+    def setPlainText(self, text):
+        self._text = str(text)
+
+
 class _FakeOverlay:
     def __init__(self):
         self.last_geometry = QRect(120, 140, 500, 360)
@@ -22,6 +33,7 @@ class _FakeOverlay:
         self._visible = True
         self._geometry = QRect(self.last_geometry)
         self.minimum_runtime_width = None
+        self.body = _FakeBody()
         self._has_partial_result = False
 
     def apply_typography(self):
@@ -49,6 +61,12 @@ class _FakeOverlay:
         self._visible = True
         self._geometry = QRect(int(x), int(y), actual_width, int(height))
         self.last_geometry = QRect(self._geometry)
+
+    def setGeometry(self, rect):
+        actual_width = int(rect.width())
+        if self.minimum_runtime_width is not None:
+            actual_width = max(actual_width, int(self.minimum_runtime_width))
+        self._geometry = QRect(int(rect.x()), int(rect.y()), actual_width, int(rect.height()))
 
     def remember_context(self, bbox, text, *, anchor_point=None, preset_name=""):
         self.context_calls.append(
@@ -339,11 +357,9 @@ class OverlayPresenterTests(unittest.TestCase):
             partial=True,
         )
 
-        self.assertEqual(len(overlay.show_calls), 2)
-        self.assertEqual(overlay.show_calls[0]["x"], 146)
-        self.assertEqual(overlay.show_calls[0]["width"], 440)
-        self.assertEqual(overlay.show_calls[1]["x"], 18)
-        self.assertEqual(overlay.show_calls[1]["width"], 570)
+        self.assertEqual(len(overlay.show_calls), 1)
+        self.assertEqual(overlay.show_calls[0]["x"], 18)
+        self.assertEqual(overlay.show_calls[0]["width"], 570)
         diagnostic_messages = [
             call.args[0]
             for call in window.log.call_args_list
@@ -352,6 +368,33 @@ class OverlayPresenterTests(unittest.TestCase):
         self.assertEqual(len(diagnostic_messages), 2)
         self.assertIn("initial_planned=146,42,440x520", diagnostic_messages[0])
         self.assertIn("corrected=18,42,570x520", diagnostic_messages[0])
+
+    @patch("app.services.overlay_presenter.get_target_screen_rect", return_value=QRect(0, 0, 1920, 1080))
+    @patch("app.services.overlay_presenter.clamp_overlay_size_to_screen", return_value=(500, 420))
+    def test_show_response_partial_stream_update_keeps_current_x_and_width_while_growing_height(self, _mock_clamp_size, _mock_screen_rect):
+        window = self._build_window()
+        overlay = _FakeOverlay()
+        overlay.is_pinned = False
+        overlay.manual_positioned = False
+        overlay._visible = True
+        overlay._has_partial_result = True
+        overlay.calculate_size = Mock(side_effect=AssertionError("calculate_size should not run for continuing partial stream updates"))
+        window.translation_overlay = overlay
+        presenter = OverlayPresenter(window)
+
+        presenter.show_response(
+            "partial growing text",
+            bbox=(604, 16, 1321, 1024),
+            preset_name="Translate",
+            preserve_manual_position=False,
+            preserve_geometry=False,
+            partial=True,
+        )
+
+        self.assertEqual(len(overlay.show_calls), 1)
+        self.assertEqual(overlay.show_calls[0]["x"], 120)
+        self.assertEqual(overlay.show_calls[0]["width"], 500)
+        self.assertEqual(overlay.show_calls[0]["height"], 420)
 
 
 if __name__ == "__main__":

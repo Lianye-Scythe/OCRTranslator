@@ -109,6 +109,31 @@ class OverlayPresenter:
         resolved_anchor_point = anchor_point or self.overlay.last_anchor_point or QCursor.pos()
         return compute_overlay_position_for_point(overlay_config, resolved_anchor_point, width, height)
 
+    def _prepare_hidden_first_partial_rect(self, *, text: str, preset_name: str, initial_planned_rect: QRect, overlay_config, bbox, anchor_point) -> QRect:
+        body = getattr(self.overlay, "body", None)
+        set_geometry = getattr(self.overlay, "setGeometry", None)
+        if body is None or not callable(getattr(body, "setPlainText", None)) or not callable(set_geometry):
+            return QRect(initial_planned_rect)
+
+        current_text = body.toPlainText() if callable(getattr(body, "toPlainText", None)) else ""
+        if current_text != text:
+            body.setPlainText(text)
+        set_geometry(QRect(initial_planned_rect))
+        actual_rect = QRect(self.overlay.geometry())
+        if actual_rect.size() == initial_planned_rect.size():
+            return actual_rect
+
+        corrected_x, corrected_y = self._recompute_auto_position(
+            overlay_config,
+            bbox=bbox,
+            anchor_point=anchor_point,
+            width=actual_rect.width(),
+            height=actual_rect.height(),
+        )
+        corrected_rect = QRect(int(corrected_x), int(corrected_y), actual_rect.width(), actual_rect.height())
+        set_geometry(QRect(corrected_rect))
+        return corrected_rect
+
     def show_response(
         self,
         text: str,
@@ -125,6 +150,7 @@ class OverlayPresenter:
     ):
         text = text or self.window.tr("empty_result")
         was_visible = self.overlay.isVisible()
+        had_partial_result = bool(partial and hasattr(self.overlay, "has_partial_result") and self.overlay.has_partial_result())
         overlay_config = self._overlay_config()
         base_width = locked_width
         if base_width is None:
@@ -135,6 +161,46 @@ class OverlayPresenter:
                 except Exception:  # noqa: BLE001
                     base_width = None
         self.overlay.apply_typography()
+
+        if partial and had_partial_result and was_visible:
+            preserved_geometry = self._preserved_geometry(preserve_geometry=preserve_geometry)
+            if preserved_geometry is None and not preserve_manual_position:
+                current_rect = QRect(self.overlay.geometry())
+                if current_rect.width() > 0 and current_rect.height() > 0:
+                    if bbox is not None:
+                        target_screen_rect = get_target_screen_rect(bbox)
+                    else:
+                        anchor_point = anchor_point or self.overlay.last_anchor_point or QCursor.pos()
+                        target_screen_rect = get_screen_rect_for_point(anchor_point)
+
+                    width = max(1, current_rect.width())
+                    height = max(1, current_rect.height())
+                    width, height = clamp_overlay_size_to_screen(
+                        overlay_config,
+                        self.overlay,
+                        target_screen_rect,
+                        text,
+                        width,
+                        height,
+                    )
+                    margin = overlay_config.margin
+                    soft_top_margin, soft_bottom_margin = overlay_vertical_safe_margins(overlay_config)
+                    x = max(
+                        target_screen_rect.left() + margin,
+                        min(current_rect.x(), target_screen_rect.right() - width - margin + 1),
+                    )
+                    y = max(
+                        target_screen_rect.top() + soft_top_margin,
+                        min(current_rect.y(), target_screen_rect.bottom() - height - soft_bottom_margin + 1),
+                    )
+                    keep_manual_position = False
+                    initial_planned_rect = QRect(int(x), int(y), int(width), int(height))
+                    planned_rect = QRect(initial_planned_rect)
+                    self.overlay.show_text(text, x, y, width, height, keep_manual_position=keep_manual_position, remember_state=False)
+                    if hasattr(self.window, "toast_service"):
+                        self.window.toast_service.hide_message()
+                    return
+
         width, height = self.overlay.calculate_size(text, base_width=base_width, preset_name=preset_name, partial_state="streaming" if partial else None)
         preserved_geometry = self._preserved_geometry(preserve_geometry=preserve_geometry)
         if locked_width is not None:
@@ -186,7 +252,16 @@ class OverlayPresenter:
         keep_manual_position = preserve_manual_position or bool(preserved_geometry and self.overlay.manual_positioned)
         initial_planned_rect = QRect(int(x), int(y), int(width), int(height))
         planned_rect = QRect(initial_planned_rect)
-        self.overlay.show_text(text, x, y, width, height, keep_manual_position=keep_manual_position, remember_state=not partial)
+        if partial and not had_partial_result and not was_visible and preserved_geometry is None and not keep_manual_position:
+            planned_rect = self._prepare_hidden_first_partial_rect(
+                text=text,
+                preset_name=preset_name,
+                initial_planned_rect=initial_planned_rect,
+                overlay_config=overlay_config,
+                bbox=bbox,
+                anchor_point=anchor_point,
+            )
+        self.overlay.show_text(text, planned_rect.x(), planned_rect.y(), planned_rect.width(), planned_rect.height(), keep_manual_position=keep_manual_position, remember_state=not partial)
         actual_rect = QRect(self.overlay.geometry())
         if preserved_geometry is None and not keep_manual_position and actual_rect.size() != planned_rect.size():
             corrected_x, corrected_y = self._recompute_auto_position(
