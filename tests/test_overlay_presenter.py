@@ -280,6 +280,7 @@ class OverlayPresenterTests(unittest.TestCase):
         self.assertEqual(len(diagnostic_messages), 2)
         self.assertIn("stage=immediate", diagnostic_messages[0])
         self.assertIn("phase=first_visible_final", diagnostic_messages[0])
+        self.assertIn("initial_planned=1162,212,320x300", diagnostic_messages[0])
         self.assertIn("planned=1162,212,320x300", diagnostic_messages[0])
         self.assertIn("geom=1162,212,320x300", diagnostic_messages[0])
         self.assertIn("planned_overlap=none", diagnostic_messages[0])
@@ -310,14 +311,17 @@ class OverlayPresenterTests(unittest.TestCase):
         self.assertEqual(len(diagnostic_messages), 2)
         self.assertIn("stage=immediate", diagnostic_messages[0])
         self.assertIn("phase=reflow", diagnostic_messages[0])
+        self.assertIn("initial_planned=1120,212,360x320", diagnostic_messages[0])
         self.assertIn("planned=1120,212,360x320", diagnostic_messages[0])
         self.assertIn("stage=deferred", diagnostic_messages[1])
 
+    @patch("app.services.overlay_presenter.QTimer.singleShot", side_effect=lambda _ms, callback: callback())
     @patch("app.services.overlay_presenter.compute_overlay_position")
     @patch("app.services.overlay_presenter.fit_overlay_size", return_value=(440, 520))
-    def test_show_response_repositions_capture_overlay_when_runtime_geometry_expands_beyond_planned_width(self, _mock_fit_size, mock_compute_position):
+    def test_show_response_repositions_capture_overlay_when_runtime_geometry_expands_beyond_planned_width(self, _mock_fit_size, mock_compute_position, _mock_timer):
         mock_compute_position.side_effect = lambda _config, _bbox, width, _height: (146, 42) if int(width) == 440 else (18, 42)
         window = self._build_window()
+        window.log = Mock()
         overlay = _FakeOverlay()
         overlay.is_pinned = False
         overlay.manual_positioned = False
@@ -340,6 +344,14 @@ class OverlayPresenterTests(unittest.TestCase):
         self.assertEqual(overlay.show_calls[0]["width"], 440)
         self.assertEqual(overlay.show_calls[1]["x"], 18)
         self.assertEqual(overlay.show_calls[1]["width"], 570)
+        diagnostic_messages = [
+            call.args[0]
+            for call in window.log.call_args_list
+            if call.args and isinstance(call.args[0], str) and call.args[0].startswith("浮窗定位诊断｜")
+        ]
+        self.assertEqual(len(diagnostic_messages), 2)
+        self.assertIn("initial_planned=146,42,440x520", diagnostic_messages[0])
+        self.assertIn("corrected=18,42,570x520", diagnostic_messages[0])
 
 
 if __name__ == "__main__":

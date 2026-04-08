@@ -58,26 +58,31 @@ class OverlayPresenter:
             return "none"
         return cls._format_rect(overlap)
 
-    def _log_bbox_overlay_diagnostics(self, *, phase: str, mode: str, bbox, planned_rect: QRect):
+    def _log_bbox_overlay_diagnostics(self, *, phase: str, mode: str, bbox, initial_planned_rect: QRect, planned_rect: QRect):
         log_func = getattr(self.window, "log_debug", None) or getattr(self.window, "log", None)
         if not callable(log_func):
             return
 
         bbox_rect = self._bbox_rect(bbox)
+        corrected_rect = planned_rect if planned_rect != initial_planned_rect else None
 
         def emit(stage: str):
             overlay = self.overlay
             geometry = QRect(overlay.geometry())
             frame_geometry = QRect(overlay.frameGeometry())
+            corrected_fragment = f"corrected={self._format_rect(corrected_rect)}｜" if corrected_rect is not None else ""
             log_func(
                 "浮窗定位诊断｜"
                 f"stage={stage}｜"
                 f"phase={phase}｜"
                 f"mode={mode}｜"
                 f"bbox={self._format_rect(bbox_rect)}｜"
+                f"initial_planned={self._format_rect(initial_planned_rect)}｜"
                 f"planned={self._format_rect(planned_rect)}｜"
+                f"{corrected_fragment}"
                 f"geom={self._format_rect(geometry)}｜"
                 f"frame={self._format_rect(frame_geometry)}｜"
+                f"initial_planned_overlap={self._format_rect_overlap(initial_planned_rect, bbox_rect)}｜"
                 f"planned_overlap={self._format_rect_overlap(planned_rect, bbox_rect)}｜"
                 f"geom_overlap={self._format_rect_overlap(geometry, bbox_rect)}｜"
                 f"frame_overlap={self._format_rect_overlap(frame_geometry, bbox_rect)}｜"
@@ -179,7 +184,8 @@ class OverlayPresenter:
         if not partial:
             self.overlay.remember_context(bbox, text, anchor_point=anchor_point, preset_name=preset_name)
         keep_manual_position = preserve_manual_position or bool(preserved_geometry and self.overlay.manual_positioned)
-        planned_rect = QRect(int(x), int(y), int(width), int(height))
+        initial_planned_rect = QRect(int(x), int(y), int(width), int(height))
+        planned_rect = QRect(initial_planned_rect)
         self.overlay.show_text(text, x, y, width, height, keep_manual_position=keep_manual_position, remember_state=not partial)
         actual_rect = QRect(self.overlay.geometry())
         if preserved_geometry is None and not keep_manual_position and actual_rect.size() != planned_rect.size():
@@ -212,7 +218,7 @@ class OverlayPresenter:
                 diagnostic_phase = "reflow"
         if diagnostic_phase:
             self._log_bbox_overlay_diagnostics(
-                phase=diagnostic_phase, mode=str(getattr(overlay_config, "mode", "")), bbox=bbox, planned_rect=planned_rect
+                phase=diagnostic_phase, mode=str(getattr(overlay_config, "mode", "")), bbox=bbox, initial_planned_rect=initial_planned_rect, planned_rect=planned_rect
             )
         if complete_capture_flow and not reflow_only:
             self.window.finish_capture_workflow()
