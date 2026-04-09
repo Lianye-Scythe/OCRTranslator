@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml/badge.svg)](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D6)](packaging.en.md)
-[![Release](https://img.shields.io/badge/release-v1.0.7-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
+[![Release](https://img.shields.io/badge/release-v1.0.8-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
 [![License](https://img.shields.io/badge/license-GPLv3-4F46E5)](../LICENSE)
 
 OCRTranslator is a **portable OCR / AI request tool** built around **desktop reading workflows**.
@@ -59,7 +59,7 @@ If you want a quick feel for the product first, start with the current main-wind
 - Each capture now recreates the selection overlay, reducing the chance that Windows briefly flashes the previous screenshot background on the first frame
 - Settings-page action buttons such as `Fetch Models`, `Test API`, and `Save Settings` now use steadier focus handling so busy-state transitions do not auto-scroll the form to the bottom
 - In left-right mode, the result overlay now measures header and toolbar width more accurately, so the first visible placement is less likely to overlap the captured selection
-- Streaming image-translation overlays are now more stable: the first partial result no longer appears and then jumps sideways, and ongoing updates try to avoid jitter when the window grows near the bottom edge
+- Streaming image-translation overlays are now more stable: the first partial result seeds its width from the available selection-side space to reduce cold-start sideways jumps, and ongoing updates still try to avoid jitter when the window grows near the bottom edge
 - Request flows stay as non-blocking as possible, with app-managed toasts and tray notifications for status feedback
 - Result overlay supports:
   - copy, pin / unpin
@@ -67,7 +67,8 @@ If you want a quick feel for the product first, start with the current main-wind
   - direct opacity percentage input
   - drag to move and corner resize
   - `Ctrl + mouse wheel` font zoom
-- Pinned overlays keep their size and position; unpinned overlays reopen from the saved default size and remember the most recent runtime-resized width
+- Pinned overlays keep their size and position; unpinned overlays expand dynamically for the current scene, and any runtime-resized width now stays only for the current app session instead of being written across restarts
+- The built-in `Translate` preset now uses a more neutral OCR / translation prompt; when backend safety rules block only part of the content, the preset falls back to `[REDACTED]` for the triggered fragments and continues the rest of the translation whenever possible
 - Light / dark / follow-system theme modes
 - Global hotkeys, system tray, single-instance forwarding, and quick `--capture` launch support
 - Advanced Settings now include a toggleable debug log mode; default runtime logs stay user-facing, while positioning diagnostics, capture planning, and low-level API retry details appear only when debug logging is enabled

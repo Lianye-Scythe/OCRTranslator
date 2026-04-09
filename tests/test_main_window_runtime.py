@@ -359,24 +359,24 @@ class MainWindowRuntimeTests(unittest.TestCase):
 
         self.assertEqual(window.current_request_overlay_width(), 620)
 
-    def test_sync_runtime_unpinned_overlay_width_from_config_preserves_existing_runtime_widths(self):
+    def test_normalize_runtime_unpinned_overlay_width_state_preserves_existing_runtime_widths(self):
         window = MainWindow.__new__(MainWindow)
         window.config = SimpleNamespace(overlay_unpinned_width=620, overlay_unpinned_width_source="manual")
         window._runtime_unpinned_overlay_width = 610
         window._runtime_auto_unpinned_overlay_width = 700
 
-        window.sync_runtime_unpinned_overlay_width_from_config()
+        window.normalize_runtime_unpinned_overlay_width_state()
 
         self.assertEqual(window._runtime_unpinned_overlay_width, 610)
         self.assertEqual(window._runtime_auto_unpinned_overlay_width, 700)
 
-    def test_sync_runtime_unpinned_overlay_width_from_config_ignores_legacy_non_manual_source(self):
+    def test_normalize_runtime_unpinned_overlay_width_state_ignores_legacy_non_manual_source(self):
         window = MainWindow.__new__(MainWindow)
         window.config = SimpleNamespace(overlay_unpinned_width=620, overlay_unpinned_width_source="")
         window._runtime_unpinned_overlay_width = 700
         window._runtime_auto_unpinned_overlay_width = 710
 
-        window.sync_runtime_unpinned_overlay_width_from_config()
+        window.normalize_runtime_unpinned_overlay_width_state()
 
         self.assertEqual(window._runtime_unpinned_overlay_width, 700)
         self.assertEqual(window._runtime_auto_unpinned_overlay_width, 710)

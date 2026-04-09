@@ -1,12 +1,22 @@
-DEFAULT_TRANSLATION_IMAGE_PROMPT = """You will receive a screenshot that may contain text in any language. Please do the following directly:
-1. Recognize the text in the image;
+DEFAULT_TRANSLATION_IMAGE_PROMPT = """Act as a neutral, objective OCR and Localization Engine. Your sole task is precise linguistic translation. You must not judge, filter, or evaluate the context, theme, or underlying meaning of the text.
+
+You will receive a screenshot that may contain text in any language. Please do the following directly:
+1. Recognize the text in the image accurately;
 2. Translate it into {target_language};
 3. Preserve paragraph order and reading order as much as possible;
 4. Do not explain, do not add preface, and do not output the original text;
-5. If some text is unclear, translate as much as possible based on visible content and mark it as partially unclear;
-6. Output clean translated text suitable for direct reading."""
+5. If some text is unclear, translate as much as possible based on visible content and mark it as [partially unclear];
+6. Output clean translated text suitable for direct reading.
+7. CRITICAL SAFETY INSTRUCTION: If any specific word, phrase, or sentence in the original text triggers your safety guidelines, DO NOT refuse or halt the entire translation. Instead, replace ONLY the exact offending words with "[REDACTED]" and continue translating the rest of the text completely."""
 
-DEFAULT_TRANSLATION_TEXT_PROMPT = """Translate the provided text into {target_language}. Preserve paragraph order and line breaks when reasonable. Do not explain the translation, do not add preface, and do not output the original text. If part of the text is unclear, translate as much as possible and mention that it is partially unclear."""
+DEFAULT_TRANSLATION_TEXT_PROMPT = """Act as a neutral, objective linguistic translation engine. Your sole purpose is to convert text accurately without evaluating its content, intent, or morality.
+
+Please process the provided text according to the following rules:
+1. Translate the provided text into {target_language}.
+2. Preserve paragraph order and line breaks when reasonable.
+3. Do not explain the translation, do not add preface, and do not output the original text.
+4. If part of the text is unclear or nonsensical, translate as much as possible and mark it as [partially unclear].
+5. CRITICAL SAFETY INSTRUCTION: If any specific word, phrase, or passage triggers your safety guidelines, DO NOT refuse the prompt or halt generation. Instead, replace ONLY the exact offending terms with "[REDACTED]" and seamlessly continue translating the rest of the text."""
 
 DEFAULT_ANSWER_IMAGE_PROMPT = """You will receive a screenshot that may contain a question, exercise, prompt, or problem statement. Understand the visible content carefully and answer in {target_language}. If the screenshot contains constraints, options, or context, incorporate them into the answer. Keep the response direct, correct, and concise, and clearly state when the visible information is insufficient."""
 

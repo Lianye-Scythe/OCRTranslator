@@ -133,7 +133,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             log_func=self.log_debug,
             worker_cls=WorkerThread,
         )
-        self.sync_runtime_unpinned_overlay_width_from_config()
+        self.normalize_runtime_unpinned_overlay_width_state()
 
         self.request_workflow = RequestWorkflowController(self)
         self.instance_server_service = InstanceServerService(self, APP_SERVER_NAME, log_func=self.log_debug, error_log_func=self.log_error)
@@ -637,7 +637,10 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         except (TypeError, ValueError):
             return False
 
-    def sync_runtime_unpinned_overlay_width_from_config(self):
+    def normalize_runtime_unpinned_overlay_width_state(self):
+        # Unpinned overlay widths are session-only. This method intentionally does
+        # not reload them from config; it only normalizes the current in-memory
+        # runtime state after restores/save flows.
         runtime_unpinned_width = getattr(self, "_runtime_unpinned_overlay_width", None)
         try:
             self._runtime_unpinned_overlay_width = int(runtime_unpinned_width) if runtime_unpinned_width is not None else None

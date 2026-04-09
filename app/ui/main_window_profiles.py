@@ -112,8 +112,8 @@ class MainWindowProfilesMixin:
 
     def reload_saved_config(self):
         self.config = load_config()
-        if hasattr(self, "sync_runtime_unpinned_overlay_width_from_config"):
-            self.sync_runtime_unpinned_overlay_width_from_config()
+        if hasattr(self, "normalize_runtime_unpinned_overlay_width_state"):
+            self.normalize_runtime_unpinned_overlay_width_state()
         self.load_profile_to_form(self.config.active_profile_name)
         self.load_prompt_preset_to_form(self.config.active_prompt_preset_name)
         try:
@@ -983,8 +983,8 @@ class MainWindowProfilesMixin:
                 self.setup_hotkey_listener(initial=True, config=candidate_config, raise_on_error=True)
             except Exception as exc:  # noqa: BLE001
                 self.config = previous_runtime_config
-                if hasattr(self, "sync_runtime_unpinned_overlay_width_from_config"):
-                    self.sync_runtime_unpinned_overlay_width_from_config()
+                if hasattr(self, "normalize_runtime_unpinned_overlay_width_state"):
+                    self.normalize_runtime_unpinned_overlay_width_state()
                 self.restore_post_save_view_state(saved_scroll_value)
                 try:
                     self.setup_hotkey_listener(initial=True, config=previous_runtime_config, raise_on_error=True)
@@ -996,8 +996,8 @@ class MainWindowProfilesMixin:
                 return False
 
             self.config = candidate_config
-            if hasattr(self, "sync_runtime_unpinned_overlay_width_from_config"):
-                self.sync_runtime_unpinned_overlay_width_from_config()
+            if hasattr(self, "normalize_runtime_unpinned_overlay_width_state"):
+                self.normalize_runtime_unpinned_overlay_width_state()
             save_config(self.config)
             self.apply_language()
             self.load_profile_to_form(self.config.active_profile_name)
@@ -1010,8 +1010,8 @@ class MainWindowProfilesMixin:
             try:
                 restored_config = copy.deepcopy(locals().get("previous_runtime_config", self.config))
                 self.config = restored_config
-                if hasattr(self, "sync_runtime_unpinned_overlay_width_from_config"):
-                    self.sync_runtime_unpinned_overlay_width_from_config()
+                if hasattr(self, "normalize_runtime_unpinned_overlay_width_state"):
+                    self.normalize_runtime_unpinned_overlay_width_state()
                 self.setup_hotkey_listener(initial=True, config=restored_config, raise_on_error=True)
             except Exception as restore_exc:  # noqa: BLE001
                 self.log_error(f"Failed to restore runtime state after save error: {restore_exc}")

@@ -59,6 +59,8 @@ def _default_prompt_preset() -> PromptPreset:
 
 def _config_to_dict(config: AppConfig) -> dict:
     data = asdict(config)
+    # Unpinned overlay widths are runtime/session-only; always serialize them as
+    # cleared values so they never survive an application restart.
     data["overlay_unpinned_width"] = None
     data["overlay_unpinned_width_source"] = ""
     data["api_profiles"] = [asdict(profile) for profile in config.api_profiles]

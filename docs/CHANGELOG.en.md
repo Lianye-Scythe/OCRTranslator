@@ -6,6 +6,19 @@ This file records important OCRTranslator changes.
 
 ## [Unreleased]
 
+## [1.0.8] - 2026-04-09
+
+### Changed
+- Updated the built-in `Translate` preset prompts to a more neutral OCR / translation instruction set, including a `[REDACTED]` fallback that only replaces the exact fragments that trigger safety rules instead of aborting the whole translation
+- Made unpinned overlay widths session-only. Closing the app no longer writes unpinned widths back into `config.json`, so widths learned in one scene do not leak into the next launch
+
+### Fixed
+- Fixed the first streamed screenshot-translation partial after a cold start still beginning from the base width and then jumping sideways to its corrected position; the initial width is now seeded from the selection-side space before the first visible render
+- Improved native-window warmup and header measurement for the first translation overlay render, further reducing visible flicker and placement instability on the first show
+
+### Test
+- Added regression coverage for first-capture width seeding, session-only unpinned overlay width state, config serialization that always clears unpinned widths, and the first-visible-partial warmup path
+
 ## [1.0.7] - 2026-04-08
 
 ### Added
