@@ -35,6 +35,7 @@ class _FakeOverlay:
         self.minimum_runtime_width = None
         self.body = _FakeBody()
         self._has_partial_result = False
+        self.prime_first_show_calls = 0
 
     def apply_typography(self):
         return None
@@ -96,6 +97,10 @@ class _FakeOverlay:
 
     def isVisible(self):
         return self._visible
+
+    def prime_first_show(self):
+        self.prime_first_show_calls += 1
+        return True
 
 
 class OverlayPresenterTests(unittest.TestCase):
@@ -270,6 +275,80 @@ class OverlayPresenterTests(unittest.TestCase):
         window.finish_capture_workflow.assert_not_called()
         window.toast_service.hide_message.assert_called_once_with()
 
+    def test_show_response_primes_partial_state_before_first_partial_size_measurement(self):
+        window = self._build_window()
+        overlay = _FakeOverlay()
+        overlay.is_pinned = False
+        overlay.manual_positioned = False
+        overlay._visible = False
+
+        def _calculate_size(_text, *, base_width=None, preset_name=None, partial_state=None):
+            self.assertEqual(overlay.partial_state_calls, [("streaming", "Translate")])
+            self.assertEqual(partial_state, "streaming")
+            return ((base_width if base_width is not None else 440), 520)
+
+        overlay.calculate_size = Mock(side_effect=_calculate_size)
+        window.translation_overlay = overlay
+        presenter = OverlayPresenter(window)
+
+        presenter.show_response(
+            "partial",
+            bbox=(604, 16, 1321, 1024),
+            preset_name="Translate",
+            preserve_manual_position=False,
+            preserve_geometry=False,
+            partial=True,
+        )
+        overlay.calculate_size.assert_called_once()
+
+    def test_show_response_primes_overlay_native_window_before_first_visible_render(self):
+        window = self._build_window()
+        overlay = _FakeOverlay()
+        overlay.is_pinned = False
+        overlay.manual_positioned = False
+        overlay._visible = False
+        window.translation_overlay = overlay
+        presenter = OverlayPresenter(window)
+
+        presenter.show_response(
+            "partial",
+            bbox=(604, 16, 1321, 1024),
+            preset_name="Translate",
+            preserve_manual_position=False,
+            preserve_geometry=False,
+            partial=True,
+        )
+        self.assertEqual(overlay.prime_first_show_calls, 1)
+
+    @patch("app.services.overlay_presenter.preferred_overlay_width_for_bbox", return_value=565)
+    @patch("app.services.overlay_presenter.compute_overlay_position", return_value=(18, 42))
+    @patch("app.services.overlay_presenter.fit_overlay_size", return_value=(565, 520))
+    def test_show_response_first_visible_partial_seeds_base_width_from_available_bbox_space(self, _mock_fit_size, _mock_position, _mock_preferred_width):
+        window = self._build_window()
+        overlay = _FakeOverlay()
+        overlay.is_pinned = False
+        overlay.manual_positioned = False
+        overlay._visible = False
+
+        def _calculate_size(_text, *, base_width=None, preset_name=None, partial_state=None):
+            self.assertEqual(base_width, 565)
+            self.assertEqual(partial_state, "streaming")
+            return (565, 520)
+
+        overlay.calculate_size = Mock(side_effect=_calculate_size)
+        window.translation_overlay = overlay
+        presenter = OverlayPresenter(window)
+
+        presenter.show_response(
+            "partial",
+            bbox=(601, 12, 1318, 1024),
+            preset_name="Translate",
+            preserve_manual_position=False,
+            preserve_geometry=False,
+            partial=True,
+        )
+        overlay.calculate_size.assert_called_once()
+
     @patch("app.services.overlay_presenter.QTimer.singleShot", side_effect=lambda _ms, callback: callback())
     @patch("app.services.overlay_presenter.compute_overlay_position", return_value=(1162, 212))
     @patch("app.services.overlay_presenter.fit_overlay_size", return_value=(320, 300))
@@ -347,6 +426,7 @@ class OverlayPresenterTests(unittest.TestCase):
         overlay.minimum_runtime_width = 570
         window.translation_overlay = overlay
         presenter = OverlayPresenter(window)
+        window.learn_runtime_unpinned_overlay_width = Mock(return_value=True)
 
         presenter.show_response(
             "partial",
@@ -368,6 +448,7 @@ class OverlayPresenterTests(unittest.TestCase):
         self.assertEqual(len(diagnostic_messages), 2)
         self.assertIn("initial_planned=146,42,440x520", diagnostic_messages[0])
         self.assertIn("corrected=18,42,570x520", diagnostic_messages[0])
+        window.learn_runtime_unpinned_overlay_width.assert_called_once_with(570)
 
     @patch("app.services.overlay_presenter.get_target_screen_rect", return_value=QRect(0, 0, 1920, 1080))
     @patch("app.services.overlay_presenter.clamp_overlay_size_to_screen", return_value=(500, 420))

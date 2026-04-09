@@ -205,6 +205,23 @@ class TranslationOverlayTests(unittest.TestCase):
         self.assertEqual(QApplication.clipboard().text(), "partial text")
         self.assertEqual(self.window.status_calls[-1], ("overlay_copied", {}))
 
+    def test_prime_first_show_warms_native_window_once_without_leaving_overlay_visible(self):
+        self.overlay.hide()
+
+        with patch.object(self.overlay, "show", wraps=self.overlay.show) as mock_show, patch.object(self.overlay, "hide", wraps=self.overlay.hide) as mock_hide:
+            self.assertTrue(self.overlay.prime_first_show())
+
+        self.assertFalse(self.overlay.isVisible())
+        self.assertTrue(self.overlay._first_show_primed)
+        mock_show.assert_called_once_with()
+        mock_hide.assert_called_once_with()
+
+        with patch.object(self.overlay, "show") as mock_show_again, patch.object(self.overlay, "hide") as mock_hide_again:
+            self.assertFalse(self.overlay.prime_first_show())
+
+        mock_show_again.assert_not_called()
+        mock_hide_again.assert_not_called()
+
     def test_show_text_partial_visible_update_skips_refresh_and_raise_when_overlay_is_already_visible(self):
         self.overlay.set_partial_result_state("streaming", preset_name="翻译")
 

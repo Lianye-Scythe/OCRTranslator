@@ -665,6 +665,34 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             return
         self._runtime_unpinned_overlay_width = None
 
+    def learn_runtime_unpinned_overlay_width(self, width: int, *, persist: bool = True) -> bool:
+        try:
+            next_width = int(width)
+        except (TypeError, ValueError):
+            return False
+        if next_width <= 0:
+            return False
+        overlay = getattr(self, "translation_overlay", None)
+        if overlay is not None and getattr(overlay, "is_pinned", False):
+            return False
+        if self._has_pending_overlay_width_form_change():
+            return False
+        if getattr(self, "_runtime_unpinned_overlay_width", None) is not None:
+            return False
+        config = getattr(self, "config", None)
+        if config is None or not hasattr(config, "overlay_unpinned_width"):
+            return False
+        if getattr(config, "overlay_unpinned_width", None) is not None:
+            return False
+
+        self._runtime_unpinned_overlay_width = next_width
+        config.overlay_unpinned_width = next_width
+
+        persist_runtime_state = getattr(self, "persist_runtime_overlay_state", None)
+        if persist and callable(persist_runtime_state):
+            return bool(persist_runtime_state())
+        return True
+
     def current_overlay_height(self) -> int:
         if hasattr(self, "overlay_height_spin"):
             return int(self.overlay_height_spin.value())

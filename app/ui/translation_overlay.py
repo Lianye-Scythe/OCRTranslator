@@ -129,6 +129,7 @@ class TranslationOverlay(QWidget):
         self._topbar_hovered = False
         self._drag_event_widgets = set()
         self._header_hover_widgets = set()
+        self._first_show_primed = False
         self.setup_ui()
         self.sync_last_geometry_from_pinned_config()
 
@@ -456,6 +457,21 @@ class TranslationOverlay(QWidget):
         if title_changed:
             self.title_label.setText(title_text)
         try:
+            for widget in (
+                self,
+                self.card,
+                self.header,
+                self.title_label,
+                self.pin_button,
+                self.opacity_down_button,
+                self.opacity_value_label,
+                self.opacity_up_button,
+                self.copy_button,
+                self.close_button,
+            ):
+                ensure_polished = getattr(widget, "ensurePolished", None)
+                if callable(ensure_polished):
+                    ensure_polished()
             if header_layout is not None:
                 header_layout.activate()
             if card_layout is not None:
@@ -668,6 +684,46 @@ class TranslationOverlay(QWidget):
             clear_focus_if_alive(widget)
         if self.isVisible():
             self.setFocus(Qt.OtherFocusReason)
+
+    def prime_first_show(self) -> bool:
+        if self._first_show_primed:
+            return False
+        if self.isVisible():
+            self._first_show_primed = True
+            return False
+
+        current_rect = QRect(self.geometry())
+        width = current_rect.width() if current_rect.width() > 0 else max(self.MIN_WIDTH, int(self.app_window.current_overlay_width() or self.MIN_WIDTH))
+        height = current_rect.height() if current_rect.height() > 0 else max(self.MIN_HEIGHT, int(self.app_window.current_overlay_height() or self.MIN_HEIGHT))
+        warmup_rect = QRect(-32000, -32000, int(width), int(height))
+        restore_rect = QRect(current_rect) if current_rect.width() > 0 and current_rect.height() > 0 else None
+        previous_opacity = float(self.windowOpacity())
+        had_show_without_activate = self.testAttribute(Qt.WA_ShowWithoutActivating)
+
+        try:
+            self.setAttribute(Qt.WA_ShowWithoutActivating, True)
+            self.setWindowOpacity(0.0)
+            self.setGeometry(warmup_rect)
+            self.show()
+            QApplication.processEvents()
+            return True
+        finally:
+            try:
+                self.hide()
+            except Exception:  # noqa: BLE001
+                pass
+            if restore_rect is not None:
+                try:
+                    self.setGeometry(restore_rect)
+                except Exception:  # noqa: BLE001
+                    pass
+            try:
+                self.setWindowOpacity(previous_opacity if previous_opacity > 0 else 1.0)
+            except Exception:  # noqa: BLE001
+                pass
+            self.setAttribute(Qt.WA_ShowWithoutActivating, had_show_without_activate)
+            self._set_topbar_hovered(False)
+            self._first_show_primed = True
 
     def _show_as_topmost(self):
         self.show()

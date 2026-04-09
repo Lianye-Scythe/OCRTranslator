@@ -10,6 +10,7 @@ from ..ui.overlay_positioning import (
     compute_overlay_position_for_point,
     fit_overlay_size,
     overlay_vertical_safe_margins,
+    preferred_overlay_width_for_bbox,
     get_screen_rect_for_point,
     get_target_screen_rect,
 )
@@ -103,6 +104,15 @@ class OverlayPresenter:
             return None
         return geometry
 
+    def _current_request_overlay_width(self) -> int | None:
+        width_getter = getattr(self.window, "current_request_overlay_width", None)
+        if not callable(width_getter):
+            return None
+        try:
+            return int(width_getter())
+        except Exception:  # noqa: BLE001
+            return None
+
     def _recompute_auto_position(self, overlay_config, *, bbox, anchor_point, width: int, height: int) -> tuple[int, int]:
         if bbox is not None:
             return compute_overlay_position(overlay_config, bbox, width, height)
@@ -134,6 +144,42 @@ class OverlayPresenter:
         set_geometry(QRect(corrected_rect))
         return corrected_rect
 
+    def _remember_auto_learned_unpinned_width(self, *, initial_planned_rect: QRect, final_rect: QRect, preserved_geometry, keep_manual_position: bool) -> None:
+        if preserved_geometry is not None or keep_manual_position:
+            return
+        if final_rect.width() <= max(0, initial_planned_rect.width()):
+            return
+        overlay = self.overlay
+        if getattr(overlay, "is_pinned", False) or getattr(overlay, "manual_positioned", False):
+            return
+        learner = getattr(self.window, "learn_runtime_unpinned_overlay_width", None)
+        if not callable(learner):
+            return
+        try:
+            learner(int(final_rect.width()))
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _should_seed_initial_unpinned_width(self, *, was_visible: bool, preserve_manual_position: bool, preserve_geometry: bool, locked_width: int | None) -> bool:
+        if was_visible or preserve_manual_position or preserve_geometry or locked_width is not None:
+            return False
+        overlay = self.overlay
+        if getattr(overlay, "is_pinned", False) or getattr(overlay, "manual_positioned", False):
+            return False
+        if getattr(self.window, "_runtime_unpinned_overlay_width", None) is not None:
+            return False
+        pending_width_change_getter = getattr(self.window, "_has_pending_overlay_width_form_change", None)
+        if callable(pending_width_change_getter):
+            try:
+                if pending_width_change_getter():
+                    return False
+            except Exception:  # noqa: BLE001
+                return False
+        config = getattr(self.window, "config", None)
+        if config is not None and getattr(config, "overlay_unpinned_width", None) is not None:
+            return False
+        return True
+
     def show_response(
         self,
         text: str,
@@ -151,15 +197,28 @@ class OverlayPresenter:
         text = text or self.window.tr("empty_result")
         was_visible = self.overlay.isVisible()
         had_partial_result = bool(partial and hasattr(self.overlay, "has_partial_result") and self.overlay.has_partial_result())
+        if not was_visible:
+            primer = getattr(self.overlay, "prime_first_show", None)
+            if callable(primer):
+                primer()
+
         overlay_config = self._overlay_config()
+        request_overlay_width = self._current_request_overlay_width()
         base_width = locked_width
+        if partial and hasattr(self.overlay, "set_partial_result_state"):
+            self.overlay.set_partial_result_state("streaming", preset_name=preset_name)
         if base_width is None:
-            width_getter = getattr(self.window, "current_request_overlay_width", None)
-            if callable(width_getter):
-                try:
-                    base_width = int(width_getter())
-                except Exception:  # noqa: BLE001
-                    base_width = None
+            base_width = request_overlay_width
+        elif request_overlay_width is not None:
+            base_width = max(int(base_width), request_overlay_width)
+        if partial and bbox is not None and self._should_seed_initial_unpinned_width(
+            was_visible=was_visible,
+            preserve_manual_position=preserve_manual_position,
+            preserve_geometry=preserve_geometry,
+            locked_width=locked_width,
+        ):
+            seeded_width = preferred_overlay_width_for_bbox(overlay_config, bbox)
+            base_width = max(int(base_width or 0), int(seeded_width))
         self.overlay.apply_typography()
 
         if partial and had_partial_result and was_visible:
@@ -250,8 +309,6 @@ class OverlayPresenter:
             else:
                 x, y = compute_overlay_position_for_point(overlay_config, anchor_point, width, height)
 
-        if partial and hasattr(self.overlay, "set_partial_result_state"):
-            self.overlay.set_partial_result_state("streaming", preset_name=preset_name)
         if not partial:
             self.overlay.remember_context(bbox, text, anchor_point=anchor_point, preset_name=preset_name)
         keep_manual_position = preserve_manual_position or bool(preserved_geometry and self.overlay.manual_positioned)
@@ -288,6 +345,13 @@ class OverlayPresenter:
                     keep_manual_position=keep_manual_position,
                     remember_state=not partial,
                 )
+        final_rect = QRect(self.overlay.geometry())
+        self._remember_auto_learned_unpinned_width(
+            initial_planned_rect=initial_planned_rect,
+            final_rect=final_rect,
+            preserved_geometry=preserved_geometry,
+            keep_manual_position=keep_manual_position,
+        )
         if hasattr(self.window, "toast_service"):
             self.window.toast_service.hide_message()
         diagnostic_phase = None

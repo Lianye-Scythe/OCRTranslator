@@ -46,6 +46,17 @@ def clamp_overlay_size_to_screen(config, translation_overlay, screen_rect: QRect
     return int(width), int(height)
 
 
+def preferred_overlay_width_for_bbox(config, bbox) -> int:
+    left, _top, right, _bottom = bbox
+    screen_rect = get_target_screen_rect(bbox)
+    margin = config.margin
+    screen_left = screen_rect.left()
+    screen_right = screen_rect.right()
+    left_space = max(240, left - screen_left - margin * 2)
+    right_space = max(240, screen_right - right - margin * 2)
+    return int(left_space if ((left + right) / 2) >= screen_rect.center().x() else right_space)
+
+
 def fit_overlay_size(config, translation_overlay, bbox, text: str, width: int, height: int) -> tuple[int, int]:
     left, top, right, bottom = bbox
     screen_rect = get_target_screen_rect(bbox)
@@ -56,9 +67,7 @@ def fit_overlay_size(config, translation_overlay, bbox, text: str, width: int, h
     screen_bottom = screen_rect.bottom()
 
     if config.mode == "book_lr":
-        left_space = max(240, left - screen_left - margin * 2)
-        right_space = max(240, screen_right - right - margin * 2)
-        preferred_width = left_space if ((left + right) / 2) >= screen_rect.center().x() else right_space
+        preferred_width = preferred_overlay_width_for_bbox(config, bbox)
         width = min(width, preferred_width)
     else:
         top_margin, bottom_margin = overlay_vertical_safe_margins(config)

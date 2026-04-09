@@ -84,6 +84,8 @@ class RequestWorkflowControllerTests(unittest.TestCase):
             ),
             current_selection_hotkey=lambda: "Shift+Win+C",
             current_temperature=lambda: 0.2,
+            current_mode=lambda: "book_lr",
+            current_margin=lambda: 18,
             current_overlay_width=lambda: 440,
             current_request_overlay_width=lambda: 440,
             api_client=SimpleNamespace(
@@ -91,6 +93,7 @@ class RequestWorkflowControllerTests(unittest.TestCase):
                 request_image_png=Mock(return_value="done"),
                 test_profile=Mock(return_value="OK | provider=openai | model=gpt-4o-mini | response=OK"),
             ),
+            config=SimpleNamespace(overlay_unpinned_width=None),
             set_status=Mock(),
             log_tr=Mock(),
             log=Mock(),
@@ -335,6 +338,24 @@ class RequestWorkflowControllerTests(unittest.TestCase):
         self.assertEqual(final_call.args[0], "Hello")
         self.assertEqual(final_call.kwargs["locked_width"], 440)
         self.assertNotIn("partial", final_call.kwargs)
+
+    @patch("app.services.request_workflow.preferred_overlay_width_for_bbox", return_value=565)
+    def test_stream_locked_width_for_bbox_seeds_first_capture_request_from_available_space(self, _mock_preferred_width):
+        window = self._build_window()
+        controller = RequestWorkflowController(window)
+
+        self.assertEqual(controller._stream_locked_width_for_bbox((600, 12, 1322, 1024)), 565)
+
+        window._runtime_unpinned_overlay_width = 620
+        self.assertEqual(controller._stream_locked_width_for_bbox((600, 12, 1322, 1024)), 440)
+
+        window._runtime_unpinned_overlay_width = None
+        window.config.overlay_unpinned_width = 620
+        self.assertEqual(controller._stream_locked_width_for_bbox((600, 12, 1322, 1024)), 440)
+
+        window.config.overlay_unpinned_width = None
+        window.current_mode = lambda: "web_ud"
+        self.assertEqual(controller._stream_locked_width_for_bbox((600, 12, 1322, 1024)), 440)
 
     def test_submit_text_request_coalesces_partial_updates_until_next_frame(self):
         window = self._build_window()

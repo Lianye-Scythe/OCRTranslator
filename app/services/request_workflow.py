@@ -1,4 +1,5 @@
 import time
+from types import SimpleNamespace
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QCursor
@@ -7,6 +8,7 @@ from PySide6.QtWidgets import QApplication
 from ..prompt_utils import build_image_request_prompt, build_text_request_prompt
 from ..profile_utils import normalize_model_value, unique_non_empty
 from ..operation_control import RequestCancelledError
+from ..ui.overlay_positioning import preferred_overlay_width_for_bbox
 
 SelectedTextCaptureSession = None
 PromptInputDialog = None
@@ -273,6 +275,36 @@ class RequestWorkflowController:
                 return int(width_getter())
             except Exception:  # noqa: BLE001
                 return None
+        return None
+
+    def _stream_locked_width_for_bbox(self, bbox) -> int | None:
+        locked_width = self._stream_locked_width()
+        if bbox is None:
+            return locked_width
+        current_mode = getattr(self.window, "current_mode", None)
+        if callable(current_mode):
+            try:
+                if str(current_mode() or "").strip() != "book_lr":
+                    return locked_width
+            except Exception:  # noqa: BLE001
+                return locked_width
+        config = getattr(self.window, "config", None)
+        if getattr(self.window, "_runtime_unpinned_overlay_width", None) is not None:
+            return locked_width
+        if config is not None and getattr(config, "overlay_unpinned_width", None) is not None:
+            return locked_width
+        pending_width_change_getter = getattr(self.window, "_has_pending_overlay_width_form_change", None)
+        if callable(pending_width_change_getter):
+            try:
+                if pending_width_change_getter():
+                    return locked_width
+            except Exception:  # noqa: BLE001
+                return locked_width
+        overlay_config = SimpleNamespace(mode="book_lr", margin=self.window.current_margin())
+        try:
+            return max(int(locked_width or 0), preferred_overlay_width_for_bbox(overlay_config, bbox))
+        except Exception:  # noqa: BLE001
+            return locked_width
         return None
 
     def _queue_streaming_response_update(self, payload: dict) -> None:
@@ -712,7 +744,7 @@ class RequestWorkflowController:
         overlay = self._existing_translation_overlay()
         stream_enabled = bool(getattr(self.window, "current_stream_responses", lambda: True)())
         stream_request_token = self._begin_streaming_response_update_state() if stream_enabled else None
-        stream_locked_width = self._stream_locked_width() if stream_enabled else None
+        stream_locked_width = self._stream_locked_width_for_bbox(bbox) if stream_enabled else None
         self._handle_capture_ready(png_bytes)
 
         stream_callback = None
