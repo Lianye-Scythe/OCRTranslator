@@ -93,7 +93,7 @@ class RequestWorkflowControllerTests(unittest.TestCase):
                 request_image_png=Mock(return_value="done"),
                 test_profile=Mock(return_value="OK | provider=openai | model=gpt-4o-mini | response=OK"),
             ),
-            config=SimpleNamespace(overlay_unpinned_width=None),
+            config=SimpleNamespace(overlay_unpinned_width=None, overlay_unpinned_width_source=""),
             set_status=Mock(),
             log_tr=Mock(),
             log=Mock(),
@@ -346,12 +346,17 @@ class RequestWorkflowControllerTests(unittest.TestCase):
 
         self.assertEqual(controller._stream_locked_width_for_bbox((600, 12, 1322, 1024)), 565)
 
+        window._runtime_auto_unpinned_overlay_width = 620
+        self.assertEqual(controller._stream_locked_width_for_bbox((600, 12, 1322, 1024)), 620)
+
+        window._runtime_auto_unpinned_overlay_width = None
         window._runtime_unpinned_overlay_width = 620
         self.assertEqual(controller._stream_locked_width_for_bbox((600, 12, 1322, 1024)), 440)
 
         window._runtime_unpinned_overlay_width = None
         window.config.overlay_unpinned_width = 620
-        self.assertEqual(controller._stream_locked_width_for_bbox((600, 12, 1322, 1024)), 440)
+        window.config.overlay_unpinned_width_source = "manual"
+        self.assertEqual(controller._stream_locked_width_for_bbox((600, 12, 1322, 1024)), 565)
 
         window.config.overlay_unpinned_width = None
         window.current_mode = lambda: "web_ud"

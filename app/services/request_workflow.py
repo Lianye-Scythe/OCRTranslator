@@ -288,10 +288,7 @@ class RequestWorkflowController:
                     return locked_width
             except Exception:  # noqa: BLE001
                 return locked_width
-        config = getattr(self.window, "config", None)
         if getattr(self.window, "_runtime_unpinned_overlay_width", None) is not None:
-            return locked_width
-        if config is not None and getattr(config, "overlay_unpinned_width", None) is not None:
             return locked_width
         pending_width_change_getter = getattr(self.window, "_has_pending_overlay_width_form_change", None)
         if callable(pending_width_change_getter):
@@ -300,9 +297,14 @@ class RequestWorkflowController:
                     return locked_width
             except Exception:  # noqa: BLE001
                 return locked_width
+        auto_width = getattr(self.window, "_runtime_auto_unpinned_overlay_width", None)
+        try:
+            auto_width = int(auto_width) if auto_width is not None else None
+        except (TypeError, ValueError):
+            auto_width = None
         overlay_config = SimpleNamespace(mode="book_lr", margin=self.window.current_margin())
         try:
-            return max(int(locked_width or 0), preferred_overlay_width_for_bbox(overlay_config, bbox))
+            return max(int(locked_width or 0), int(auto_width or 0), preferred_overlay_width_for_bbox(overlay_config, bbox))
         except Exception:  # noqa: BLE001
             return locked_width
         return None

@@ -59,6 +59,8 @@ def _default_prompt_preset() -> PromptPreset:
 
 def _config_to_dict(config: AppConfig) -> dict:
     data = asdict(config)
+    data["overlay_unpinned_width"] = None
+    data["overlay_unpinned_width_source"] = ""
     data["api_profiles"] = [asdict(profile) for profile in config.api_profiles]
     data["prompt_presets"] = [asdict(preset) for preset in config.prompt_presets]
     return data
@@ -274,7 +276,8 @@ def _migrate_legacy_config(data: dict) -> AppConfig:
         overlay_pinned_y=_coerce_optional_int(source.get("overlay_pinned_y")),
         overlay_pinned_width=_coerce_optional_int(source.get("overlay_pinned_width"), min_value=240, max_value=1600),
         overlay_pinned_height=_coerce_optional_int(source.get("overlay_pinned_height"), min_value=220, max_value=1600),
-        overlay_unpinned_width=_coerce_optional_int(source.get("overlay_unpinned_width"), min_value=240, max_value=1600),
+        overlay_unpinned_width=None,
+        overlay_unpinned_width_source="",
         close_to_tray_on_close=_coerce_bool(source.get("close_to_tray_on_close", False), False),
         active_profile_name=_normalize_active_profile_name(profiles, str(source.get("active_profile_name", "")).strip() or None),
         active_prompt_preset_name=_normalize_active_prompt_preset_name(

@@ -152,7 +152,7 @@ class OverlayPresenter:
         overlay = self.overlay
         if getattr(overlay, "is_pinned", False) or getattr(overlay, "manual_positioned", False):
             return
-        learner = getattr(self.window, "learn_runtime_unpinned_overlay_width", None)
+        learner = getattr(self.window, "learn_runtime_auto_unpinned_overlay_width", None)
         if not callable(learner):
             return
         try:
@@ -175,9 +175,6 @@ class OverlayPresenter:
                     return False
             except Exception:  # noqa: BLE001
                 return False
-        config = getattr(self.window, "config", None)
-        if config is not None and getattr(config, "overlay_unpinned_width", None) is not None:
-            return False
         return True
 
     def show_response(

@@ -21,6 +21,7 @@
   "overlay_opacity": 95,
   "overlay_pinned": false,
   "overlay_unpinned_width": null,
+  "overlay_unpinned_width_source": "",
   "close_to_tray_on_close": false,
   "active_profile_name": "Default Gemini",
   "active_prompt_preset_name": "翻譯 (Translate)",

@@ -353,37 +353,52 @@ class MainWindowRuntimeTests(unittest.TestCase):
 
     def test_current_request_overlay_width_prefers_runtime_unpinned_override(self):
         window = MainWindow.__new__(MainWindow)
-        window.config = SimpleNamespace(overlay_width=440, overlay_unpinned_width=560)
+        window.config = SimpleNamespace(overlay_width=440, overlay_unpinned_width=560, overlay_unpinned_width_source="manual")
         window.overlay_width_spin = _ValueWidget(440)
         window._runtime_unpinned_overlay_width = 620
 
         self.assertEqual(window.current_request_overlay_width(), 620)
 
-    def test_sync_runtime_unpinned_overlay_width_from_config_restores_saved_override(self):
+    def test_sync_runtime_unpinned_overlay_width_from_config_preserves_existing_runtime_widths(self):
         window = MainWindow.__new__(MainWindow)
-        window.config = SimpleNamespace(overlay_unpinned_width=620)
-        window._runtime_unpinned_overlay_width = None
+        window.config = SimpleNamespace(overlay_unpinned_width=620, overlay_unpinned_width_source="manual")
+        window._runtime_unpinned_overlay_width = 610
+        window._runtime_auto_unpinned_overlay_width = 700
 
         window.sync_runtime_unpinned_overlay_width_from_config()
 
-        self.assertEqual(window._runtime_unpinned_overlay_width, 620)
+        self.assertEqual(window._runtime_unpinned_overlay_width, 610)
+        self.assertEqual(window._runtime_auto_unpinned_overlay_width, 700)
+
+    def test_sync_runtime_unpinned_overlay_width_from_config_ignores_legacy_non_manual_source(self):
+        window = MainWindow.__new__(MainWindow)
+        window.config = SimpleNamespace(overlay_unpinned_width=620, overlay_unpinned_width_source="")
+        window._runtime_unpinned_overlay_width = 700
+        window._runtime_auto_unpinned_overlay_width = 710
+
+        window.sync_runtime_unpinned_overlay_width_from_config()
+
+        self.assertEqual(window._runtime_unpinned_overlay_width, 700)
+        self.assertEqual(window._runtime_auto_unpinned_overlay_width, 710)
 
     def test_handle_overlay_width_setting_changed_clears_runtime_unpinned_width_override(self):
         window = MainWindow.__new__(MainWindow)
         window._suppress_form_tracking = False
-        window.config = SimpleNamespace(overlay_width=440, overlay_unpinned_width=620)
+        window.config = SimpleNamespace(overlay_width=440, overlay_unpinned_width=620, overlay_unpinned_width_source="manual")
         window.overlay_width_spin = _ValueWidget(500)
         window._runtime_unpinned_overlay_width = 620
+        window._runtime_auto_unpinned_overlay_width = 700
 
         window.handle_overlay_width_setting_changed()
 
         self.assertIsNone(window._runtime_unpinned_overlay_width)
+        self.assertIsNone(window._runtime_auto_unpinned_overlay_width)
         self.assertEqual(window.config.overlay_unpinned_width, 620)
 
     def test_current_request_overlay_width_ignores_saved_unpinned_override_while_overlay_width_change_is_unsaved(self):
         window = MainWindow.__new__(MainWindow)
         window._suppress_form_tracking = False
-        window.config = SimpleNamespace(overlay_width=440, overlay_unpinned_width=620)
+        window.config = SimpleNamespace(overlay_width=440, overlay_unpinned_width=620, overlay_unpinned_width_source="manual")
         window.overlay_width_spin = _ValueWidget(500)
         window._runtime_unpinned_overlay_width = 620
 
@@ -391,72 +406,95 @@ class MainWindowRuntimeTests(unittest.TestCase):
 
         self.assertEqual(window.current_request_overlay_width(), 500)
 
+    def test_current_request_overlay_width_ignores_saved_unpinned_width_without_manual_source(self):
+        window = MainWindow.__new__(MainWindow)
+        window._suppress_form_tracking = False
+        window.config = SimpleNamespace(overlay_width=440, overlay_unpinned_width=620, overlay_unpinned_width_source="")
+        window.overlay_width_spin = _ValueWidget(440)
+
+        self.assertEqual(window.current_request_overlay_width(), 440)
+
     def test_handle_overlay_width_setting_changed_ignores_suppressed_form_updates(self):
         window = MainWindow.__new__(MainWindow)
         window._suppress_form_tracking = True
-        window.config = SimpleNamespace(overlay_width=440, overlay_unpinned_width=620)
+        window.config = SimpleNamespace(overlay_width=440, overlay_unpinned_width=620, overlay_unpinned_width_source="manual")
         window.overlay_width_spin = _ValueWidget(500)
         window._runtime_unpinned_overlay_width = 620
+        window._runtime_auto_unpinned_overlay_width = 700
 
         window.handle_overlay_width_setting_changed()
 
         self.assertEqual(window._runtime_unpinned_overlay_width, 620)
+        self.assertEqual(window._runtime_auto_unpinned_overlay_width, 700)
         self.assertEqual(window.config.overlay_unpinned_width, 620)
 
-    def test_learn_runtime_unpinned_overlay_width_seeds_missing_saved_override_and_persists(self):
+    def test_learn_runtime_auto_unpinned_overlay_width_tracks_session_only_seed(self):
         window = MainWindow.__new__(MainWindow)
         window._suppress_form_tracking = False
-        window.config = SimpleNamespace(overlay_width=440, overlay_unpinned_width=None)
+        window.config = SimpleNamespace(overlay_width=440, overlay_unpinned_width=None, overlay_unpinned_width_source="")
         window.overlay_width_spin = _ValueWidget(440)
         window.translation_overlay = SimpleNamespace(is_pinned=False)
         window._runtime_unpinned_overlay_width = None
-        window.persist_runtime_overlay_state = Mock(return_value=True)
+        window._runtime_auto_unpinned_overlay_width = None
 
-        self.assertTrue(window.learn_runtime_unpinned_overlay_width(570))
-        self.assertEqual(window._runtime_unpinned_overlay_width, 570)
-        self.assertEqual(window.config.overlay_unpinned_width, 570)
-        window.persist_runtime_overlay_state.assert_called_once_with()
-
-    def test_learn_runtime_unpinned_overlay_width_does_not_override_existing_saved_override(self):
-        window = MainWindow.__new__(MainWindow)
-        window._suppress_form_tracking = False
-        window.config = SimpleNamespace(overlay_width=440, overlay_unpinned_width=620)
-        window.overlay_width_spin = _ValueWidget(440)
-        window.translation_overlay = SimpleNamespace(is_pinned=False)
-        window._runtime_unpinned_overlay_width = None
-        window.persist_runtime_overlay_state = Mock(return_value=True)
-
-        self.assertFalse(window.learn_runtime_unpinned_overlay_width(570))
+        self.assertTrue(window.learn_runtime_auto_unpinned_overlay_width(570))
+        self.assertEqual(window._runtime_auto_unpinned_overlay_width, 570)
         self.assertIsNone(window._runtime_unpinned_overlay_width)
-        self.assertEqual(window.config.overlay_unpinned_width, 620)
-        window.persist_runtime_overlay_state.assert_not_called()
+        self.assertIsNone(window.config.overlay_unpinned_width)
 
-    def test_learn_runtime_unpinned_overlay_width_ignores_unsaved_overlay_width_changes(self):
+    def test_learn_runtime_auto_unpinned_overlay_width_is_monotonic_within_session(self):
         window = MainWindow.__new__(MainWindow)
         window._suppress_form_tracking = False
-        window.config = SimpleNamespace(overlay_width=440, overlay_unpinned_width=None)
+        window.config = SimpleNamespace(overlay_width=440, overlay_unpinned_width=None, overlay_unpinned_width_source="")
+        window.overlay_width_spin = _ValueWidget(440)
+        window.translation_overlay = SimpleNamespace(is_pinned=False)
+        window._runtime_unpinned_overlay_width = None
+        window._runtime_auto_unpinned_overlay_width = 560
+
+        self.assertFalse(window.learn_runtime_auto_unpinned_overlay_width(540))
+        self.assertEqual(window._runtime_auto_unpinned_overlay_width, 560)
+        self.assertTrue(window.learn_runtime_auto_unpinned_overlay_width(620))
+        self.assertEqual(window._runtime_auto_unpinned_overlay_width, 620)
+
+    def test_learn_runtime_auto_unpinned_overlay_width_does_not_override_existing_runtime_manual_override(self):
+        window = MainWindow.__new__(MainWindow)
+        window._suppress_form_tracking = False
+        window.config = SimpleNamespace(overlay_width=440, overlay_unpinned_width=620, overlay_unpinned_width_source="manual")
+        window.overlay_width_spin = _ValueWidget(440)
+        window.translation_overlay = SimpleNamespace(is_pinned=False)
+        window._runtime_unpinned_overlay_width = 620
+        window._runtime_auto_unpinned_overlay_width = None
+
+        self.assertFalse(window.learn_runtime_auto_unpinned_overlay_width(570))
+        self.assertIsNone(window._runtime_auto_unpinned_overlay_width)
+        self.assertEqual(window.config.overlay_unpinned_width, 620)
+
+    def test_learn_runtime_auto_unpinned_overlay_width_ignores_unsaved_overlay_width_changes(self):
+        window = MainWindow.__new__(MainWindow)
+        window._suppress_form_tracking = False
+        window.config = SimpleNamespace(overlay_width=440, overlay_unpinned_width=None, overlay_unpinned_width_source="")
         window.overlay_width_spin = _ValueWidget(500)
         window.translation_overlay = SimpleNamespace(is_pinned=False)
         window._runtime_unpinned_overlay_width = None
-        window.persist_runtime_overlay_state = Mock(return_value=True)
+        window._runtime_auto_unpinned_overlay_width = None
 
-        self.assertFalse(window.learn_runtime_unpinned_overlay_width(570))
-        self.assertIsNone(window._runtime_unpinned_overlay_width)
+        self.assertFalse(window.learn_runtime_auto_unpinned_overlay_width(570))
+        self.assertIsNone(window._runtime_auto_unpinned_overlay_width)
         self.assertIsNone(window.config.overlay_unpinned_width)
-        window.persist_runtime_overlay_state.assert_not_called()
 
     def test_handle_overlay_resized_tracks_and_persists_runtime_unpinned_width(self):
         window = MainWindow.__new__(MainWindow)
-        window.config = SimpleNamespace(overlay_width=440, overlay_height=520, overlay_unpinned_width=None)
+        window.config = SimpleNamespace(overlay_width=440, overlay_height=520, overlay_unpinned_width=None, overlay_unpinned_width_source="")
         window.translation_overlay = SimpleNamespace(is_pinned=False)
         window.persist_runtime_overlay_state = Mock()
         window.handle_error = Mock()
         window.set_status = Mock()
+        window._runtime_auto_unpinned_overlay_width = 700
 
         window.handle_overlay_resized(900, 640)
 
         self.assertEqual(window._runtime_unpinned_overlay_width, 900)
-        self.assertEqual(window.config.overlay_unpinned_width, 900)
+        self.assertIsNone(window._runtime_auto_unpinned_overlay_width)
         window.persist_runtime_overlay_state.assert_called_once_with()
         window.set_status.assert_called_once_with("overlay_resized", width=900, height=640)
 
@@ -476,7 +514,7 @@ class MainWindowRuntimeTests(unittest.TestCase):
 
     def test_handle_overlay_resized_does_not_overwrite_default_overlay_size_when_unpinned(self):
         window = MainWindow.__new__(MainWindow)
-        window.config = SimpleNamespace(overlay_width=440, overlay_height=520, overlay_unpinned_width=None)
+        window.config = SimpleNamespace(overlay_width=440, overlay_height=520, overlay_unpinned_width=None, overlay_unpinned_width_source="")
         window.translation_overlay = SimpleNamespace(is_pinned=False, persist_current_geometry_as_pinned=Mock())
         window.persist_runtime_overlay_state = Mock()
         window.handle_error = Mock()
@@ -488,7 +526,8 @@ class MainWindowRuntimeTests(unittest.TestCase):
 
         self.assertEqual(window.config.overlay_width, 440)
         self.assertEqual(window.config.overlay_height, 520)
-        self.assertEqual(window.config.overlay_unpinned_width, 900)
+        self.assertIsNone(window.config.overlay_unpinned_width)
+        self.assertEqual(window.config.overlay_unpinned_width_source, "")
         window.translation_overlay.persist_current_geometry_as_pinned.assert_not_called()
         window.persist_runtime_overlay_state.assert_called_once_with()
         window.overlay_width_spin.setValue.assert_not_called()
@@ -497,7 +536,7 @@ class MainWindowRuntimeTests(unittest.TestCase):
 
     def test_handle_overlay_resized_persists_pinned_geometry_without_touching_default_size(self):
         window = MainWindow.__new__(MainWindow)
-        window.config = SimpleNamespace(overlay_width=440, overlay_height=520, overlay_unpinned_width=700)
+        window.config = SimpleNamespace(overlay_width=440, overlay_height=520, overlay_unpinned_width=700, overlay_unpinned_width_source="manual")
         window.translation_overlay = SimpleNamespace(is_pinned=True, persist_current_geometry_as_pinned=Mock())
         window.persist_runtime_overlay_state = Mock()
         window.handle_error = Mock()

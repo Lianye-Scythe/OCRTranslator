@@ -66,6 +66,7 @@ class AppConfig:
     overlay_pinned_width: int | None = None
     overlay_pinned_height: int | None = None
     overlay_unpinned_width: int | None = None
+    overlay_unpinned_width_source: str = ""
     close_to_tray_on_close: bool = False
     active_profile_name: str = "Default Gemini"
     active_prompt_preset_name: str = DEFAULT_PROMPT_PRESET_DEFINITIONS[0]["name"]

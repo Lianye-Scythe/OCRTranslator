@@ -219,6 +219,7 @@ class SettingsServiceTests(unittest.TestCase):
         base_config = AppConfig(
             overlay_width=440,
             overlay_unpinned_width=620,
+            overlay_unpinned_width_source="manual",
             active_profile_name="Default Gemini",
             active_prompt_preset_name="翻譯 (Translate)",
             api_profiles=[ApiProfile(name="Default Gemini", provider="gemini", base_url="https://generativelanguage.googleapis.com", api_keys=["legacy"], model="models/gemini-1.5-flash")],
@@ -234,6 +235,7 @@ class SettingsServiceTests(unittest.TestCase):
         )
 
         self.assertIsNone(candidate_config.overlay_unpinned_width)
+        self.assertEqual(candidate_config.overlay_unpinned_width_source, "")
 
 
 if __name__ == "__main__":

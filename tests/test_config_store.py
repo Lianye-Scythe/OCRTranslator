@@ -3,7 +3,7 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
-from app.config_store import _migrate_legacy_config, load_config
+from app.config_store import _migrate_legacy_config, load_config, save_config
 
 
 class ConfigStoreMigrationTests(unittest.TestCase):
@@ -137,7 +137,25 @@ class ConfigStoreMigrationTests(unittest.TestCase):
 
         self.assertFalse(config.overlay_pinned)
 
-    def test_migrate_overlay_unpinned_width_accepts_and_clamps_optional_value(self):
+    def test_migrate_overlay_unpinned_width_accepts_and_clamps_manual_value(self):
+        config = _migrate_legacy_config(
+            {
+                "overlay_unpinned_width": "10000",
+                "overlay_unpinned_width_source": "manual",
+                "api_profiles": [
+                    {
+                        "name": "Default Gemini",
+                        "provider": "gemini",
+                        "api_keys": ["demo-key"],
+                    }
+                ],
+            }
+        )
+
+        self.assertIsNone(config.overlay_unpinned_width)
+        self.assertEqual(config.overlay_unpinned_width_source, "")
+
+    def test_migrate_legacy_overlay_unpinned_width_without_manual_source_is_ignored(self):
         config = _migrate_legacy_config(
             {
                 "overlay_unpinned_width": "10000",
@@ -151,7 +169,22 @@ class ConfigStoreMigrationTests(unittest.TestCase):
             }
         )
 
-        self.assertEqual(config.overlay_unpinned_width, 1600)
+        self.assertIsNone(config.overlay_unpinned_width)
+        self.assertEqual(config.overlay_unpinned_width_source, "")
+
+    def test_save_config_does_not_persist_overlay_unpinned_width(self):
+        with TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.json"
+            config = _migrate_legacy_config({})
+            config.overlay_unpinned_width = 620
+            config.overlay_unpinned_width_source = "manual"
+
+            save_config(config, path=config_path)
+
+            saved = config_path.read_text(encoding="utf-8")
+
+        self.assertIn('"overlay_unpinned_width": null', saved)
+        self.assertIn('"overlay_unpinned_width_source": ""', saved)
 
 
     def test_migrate_zero_overlay_opacity_is_clamped_to_one(self):

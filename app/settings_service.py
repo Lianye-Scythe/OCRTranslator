@@ -242,6 +242,7 @@ def build_candidate_config(
     candidate_config.overlay_width = int(snapshot.overlay_width)
     if int(snapshot.overlay_width) != int(getattr(base_config, "overlay_width", candidate_config.overlay_width)):
         candidate_config.overlay_unpinned_width = None
+        candidate_config.overlay_unpinned_width_source = ""
     candidate_config.overlay_height = int(snapshot.overlay_height)
     candidate_config.margin = int(snapshot.overlay_margin)
     candidate_config.overlay_auto_expand_top_margin = int(snapshot.overlay_auto_expand_top_margin)

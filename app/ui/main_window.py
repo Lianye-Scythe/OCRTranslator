@@ -116,6 +116,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self._test_profile_request_id = 0
         self.pending_capture_profile = None
         self._runtime_unpinned_overlay_width = None
+        self._runtime_auto_unpinned_overlay_width = None
         self.pending_capture_target_language = self.config.target_language
         self.pending_capture_prompt_preset = None
         self.capture_desktop_snapshot = None
@@ -637,12 +638,16 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             return False
 
     def sync_runtime_unpinned_overlay_width_from_config(self):
-        config = getattr(self, "config", None)
-        value = getattr(config, "overlay_unpinned_width", None) if config is not None else None
+        runtime_unpinned_width = getattr(self, "_runtime_unpinned_overlay_width", None)
         try:
-            self._runtime_unpinned_overlay_width = int(value) if value is not None else None
+            self._runtime_unpinned_overlay_width = int(runtime_unpinned_width) if runtime_unpinned_width is not None else None
         except (TypeError, ValueError):
             self._runtime_unpinned_overlay_width = None
+        runtime_auto_unpinned_width = getattr(self, "_runtime_auto_unpinned_overlay_width", None)
+        try:
+            self._runtime_auto_unpinned_overlay_width = int(runtime_auto_unpinned_width) if runtime_auto_unpinned_width is not None else None
+        except (TypeError, ValueError):
+            self._runtime_auto_unpinned_overlay_width = None
 
     def current_request_overlay_width(self) -> int:
         runtime_override = getattr(self, "_runtime_unpinned_overlay_width", None)
@@ -651,21 +656,15 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
                 return int(runtime_override)
         except (TypeError, ValueError):
             pass
-        if not self._has_pending_overlay_width_form_change():
-            saved_override = getattr(getattr(self, "config", None), "overlay_unpinned_width", None)
-            try:
-                if saved_override is not None:
-                    return int(saved_override)
-            except (TypeError, ValueError):
-                pass
         return self.current_overlay_width()
 
     def handle_overlay_width_setting_changed(self, _value=None):
         if getattr(self, "_suppress_form_tracking", False):
             return
         self._runtime_unpinned_overlay_width = None
+        self._runtime_auto_unpinned_overlay_width = None
 
-    def learn_runtime_unpinned_overlay_width(self, width: int, *, persist: bool = True) -> bool:
+    def learn_runtime_auto_unpinned_overlay_width(self, width: int) -> bool:
         try:
             next_width = int(width)
         except (TypeError, ValueError):
@@ -679,18 +678,16 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             return False
         if getattr(self, "_runtime_unpinned_overlay_width", None) is not None:
             return False
-        config = getattr(self, "config", None)
-        if config is None or not hasattr(config, "overlay_unpinned_width"):
-            return False
-        if getattr(config, "overlay_unpinned_width", None) is not None:
+        current_auto_width = getattr(self, "_runtime_auto_unpinned_overlay_width", None)
+        try:
+            current_auto_width = int(current_auto_width) if current_auto_width is not None else None
+        except (TypeError, ValueError):
+            current_auto_width = None
+        next_width = max(next_width, current_auto_width or 0)
+        if current_auto_width == next_width:
             return False
 
-        self._runtime_unpinned_overlay_width = next_width
-        config.overlay_unpinned_width = next_width
-
-        persist_runtime_state = getattr(self, "persist_runtime_overlay_state", None)
-        if persist and callable(persist_runtime_state):
-            return bool(persist_runtime_state())
+        self._runtime_auto_unpinned_overlay_width = next_width
         return True
 
     def current_overlay_height(self) -> int:
@@ -885,9 +882,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
                 self.persist_runtime_overlay_state()
             elif overlay is not None:
                 self._runtime_unpinned_overlay_width = int(width)
-                config = getattr(self, "config", None)
-                if config is not None and hasattr(config, "overlay_unpinned_width"):
-                    config.overlay_unpinned_width = int(width)
+                self._runtime_auto_unpinned_overlay_width = None
                 self.persist_runtime_overlay_state()
         except Exception as exc:  # noqa: BLE001
             self.handle_error(exc)

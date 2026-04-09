@@ -426,7 +426,7 @@ class OverlayPresenterTests(unittest.TestCase):
         overlay.minimum_runtime_width = 570
         window.translation_overlay = overlay
         presenter = OverlayPresenter(window)
-        window.learn_runtime_unpinned_overlay_width = Mock(return_value=True)
+        window.learn_runtime_auto_unpinned_overlay_width = Mock(return_value=True)
 
         presenter.show_response(
             "partial",
@@ -448,7 +448,7 @@ class OverlayPresenterTests(unittest.TestCase):
         self.assertEqual(len(diagnostic_messages), 2)
         self.assertIn("initial_planned=146,42,440x520", diagnostic_messages[0])
         self.assertIn("corrected=18,42,570x520", diagnostic_messages[0])
-        window.learn_runtime_unpinned_overlay_width.assert_called_once_with(570)
+        window.learn_runtime_auto_unpinned_overlay_width.assert_called_once_with(570)
 
     @patch("app.services.overlay_presenter.get_target_screen_rect", return_value=QRect(0, 0, 1920, 1080))
     @patch("app.services.overlay_presenter.clamp_overlay_size_to_screen", return_value=(500, 420))
