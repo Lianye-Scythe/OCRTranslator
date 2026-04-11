@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml/badge.svg)](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D6)](packaging.en.md)
-[![Release](https://img.shields.io/badge/release-v1.0.8-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
+[![Release](https://img.shields.io/badge/release-v1.0.9-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
 [![License](https://img.shields.io/badge/license-GPLv3-4F46E5)](../LICENSE)
 
 OCRTranslator is a **portable OCR / AI request tool** built around **desktop reading workflows**.
@@ -52,6 +52,7 @@ If you want a quick feel for the product first, start with the current main-wind
 - Multiple API profiles for `Gemini Compatible` and `OpenAI Compatible` providers
 - API key rotation, retry, and model-switching support
 - Stream responses are enabled by default and can be disabled in Advanced Settings; `Test API` now uses the same mode so backend behavior is easier to validate before saving
+- The manual-input dialog can now override the target language for a single request, offers common-language suggestions, and remembers the last manual-input language
 - Third-party compatible backends can surface an explicit status hint and retry without streaming when stream mode is unsupported; interrupted streams also keep visible partial results with state labels
 - A workflow-first settings layout: `Connection and model → Translation workflow → Appearance and advanced`
 - In-app selected text now prefers a direct read from the current focused widget's text selection; only when no usable in-app selection exists does it fall back to the system clipboard capture path
@@ -176,6 +177,7 @@ You can start requests from:
 - `Open Input Box` in the main window
 - the selected-text hotkey
 - the capture / input-box tray entries
+- the manual-input dialog can override the target language for the current request, even when the settings-page target-language field is temporarily blank
 - the corresponding global hotkeys
 - the selected-text hotkey no longer blocks the main window while capture is in progress, and `Cancel Action` can stop it before request submission completes
 - the `--capture` startup argument
@@ -229,6 +231,7 @@ Typical contents include:
 
 - active API / prompt preset selections
 - UI language, target language, theme mode, and hotkeys
+- the last target language used by the manual-input workflow
 - overlay font, opacity, default size, and pinned geometry
 
 > `config.json` may contain API keys and private base URLs. Do not share it directly.

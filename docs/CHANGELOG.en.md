@@ -6,6 +6,22 @@ This file records important OCRTranslator changes.
 
 ## [Unreleased]
 
+## [1.0.9] - 2026-04-11
+
+### Added
+- The manual-input dialog now includes its own editable target-language field with common-language suggestions, and it remembers the last manual-input target language so the same API profile can be reused across different output languages more comfortably
+
+### Changed
+- Manual-input requests now use the target language chosen inside the dialog as the final value for that text request instead of always inheriting the settings-page `Target Language`
+- The `manual input` validation scope now requires only the API / model / text-prompt essentials; even if the settings-page `Target Language` is blank, the dialog can still open and the per-request language can be filled in there
+- `config.json` / `config.example.json` now persist `manual_input_target_language`, allowing the manual-input workflow to keep the most recently used language across app restarts
+
+### Fixed
+- Fixed Gemini Compatible requests missing `contents[0].role = "user"` on stricter compatible backends. `Test API`, text requests, and image requests now work correctly against third-party endpoints that require the full Gemini request schema instead of failing with `HTTP 422`
+
+### Test
+- Added regression coverage for the Gemini Compatible `role` field, manual-input target-language override / persistence / suggestions, and the `manual_input` validation scope
+
 ## [1.0.8] - 2026-04-09
 
 ### Changed

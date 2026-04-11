@@ -6,6 +6,22 @@
 
 ## [Unreleased]
 
+## [1.0.9] - 2026-04-11
+
+### Added
+- 手动输入窗口新增可独立编辑的目标语言字段，支持常用语言建议列表，并会记住上一次手动输入使用的目标语言，方便在同一个 API Profile 下反复切换不同输出语言
+
+### Changed
+- 手动输入流程改为以对话框内的目标语言作为本次文本请求的最终值，不再强制跟随设置页中的 `Target Language`
+- `manual input` 验证范围调整为只要求 API / Model / Text Prompt 等必要字段；即使设置页的 `Target Language` 为空，也可以先打开输入框，再在对话框内补齐本次语言
+- `config.json` / `config.example.json` 现在会保存 `manual_input_target_language`，让手动输入工作流可以跨重启沿用最近一次使用的语言
+
+### Fixed
+- 修复 Gemini Compatible 请求在严格兼容后端上缺少 `contents[0].role = "user"` 的问题；`Test API`、文本请求与图片请求现在可以正确通过需要完整 Gemini schema 的第三方端点，不再因为 `HTTP 422` 失败
+
+### Test
+- 补上 Gemini Compatible `role` 字段、手动输入目标语言覆盖 / 持久化 / 建议列表，以及 `manual_input` 验证范围的回归测试
+
 ## [1.0.8] - 2026-04-09
 
 ### Changed

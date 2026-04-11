@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml/badge.svg)](https://github.com/Lianye-Scythe/OCRTranslator/actions/workflows/ci.yml)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D6)](docs/packaging.md)
-[![Release](https://img.shields.io/badge/release-v1.0.8-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
+[![Release](https://img.shields.io/badge/release-v1.0.9-2563EB)](https://github.com/Lianye-Scythe/OCRTranslator/releases)
 [![License](https://img.shields.io/badge/license-GPLv3-4F46E5)](LICENSE)
 
 OCRTranslator 是一款以 **桌面即時閱讀** 為核心的 **便攜式 OCR / AI 請求工具**。
@@ -52,6 +52,7 @@ OCRTranslator 是一款以 **桌面即時閱讀** 為核心的 **便攜式 OCR /
 - 支援多個 API Profile，可接入 `Gemini Compatible` / `OpenAI Compatible`
 - 支援多 Key 輪替、失敗重試與模型切換
 - 流式回應預設啟用，可在進階設定中關閉；`Test API` 也會沿用相同模式驗證實際後端行為
+- 手動輸入視窗現在可為單次請求單獨指定目標語言，支援常用語言建議，且會記住上一次手動輸入使用的語言
 - 第三方 Compatible 後端若不支援流式，會提示目前狀態並自動回退為非流式；流式中斷時也會保留部分結果與狀態標記
 - 設定頁採用「連線與模型 → 翻譯方式與快捷鍵 → 介面與進階」三段式流程，較容易完成首次配置
 - 應用內選取文字現在會優先直接讀取目前焦點控件的文字選區；若沒有可用的應用內選字，才回退到原本的系統剪貼簿擷取路徑
@@ -184,6 +185,7 @@ python -m app.main --capture
 - 主畫面的 `Open Input Box`
 - 選取文字快捷鍵
 - 托盤選單中的截圖 / 輸入框入口
+- 手動輸入對話框可直接覆寫本次請求的目標語言；若主設定欄位暫時留白，也能先打開輸入框後再填寫
 - 對應的全域快捷鍵
 - 選取文字快捷鍵在擷取期間不會再同步卡住主視窗；若擷取尚未完成，也可用 `取消目前操作` 中止
 - `--capture` 啟動參數
@@ -238,6 +240,7 @@ python -m app.main --capture
 - Target Language / UI Language
 - Theme Mode
 - 三組全域快捷鍵
+- 手動輸入最近一次使用的目標語言
 - Overlay 字型 / 字級 / 透明度 / Pin / 預設尺寸 / Pin 幾何
 - 是否按 X 最小化到系統匣
 - 目前啟用的 API Profile
