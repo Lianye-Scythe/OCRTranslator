@@ -186,6 +186,35 @@ class ConfigStoreMigrationTests(unittest.TestCase):
         self.assertIn('"overlay_unpinned_width": null', saved)
         self.assertIn('"overlay_unpinned_width_source": ""', saved)
 
+    def test_migrate_manual_input_target_language_defaults_to_target_language(self):
+        config = _migrate_legacy_config(
+            {
+                "target_language": "English",
+                "api_profiles": [
+                    {
+                        "name": "Default Gemini",
+                        "provider": "gemini",
+                        "api_keys": ["demo-key"],
+                    }
+                ],
+            }
+        )
+
+        self.assertEqual(config.manual_input_target_language, "English")
+
+    def test_save_config_persists_manual_input_target_language(self):
+        with TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "config.json"
+            config = _migrate_legacy_config({})
+            config.manual_input_target_language = "日本語"
+
+            save_config(config, path=config_path)
+
+            saved = config_path.read_text(encoding="utf-8")
+
+        self.assertIn('"manual_input_target_language": "日本語"', saved)
+
+
 
     def test_migrate_zero_overlay_opacity_is_clamped_to_one(self):
         config = _migrate_legacy_config(

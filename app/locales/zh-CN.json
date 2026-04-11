@@ -239,6 +239,7 @@
   "manual_input_send": "提交",
   "manual_input_cancel": "取消",
   "manual_input_empty": "请先输入内容。",
+  "manual_input_target_language_empty": "请先填写目标语言。",
   "manual_input_processing": "已提交输入内容，正在向模型请求...",
   "open_manual_input": "打开输入框",
   "tray_manual_input": "打开输入框",

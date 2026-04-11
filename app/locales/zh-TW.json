@@ -239,6 +239,7 @@
   "manual_input_send": "送出",
   "manual_input_cancel": "取消",
   "manual_input_empty": "請先輸入內容。",
+  "manual_input_target_language_empty": "請先填寫目標語言。",
   "manual_input_processing": "已送出輸入內容，正在向模型請求...",
   "open_manual_input": "開啟輸入框",
   "tray_manual_input": "開啟輸入框",

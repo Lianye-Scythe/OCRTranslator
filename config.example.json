@@ -1,5 +1,6 @@
 {
   "target_language": "繁體中文",
+  "manual_input_target_language": "繁體中文",
   "mode": "book_lr",
   "temperature": 0.2,
   "overlay_width": 440,

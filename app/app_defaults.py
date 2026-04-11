@@ -12,6 +12,24 @@ DEFAULT_TARGET_LANGUAGE_BY_UI_LANGUAGE = {
 }
 
 
+COMMON_TARGET_LANGUAGES = (
+    "繁體中文",
+    "简体中文",
+    "English",
+    "日本語",
+    "한국어",
+    "Français",
+    "Deutsch",
+    "Español",
+    "Italiano",
+    "Português",
+    "Русский",
+    "العربية",
+    "ไทย",
+    "Tiếng Việt",
+)
+
+
 def default_target_language_for_ui_language(ui_language: str) -> str:
     return DEFAULT_TARGET_LANGUAGE_BY_UI_LANGUAGE.get(str(ui_language or "").strip(), DEFAULT_TARGET_LANGUAGE_BY_UI_LANGUAGE[DEFAULT_UI_LANGUAGE])
 

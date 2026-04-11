@@ -78,6 +78,7 @@ class RequestWorkflowControllerTests(unittest.TestCase):
                 model="gpt-4o-mini",
             ),
             current_target_language=lambda: "English",
+            current_manual_input_target_language=lambda: "English",
             build_prompt_preset_from_form=lambda validate_name=False: SimpleNamespace(
                 name="Translate",
                 text_prompt="Translate to {target_language}",
@@ -93,7 +94,7 @@ class RequestWorkflowControllerTests(unittest.TestCase):
                 request_image_png=Mock(return_value="done"),
                 test_profile=Mock(return_value="OK | provider=openai | model=gpt-4o-mini | response=OK"),
             ),
-            config=SimpleNamespace(overlay_unpinned_width=None, overlay_unpinned_width_source=""),
+            config=SimpleNamespace(overlay_unpinned_width=None, overlay_unpinned_width_source="", manual_input_target_language=""),
             set_status=Mock(),
             log_tr=Mock(),
             log=Mock(),
@@ -119,6 +120,7 @@ class RequestWorkflowControllerTests(unittest.TestCase):
                 build_snapshot_background_pixmap=Mock(return_value="snapshot-background"),
             ),
             toast_service=SimpleNamespace(hide_message=Mock()),
+            persist_runtime_overlay_state=Mock(return_value=True),
         )
         window.background_busy = (
             lambda: window.fetch_models_in_progress
@@ -242,6 +244,52 @@ class RequestWorkflowControllerTests(unittest.TestCase):
         self.assertEqual(window.set_status.call_args_list[-1].args[0], "selected_text_processing")
         window.run_worker.assert_called_once()
         mock_set_cursor.assert_called_once()
+
+    def test_open_prompt_input_dialog_uses_manual_input_scope_and_dialog_target_language(self):
+        window = self._build_window()
+        controller = RequestWorkflowController(window)
+        window.current_stream_responses = lambda: False
+        window.validate_form_inputs = Mock(return_value=(True, ""))
+        window.current_manual_input_target_language = lambda: "French"
+        created_dialog = {}
+
+        class _FakePromptDialog:
+            def __init__(self, app_window, preset_name, target_language):
+                created_dialog["window"] = app_window
+                created_dialog["preset_name"] = preset_name
+                created_dialog["target_language"] = target_language
+                self.last_anchor_point = "dialog-anchor"
+
+            def exec(self):
+                return True
+
+            def input_text(self):
+                return "Hello manual"
+
+            def target_language_text(self):
+                return "Japanese"
+
+        with patch.object(controller, "_prompt_input_dialog_class", return_value=_FakePromptDialog):
+            controller.open_prompt_input_dialog()
+
+        window.validate_form_inputs.assert_called_once_with(focus_first_invalid=True, scope="manual_input")
+        self.assertEqual(created_dialog["preset_name"], "Translate")
+        self.assertEqual(created_dialog["target_language"], "French")
+        self.assertEqual(window.config.manual_input_target_language, "Japanese")
+        window.persist_runtime_overlay_state.assert_called_once_with()
+        worker_target = window.run_worker.call_args.args[0]
+        result = worker_target(None)
+
+        self.assertEqual(result, "done")
+        window.api_client.request_text.assert_called_once_with(
+            "Translate to Japanese\n\n<text-input>\nHello manual\n</text-input>",
+            unittest.mock.ANY,
+            0.2,
+            stream=False,
+            stream_callback=None,
+            request_context=None,
+        )
+
 
     def test_submit_text_request_reuses_pinned_overlay_geometry(self):
         window = self._build_window()

@@ -33,11 +33,11 @@ def _validation_scope_flags(scope: str) -> dict[str, bool]:
     normalized = str(scope or "save").strip().lower() or "save"
     return {
         "validate_names": normalized == "save",
-        "validate_api": normalized in {"save", "fetch_models", "test_profile", "image_request", "text_request"},
-        "require_model": normalized in {"save", "test_profile", "image_request", "text_request"},
-        "validate_prompts": normalized in {"save", "image_request", "text_request"},
+        "validate_api": normalized in {"save", "fetch_models", "test_profile", "image_request", "text_request", "manual_input"},
+        "require_model": normalized in {"save", "test_profile", "image_request", "text_request", "manual_input"},
+        "validate_prompts": normalized in {"save", "image_request", "text_request", "manual_input"},
         "require_image_prompt": normalized in {"save", "image_request"},
-        "require_text_prompt": normalized in {"save", "text_request"},
+        "require_text_prompt": normalized in {"save", "text_request", "manual_input"},
         "require_target_language": normalized in {"image_request", "text_request"},
         "validate_hotkeys": normalized in {"save", "hotkeys"},
     }

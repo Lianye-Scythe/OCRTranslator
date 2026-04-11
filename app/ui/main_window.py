@@ -579,6 +579,10 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             return self.target_language_edit.text().strip() or self.config.target_language
         return self.config.target_language
 
+    def current_manual_input_target_language(self) -> str:
+        remembered = str(getattr(self.config, "manual_input_target_language", "") or "").strip()
+        return remembered or self.current_target_language()
+
     def current_hotkey(self) -> str:
         if hasattr(self, "hotkey_edit"):
             return self.hotkey_edit.text().strip() or self.config.hotkey

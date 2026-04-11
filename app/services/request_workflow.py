@@ -581,17 +581,24 @@ class RequestWorkflowController:
             raise
 
     def open_prompt_input_dialog(self):
-        request_context = self.prepare_request_context(focus_first_invalid=True, validation_scope="text_request")
+        request_context = self.prepare_request_context(focus_first_invalid=True, validation_scope="manual_input")
         if not request_context:
             return
         PromptInputDialog = self._prompt_input_dialog_class()
-        dialog = PromptInputDialog(self.window, request_context["prompt_preset"].name, request_context["target_language"])
+        initial_target_language = self.window.current_manual_input_target_language() if hasattr(self.window, "current_manual_input_target_language") else request_context["target_language"]
+        dialog = PromptInputDialog(self.window, request_context["prompt_preset"].name, initial_target_language)
         if not dialog.exec():
             return
+        manual_target_language = dialog.target_language_text()
+        if hasattr(self.window, "config"):
+            self.window.config.manual_input_target_language = manual_target_language
+            persist_runtime_state = getattr(self.window, "persist_runtime_overlay_state", None)
+            if callable(persist_runtime_state):
+                persist_runtime_state()
         self.submit_text_request(
             dialog.input_text(),
             profile=request_context["profile"],
-            target_language=request_context["target_language"],
+            target_language=manual_target_language,
             prompt_preset=request_context["prompt_preset"],
             anchor_point=dialog.last_anchor_point or QCursor.pos(),
             source_key="manual_input_processing",

@@ -46,9 +46,11 @@ def _default_profile() -> ApiProfile:
 
 def _default_app_config() -> AppConfig:
     ui_language = detect_system_ui_language()
+    default_target_language = default_target_language_for_ui_language(ui_language)
     return AppConfig(
         ui_language=ui_language,
-        target_language=default_target_language_for_ui_language(ui_language),
+        target_language=default_target_language,
+        manual_input_target_language=default_target_language,
         theme_mode=DEFAULT_THEME_MODE,
     )
 
@@ -251,9 +253,12 @@ def _migrate_legacy_config(data: dict) -> AppConfig:
         default=detect_system_ui_language() if "ui_language" not in source else DEFAULT_UI_LANGUAGE,
     )
     mode = str(source.get("mode", "book_lr")).strip()
+    target_language = _coerce_text(source.get("target_language"), default_target_language_for_ui_language(ui_language))
+    manual_input_target_language = _coerce_text(source.get("manual_input_target_language"), target_language)
 
     return AppConfig(
-        target_language=_coerce_text(source.get("target_language"), default_target_language_for_ui_language(ui_language)),
+        target_language=target_language,
+        manual_input_target_language=manual_input_target_language,
         mode=mode if mode in {"book_lr", "web_ud"} else "book_lr",
         temperature=_coerce_float(source.get("temperature"), 0.2, min_value=0, max_value=2),
         overlay_width=_coerce_int(source.get("overlay_width"), 440, min_value=240, max_value=1600),

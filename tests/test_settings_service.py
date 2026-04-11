@@ -180,6 +180,25 @@ class SettingsServiceTests(unittest.TestCase):
         self.assertFalse(result.is_valid)
         self.assertEqual({issue.field_key for issue in result.issues}, {"text_prompt", "target_language"})
 
+    def test_validate_manual_input_scope_requires_text_prompt_but_allows_blank_target_language(self):
+        snapshot = self._snapshot(image_prompt="", text_prompt="", target_language="")
+
+        result = validate_settings_snapshot(
+            snapshot,
+            existing_profile_names={"Demo"},
+            current_profile_name="Demo",
+            existing_prompt_preset_names={"Translate"},
+            current_prompt_preset_name="Translate",
+            normalize_hotkey=lambda hotkey: hotkey.lower(),
+            hotkey_has_modifier=lambda hotkey: hotkey.lower().startswith("ctrl"),
+            tr=lambda key, **kwargs: key if not kwargs else f"{key}:{kwargs}",
+            scope="manual_input",
+        )
+
+        self.assertFalse(result.is_valid)
+        self.assertEqual({issue.field_key for issue in result.issues}, {"text_prompt"})
+
+
     def test_build_candidate_config_returns_new_config_and_keeps_original(self):
         base_config = AppConfig(
             target_language="繁體中文",

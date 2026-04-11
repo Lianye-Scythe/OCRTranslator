@@ -1,7 +1,8 @@
 from PySide6.QtCore import QEvent, Qt
 from PySide6.QtGui import QKeySequence, QShortcut
-from PySide6.QtWidgets import QDialog, QFrame, QHBoxLayout, QLabel, QVBoxLayout
+from PySide6.QtWidgets import QComboBox, QDialog, QFrame, QHBoxLayout, QLabel, QVBoxLayout
 
+from ..app_defaults import COMMON_TARGET_LANGUAGES
 from .ime_aware_text_edit import ImeAwarePlainTextEdit
 
 
@@ -10,7 +11,7 @@ class PromptInputDialog(QDialog):
         super().__init__(app_window if app_window.isVisible() else None)
         self.app_window = app_window
         self.preset_name = preset_name
-        self.target_language = target_language
+        self.initial_target_language = str(target_language or "").strip()
         self.last_anchor_point = None
         self._build_ui()
 
@@ -34,7 +35,7 @@ class PromptInputDialog(QDialog):
 
         self.preset_chip = QLabel(self.app_window.tr("meta_prompt", value=self.preset_name))
         self.preset_chip.setObjectName("InfoChip")
-        self.target_chip = QLabel(self.app_window.tr("meta_target", value=self.target_language))
+        self.target_chip = QLabel()
         self.target_chip.setObjectName("InfoChip")
         meta_row.addWidget(self.preset_chip)
         meta_row.addWidget(self.target_chip)
@@ -45,6 +46,23 @@ class PromptInputDialog(QDialog):
         self.hint_label.setObjectName("HintLabel")
         self.hint_label.setWordWrap(True)
         layout.addWidget(self.hint_label)
+
+        self.target_language_label = QLabel(self.app_window.tr("target_language"))
+        layout.addWidget(self.target_language_label)
+
+        self.target_language_edit = QComboBox()
+        self.target_language_edit.setEditable(True)
+        self.target_language_edit.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        self.target_language_edit.setMaxVisibleItems(12)
+        self.target_language_edit.addItems(self._suggested_target_languages())
+        self.target_language_edit.setCurrentText(self.initial_target_language)
+        target_language_editor = self.target_language_edit.lineEdit()
+        if target_language_editor is not None:
+            target_language_editor.setClearButtonEnabled(True)
+            target_language_editor.setPlaceholderText(self.app_window.tr("target_language_placeholder"))
+        self.target_language_edit.currentTextChanged.connect(self._refresh_send_state)
+        self.target_language_edit.currentTextChanged.connect(self._refresh_target_chip)
+        layout.addWidget(self.target_language_edit)
 
         self.text_surface = QFrame()
         self.text_surface.setObjectName("MultiLineFieldSurface")
@@ -76,19 +94,35 @@ class PromptInputDialog(QDialog):
 
         QShortcut(QKeySequence("Ctrl+Return"), self, self.accept)
         QShortcut(QKeySequence("Ctrl+Enter"), self, self.accept)
+        self._refresh_target_chip()
         self._refresh_send_state()
         self.text_edit.setFocus()
 
-    def _refresh_send_state(self):
-        self.send_button.setEnabled(bool(self.input_text()))
+    def _refresh_send_state(self, *_args):
+        self.send_button.setEnabled(bool(self.input_text()) and bool(self.target_language_text()))
+
+    def _refresh_target_chip(self, *_args):
+        self.target_chip.setText(self.app_window.tr("meta_target", value=self.target_language_text() or "—"))
 
     def input_text(self) -> str:
         return self.text_edit.toPlainText().strip()
+
+    def _suggested_target_languages(self) -> list[str]:
+        seen: set[str] = set()
+        candidates = [self.initial_target_language, *COMMON_TARGET_LANGUAGES]
+        return [item for item in candidates if item and not (item in seen or seen.add(item))]
+
+    def target_language_text(self) -> str:
+        return self.target_language_edit.currentText().strip()
 
     def accept(self):
         if not self.input_text():
             self.app_window.set_status("manual_input_empty")
             self.text_edit.setFocus()
+            return
+        if not self.target_language_text():
+            self.app_window.set_status("manual_input_target_language_empty")
+            self.target_language_edit.setFocus()
             return
         self.last_anchor_point = self.frameGeometry().center()
         super().accept()

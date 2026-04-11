@@ -41,6 +41,7 @@ def default_prompt_presets() -> list[PromptPreset]:
 @dataclass
 class AppConfig:
     target_language: str = DEFAULT_TARGET_LANGUAGE
+    manual_input_target_language: str = ""
     mode: str = "book_lr"
     temperature: float = 0.2
     overlay_width: int = 440

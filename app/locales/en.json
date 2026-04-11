@@ -239,6 +239,7 @@
   "manual_input_send": "Send",
   "manual_input_cancel": "Cancel",
   "manual_input_empty": "Please enter some text first.",
+  "manual_input_target_language_empty": "Please enter a target language first.",
   "manual_input_processing": "Input submitted. Requesting the model...",
   "open_manual_input": "Open Input Box",
   "tray_manual_input": "Open Input Box",
