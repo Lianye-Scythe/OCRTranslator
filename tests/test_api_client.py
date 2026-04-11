@@ -220,6 +220,29 @@ class ApiClientTests(unittest.TestCase):
         self.assertEqual(result, "Hello world")
         self.assertEqual(streamed, ["Hello", "Hello world"])
 
+    @patch("app.providers.gemini_compatible.requests.request")
+    def test_request_text_gemini_sends_user_role_in_contents_for_compatible_backends(self, mock_request):
+        profile = ApiProfile(
+            name="Gemini",
+            provider="gemini",
+            base_url="https://compat.example.com",
+            api_keys=["demo-key"],
+            model="models/gemini-1.5-flash",
+        )
+        response = Mock()
+        response.raise_for_status.return_value = None
+        response.json.return_value = {
+            "candidates": [
+                {"content": {"parts": [{"text": "OK"}]}, "finishReason": "STOP"}
+            ]
+        }
+        mock_request.return_value = response
+
+        result = self.client.request_text("plain prompt", profile, 0.2)
+
+        self.assertEqual(result, "OK")
+        self.assertEqual(mock_request.call_args.kwargs["json"]["contents"][0]["role"], "user")
+
     @patch("app.api_client.requests.post")
     def test_translate_openai_joins_list_content(self, mock_post):
         response = Mock()

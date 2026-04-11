@@ -152,7 +152,7 @@ class GeminiCompatibleAdapter:
                 api_key,
                 request_context=request_context,
                 json={
-                    "contents": [{"parts": parts}],
+                    "contents": [{"role": "user", "parts": parts}],
                     "generationConfig": {"temperature": temperature},
                 },
                 params={"alt": "sse"} if stream else None,
