@@ -22,6 +22,12 @@ class _FakeAppWindow:
             "overlay_partial_cancelled": "部分结果（已取消）",
             "overlay_partial_failed": "部分结果（请求失败）",
             "toggle_overlay_pin": "切换是否保留浮窗",
+            "overlay_minimize_short": "折叠",
+            "overlay_restore_short": "恢复",
+            "minimize_overlay": "折叠浮窗",
+            "restore_overlay": "展开浮窗",
+            "overlay_minimized": "翻译浮窗已折叠",
+            "overlay_restored": "翻译浮窗已展开",
             "decrease_overlay_opacity": "降低浮窗透明度",
             "increase_overlay_opacity": "提高浮窗透明度",
             "overlay_pinned_short": "已固定",
@@ -80,6 +86,7 @@ class TranslationOverlayTests(unittest.TestCase):
             self.overlay.opacity_down_button,
             self.overlay.opacity_up_button,
             self.overlay.copy_button,
+            self.overlay.minimize_button,
             self.overlay.close_button,
         ):
             self.assertTrue(hasattr(button, "_mouse_click_focus_clear_filter"))
@@ -91,6 +98,9 @@ class TranslationOverlayTests(unittest.TestCase):
         self.assertFalse(self.overlay.pin_button.icon().isNull())
         self.assertEqual(self.overlay.pin_button.toolTip(), "切换是否保留浮窗")
         self.assertEqual(self.overlay.pin_button.accessibleName(), "Pin")
+        self.assertEqual(self.overlay.minimize_button.text(), "▴")
+        self.assertEqual(self.overlay.minimize_button.toolTip(), "折叠浮窗")
+        self.assertEqual(self.overlay.minimize_button.accessibleName(), "折叠")
         self.assertTrue(self.overlay.opacity_down_button.isEnabled())
         self.assertTrue(self.overlay.opacity_up_button.isEnabled())
 
@@ -167,10 +177,11 @@ class TranslationOverlayTests(unittest.TestCase):
                 call(self.overlay.opacity_value_label),
                 call(self.overlay.opacity_up_button),
                 call(self.overlay.copy_button),
+                call(self.overlay.minimize_button),
                 call(self.overlay.close_button),
             ]
         )
-        self.assertEqual(mock_clear_focus.call_count, 6)
+        self.assertEqual(mock_clear_focus.call_count, 7)
 
     def test_calculate_size_accounts_for_header_width_for_partial_title(self):
         title_text = self.overlay._title_text_for_state(preset_name="翻译 (Translate)", partial_state="streaming")
@@ -195,6 +206,44 @@ class TranslationOverlayTests(unittest.TestCase):
         self.overlay.set_partial_result_state("cancelled")
         self.assertEqual(self.overlay.title_label.text(), "结果 · 翻译 · 部分结果（已取消）")
 
+    def test_toggle_minimized_collapses_body_and_restores_previous_geometry(self):
+        self.overlay.setGeometry(120, 140, 500, 360)
+        self.overlay.show()
+        original_geometry = self.overlay.geometry()
+
+        self.overlay.toggle_minimized()
+
+        self.assertTrue(self.overlay.is_minimized_overlay)
+        self.assertTrue(self.overlay.body.isHidden())
+        self.assertTrue(self.overlay.pin_button.isHidden())
+        self.assertTrue(self.overlay.copy_button.isHidden())
+        self.assertLess(self.overlay.height(), 44)
+        self.assertEqual(self.overlay.minimize_button.text(), "▾")
+        self.assertEqual(self.window.status_calls[-1], ("overlay_minimized", {}))
+
+        self.overlay.toggle_minimized()
+
+        self.assertFalse(self.overlay.is_minimized_overlay)
+        self.assertFalse(self.overlay.body.isHidden())
+        self.assertFalse(self.overlay.pin_button.isHidden())
+        self.assertFalse(self.overlay.copy_button.isHidden())
+        self.assertEqual(self.overlay.minimize_button.text(), "▴")
+        self.assertEqual(self.overlay.geometry(), original_geometry)
+        self.assertEqual(self.window.status_calls[-1], ("overlay_restored", {}))
+
+    def test_persist_current_geometry_as_pinned_uses_expanded_geometry_while_minimized(self):
+        self.overlay.setGeometry(120, 140, 500, 360)
+        self.overlay.show()
+        self.overlay.toggle_minimized()
+        self.overlay.move(200, 220)
+
+        self.overlay.persist_current_geometry_as_pinned()
+
+        self.assertEqual(self.window.config.overlay_pinned_x, 200)
+        self.assertEqual(self.window.config.overlay_pinned_y, 220)
+        self.assertEqual(self.window.config.overlay_pinned_width, 500)
+        self.assertEqual(self.window.config.overlay_pinned_height, 360)
+
     def test_copy_text_uses_visible_partial_content_when_partial_result_is_active(self):
         self.overlay.last_text = "old persisted result"
         self.overlay.set_partial_result_state("streaming", preset_name="翻译")
@@ -203,6 +252,14 @@ class TranslationOverlayTests(unittest.TestCase):
         self.overlay.copy_text()
 
         self.assertEqual(QApplication.clipboard().text(), "partial text")
+        self.assertEqual(self.window.status_calls[-1], ("overlay_copied", {}))
+
+    def test_copy_text_preserves_raw_markdown_for_final_result(self):
+        self.overlay.last_text = "**bold**"
+
+        self.overlay.copy_text()
+
+        self.assertEqual(QApplication.clipboard().text(), "**bold**")
         self.assertEqual(self.window.status_calls[-1], ("overlay_copied", {}))
 
     def test_prime_first_show_warms_native_window_once_without_leaving_overlay_visible(self):
@@ -248,6 +305,37 @@ class TranslationOverlayTests(unittest.TestCase):
         mock_set_plain_text.assert_not_called()
         mock_show_topmost.assert_not_called()
 
+    def test_show_text_final_result_renders_markdown_and_keeps_raw_source(self):
+        with patch.object(self.overlay, "_set_body_content", wraps=self.overlay._set_body_content) as mock_set_body_content:
+            self.overlay.show_text("**Hello**", 120, 140, 500, 360, remember_state=True)
+
+        mock_set_body_content.assert_called_once_with("**Hello**", render_markdown=True)
+        self.assertEqual(self.overlay.body.toPlainText(), "Hello")
+        self.assertEqual(self.overlay.last_text, "**Hello**")
+
+    def test_show_text_final_result_restores_from_minimized_overlay(self):
+        self.overlay.setGeometry(120, 140, 500, 360)
+        self.overlay.show()
+        self.overlay.toggle_minimized()
+
+        self.overlay.show_text("**Hello**", 160, 180, 520, 380, remember_state=True)
+
+        self.assertFalse(self.overlay.is_minimized_overlay)
+        self.assertFalse(self.overlay.body.isHidden())
+        self.assertEqual(self.overlay.geometry().getRect(), (160, 180, 520, 380))
+        self.assertEqual(self.overlay.body.toPlainText(), "Hello")
+
+    def test_show_text_final_result_rerenders_markdown_after_partial_plain_text_of_same_source(self):
+        self.overlay.show_text("**Hello**", 120, 140, 500, 360, remember_state=True)
+        self.overlay.set_partial_result_state("streaming", preset_name="翻译")
+        self.overlay.show_text("**Hello**", 120, 140, 500, 360, remember_state=False)
+
+        self.assertEqual(self.overlay.body.toPlainText(), "**Hello**")
+
+        self.overlay.show_text("**Hello**", 120, 140, 500, 360, remember_state=True)
+
+        self.assertEqual(self.overlay.body.toPlainText(), "Hello")
+
     def test_show_text_partial_visible_update_appends_incremental_suffix_without_replacing_full_text(self):
         self.overlay.set_partial_result_state("streaming", preset_name="翻译")
         self.overlay.setGeometry(120, 140, 500, 360)
@@ -267,3 +355,13 @@ class TranslationOverlayTests(unittest.TestCase):
         self.overlay.show_text("Hi", 120, 140, 500, 360, remember_state=False)
 
         self.assertEqual(self.overlay.body.toPlainText(), "Hi")
+
+    def test_restore_last_overlay_renders_markdown_from_saved_source(self):
+        self.overlay.last_text = "**Hello**"
+        self.overlay.last_geometry = self.overlay.geometry()
+
+        with patch.object(self.overlay, "_set_body_content", wraps=self.overlay._set_body_content) as mock_set_body_content:
+            self.overlay.restore_last_overlay()
+
+        mock_set_body_content.assert_called_once_with("**Hello**", render_markdown=True)
+        self.assertEqual(self.overlay.body.toPlainText(), "Hello")

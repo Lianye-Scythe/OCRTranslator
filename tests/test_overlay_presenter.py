@@ -17,6 +17,9 @@ class _FakeBody:
     def setPlainText(self, text):
         self._text = str(text)
 
+    def setMarkdown(self, text):
+        self._text = str(text)
+
 
 class _FakeOverlay:
     def __init__(self):
@@ -86,7 +89,7 @@ class _FakeOverlay:
         self.partial_state_calls.append((state, preset_name))
         self._has_partial_result = bool(state)
 
-    def measure_content_height(self, text, width):
+    def measure_content_height(self, text, width, *, render_markdown=True):
         return 400
 
     def geometry(self):

@@ -13,7 +13,7 @@ from app.ui.overlay_positioning import (
 
 
 class _FakeOverlay:
-    def measure_content_height(self, text: str, width: int) -> int:
+    def measure_content_height(self, text: str, width: int, *, render_markdown: bool = True) -> int:
         return 480 if text else 220
 
 
