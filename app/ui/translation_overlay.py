@@ -108,6 +108,12 @@ class TranslationOverlay(QWidget):
     MIN_HEIGHT = 220
     RESIZE_MARGIN = 18
     DEFAULT_OPACITY = 95
+    HEADER_MARGINS = (16, 12, 12, 12)
+    HEADER_MINIMIZED_MARGINS = (12, 4, 8, 4)
+    HEADER_SPACING = 8
+    HEADER_MINIMIZED_SPACING = 6
+    ACTION_BUTTON_SIZE = 32
+    ACTION_BUTTON_MINIMIZED_SIZE = 24
 
     def __init__(self, app_window):
         super().__init__()
@@ -115,6 +121,10 @@ class TranslationOverlay(QWidget):
         self.last_bbox = None
         self.last_anchor_point = None
         self.last_text = ""
+        self._body_source_text = ""
+        self._body_renders_markdown = False
+        self._is_minimized = False
+        self._pre_minimized_geometry = None
         self.last_preset_name = ""
         self.last_geometry = None
         self._partial_result_state = None
@@ -164,8 +174,8 @@ class TranslationOverlay(QWidget):
         self.header.setObjectName("overlayHeader")
         self.header.setMouseTracking(True)
         header_layout = QHBoxLayout(self.header)
-        header_layout.setContentsMargins(16, 12, 12, 12)
-        header_layout.setSpacing(8)
+        header_layout.setContentsMargins(*self.HEADER_MARGINS)
+        header_layout.setSpacing(self.HEADER_SPACING)
 
         self.title_label = QLabel()
         self.title_label.setObjectName("overlayTitleLabel")
@@ -202,6 +212,12 @@ class TranslationOverlay(QWidget):
         self.copy_button.setFixedHeight(32)
         self.copy_button.clicked.connect(self.copy_text)
 
+        self.minimize_button = QPushButton("▴")
+        self.minimize_button.setObjectName("overlayActionButton")
+        self.minimize_button.setProperty("iconOnly", True)
+        self.minimize_button.setFixedSize(32, 32)
+        self.minimize_button.clicked.connect(self.toggle_minimized)
+
         self.close_button = QPushButton("×")
         self.close_button.setObjectName("overlayCloseButton")
         self.close_button.setFixedSize(32, 32)
@@ -214,6 +230,7 @@ class TranslationOverlay(QWidget):
         header_layout.addWidget(self.opacity_value_label)
         header_layout.addWidget(self.opacity_up_button)
         header_layout.addWidget(self.copy_button)
+        header_layout.addWidget(self.minimize_button)
         header_layout.addWidget(self.close_button)
 
         self.body = QTextEdit()
@@ -240,6 +257,7 @@ class TranslationOverlay(QWidget):
             self.opacity_value_label,
             self.opacity_up_button,
             self.copy_button,
+            self.minimize_button,
             self.close_button,
         }
         for widget in self._drag_event_widgets | self._header_hover_widgets:
@@ -249,10 +267,12 @@ class TranslationOverlay(QWidget):
             self.opacity_down_button,
             self.opacity_up_button,
             self.copy_button,
+            self.minimize_button,
             self.close_button,
         )
 
         self.apply_styles()
+        self._apply_minimized_chrome_state()
         self._shortcuts = [
             QShortcut(QKeySequence("Esc"), self),
             QShortcut(QKeySequence("Ctrl+C"), self),
@@ -418,6 +438,65 @@ class TranslationOverlay(QWidget):
         self.pin_button.setText("")
         self.pin_button.setAccessibleName(self.app_window.tr("overlay_pinned_short") if self.is_pinned else self.app_window.tr("overlay_pin_short"))
 
+    @property
+    def is_minimized_overlay(self) -> bool:
+        return self._is_minimized
+
+    def _refresh_minimize_button(self):
+        if self._is_minimized:
+            self.minimize_button.setText("▾")
+            self.minimize_button.setToolTip(self.app_window.tr("restore_overlay"))
+            self.minimize_button.setAccessibleName(self.app_window.tr("overlay_restore_short"))
+            return
+        self.minimize_button.setText("▴")
+        self.minimize_button.setToolTip(self.app_window.tr("minimize_overlay"))
+        self.minimize_button.setAccessibleName(self.app_window.tr("overlay_minimize_short"))
+
+    def _apply_minimized_chrome_state(self):
+        compact = bool(self._is_minimized)
+        header_layout = self.header.layout()
+        if header_layout is not None:
+            margins = self.HEADER_MINIMIZED_MARGINS if compact else self.HEADER_MARGINS
+            header_layout.setContentsMargins(*margins)
+            header_layout.setSpacing(self.HEADER_MINIMIZED_SPACING if compact else self.HEADER_SPACING)
+
+        hidden_when_compact = (
+            self.pin_button,
+            self.opacity_down_button,
+            self.opacity_value_label,
+            self.opacity_up_button,
+            self.copy_button,
+        )
+        for widget in hidden_when_compact:
+            widget.setVisible(not compact)
+
+        compact_button_size = self.ACTION_BUTTON_MINIMIZED_SIZE if compact else self.ACTION_BUTTON_SIZE
+        for button in (self.minimize_button, self.close_button):
+            button.setFixedSize(compact_button_size, compact_button_size)
+
+        if compact:
+            compact_height = self._header_only_height()
+            self.setMinimumHeight(compact_height)
+            self.setMaximumHeight(compact_height)
+            self.card.setMinimumHeight(compact_height)
+            self.card.setMaximumHeight(compact_height)
+            self.header.setFixedHeight(self._header_only_height())
+            self.body.hide()
+            self.body.setMinimumHeight(0)
+            self.body.setMaximumHeight(0)
+            self.resize_grip.hide()
+        else:
+            self.setMinimumHeight(0)
+            self.setMaximumHeight(16777215)
+            self.card.setMinimumHeight(0)
+            self.card.setMaximumHeight(16777215)
+            self.header.setMaximumHeight(16777215)
+            self.header.setMinimumHeight(0)
+            self.body.show()
+            self.body.setMinimumHeight(0)
+            self.body.setMaximumHeight(16777215)
+            self.resize_grip.show()
+
     def has_partial_result(self) -> bool:
         return bool(getattr(self, "_partial_result_state", None) and self.body.toPlainText().strip())
 
@@ -467,6 +546,7 @@ class TranslationOverlay(QWidget):
                 self.opacity_value_label,
                 self.opacity_up_button,
                 self.copy_button,
+                self.minimize_button,
                 self.close_button,
             ):
                 ensure_polished = getattr(widget, "ensurePolished", None)
@@ -488,6 +568,8 @@ class TranslationOverlay(QWidget):
         self.opacity_down_button.setToolTip(self.app_window.tr("decrease_overlay_opacity"))
         self.opacity_up_button.setToolTip(self.app_window.tr("increase_overlay_opacity"))
         self.opacity_value_label.setToolTip(self.app_window.tr("overlay_opacity_set", value=self._current_overlay_opacity()))
+        self._refresh_minimize_button()
+        self._apply_minimized_chrome_state()
         self.apply_surface_state()
         self.apply_typography()
 
@@ -500,16 +582,66 @@ class TranslationOverlay(QWidget):
             self._shadow_effect.setColor(qcolor("shadow", alpha=shadow_alpha))
         self.pin_button.setChecked(self.is_pinned)
         self._refresh_pin_button()
+        self._refresh_minimize_button()
         self.opacity_value_label.set_display_value(opacity)
         self.opacity_value_label.setToolTip(self.app_window.tr("overlay_opacity_set", value=opacity))
         self.opacity_down_button.setEnabled(opacity > 1)
         self.opacity_up_button.setEnabled(opacity < 100)
 
     def apply_typography(self):
-        self.body.setFont(QFont(self.app_window.current_overlay_font_family(), self.app_window.current_overlay_font_size()))
+        font = QFont(self.app_window.current_overlay_font_family(), self.app_window.current_overlay_font_size())
+        self.body.setFont(font)
+        document_getter = getattr(self.body, "document", None)
+        if callable(document_getter):
+            document = document_getter()
+            if document is not None:
+                document.setDefaultFont(font)
+
+    @staticmethod
+    def _normalized_text(text: str | None) -> str:
+        return str(text or "")
+
+    @staticmethod
+    def _has_partial_state(partial_state: str | None) -> bool:
+        return bool(str(partial_state or "").strip())
+
+    def _build_content_document(self, text: str, *, render_markdown: bool) -> QTextDocument:
+        document = QTextDocument()
+        document.setDefaultFont(self.body.font())
+        normalized_text = self._normalized_text(text)
+        set_markdown = getattr(document, "setMarkdown", None)
+        if render_markdown and callable(set_markdown):
+            set_markdown(normalized_text)
+        else:
+            document.setPlainText(normalized_text)
+        return document
+
+    def _content_plain_text(self, text: str, *, render_markdown: bool) -> str:
+        return self._build_content_document(text, render_markdown=render_markdown).toPlainText()
+
+    def _set_body_content(self, text: str, *, render_markdown: bool):
+        normalized_text = self._normalized_text(text)
+        set_markdown = getattr(self.body, "setMarkdown", None)
+        used_markdown = bool(render_markdown and callable(set_markdown))
+        if used_markdown:
+            set_markdown(normalized_text)
+        else:
+            self.body.setPlainText(normalized_text)
+        self._body_source_text = normalized_text
+        self._body_renders_markdown = used_markdown
+
+    def _body_matches_source(self, text: str, *, render_markdown: bool) -> bool:
+        normalized_text = self._normalized_text(text)
+        if self._body_source_text == normalized_text and self._body_renders_markdown == bool(render_markdown):
+            return True
+        if not render_markdown:
+            return self.body.toPlainText() == normalized_text
+        return False
 
     def calculate_size(self, text: str, *, base_width: int | None = None, preset_name: str | None = None, partial_state: str | None = None):
-        lines = text.splitlines() or [text]
+        render_markdown = not self._has_partial_state(partial_state)
+        plain_text = self._content_plain_text(text, render_markdown=render_markdown)
+        lines = plain_text.splitlines() or [plain_text]
         metrics = QFontMetrics(self.body.font())
         longest_width = max((metrics.horizontalAdvance(line or " ") for line in lines), default=240)
         line_spacing = metrics.lineSpacing()
@@ -521,15 +653,94 @@ class TranslationOverlay(QWidget):
         height = min(900, max(configured_height, len(lines) * line_spacing + 132))
         return width, height
 
-    def measure_content_height(self, text: str, width: int) -> int:
-        doc = QTextDocument()
-        doc.setDefaultFont(self.body.font())
-        doc.setPlainText(text)
+    def measure_content_height(self, text: str, width: int, *, render_markdown: bool = True) -> int:
+        doc = self._build_content_document(text, render_markdown=render_markdown)
         text_width = max(220, width - 42)
         doc.setTextWidth(text_width)
         header_height = 58
         body_padding = 48
         return int(doc.size().height()) + header_height + body_padding
+
+    def _header_only_height(self) -> int:
+        header_layout = self.header.layout()
+        if header_layout is not None:
+            margins = header_layout.contentsMargins()
+            header_layout.activate()
+        else:
+            margins = None
+        title_height = self.title_label.sizeHint().height()
+        action_height = max(
+            self.minimize_button.sizeHint().height(),
+            self.close_button.sizeHint().height(),
+        )
+        if margins is None:
+            return max(30, max(title_height, action_height) + 8)
+        return max(30, max(title_height, action_height) + margins.top() + margins.bottom())
+
+    def _expanded_geometry_for_current_position(self) -> QRect | None:
+        base_geometry = QRect(self._pre_minimized_geometry) if self._pre_minimized_geometry is not None else QRect(self.last_geometry) if self.last_geometry is not None else None
+        current_rect = QRect(self.geometry())
+        if base_geometry is None:
+            if current_rect.width() <= 0:
+                return None
+            base_height = current_rect.height()
+            if self._is_minimized:
+                base_height = max(self.MIN_HEIGHT, int(self.app_window.current_overlay_height() or self.MIN_HEIGHT))
+            base_geometry = QRect(current_rect.x(), current_rect.y(), max(self.MIN_WIDTH, current_rect.width()), max(self.MIN_HEIGHT, base_height))
+        if current_rect.width() > 0 and current_rect.height() > 0:
+            base_geometry.moveTopLeft(current_rect.topLeft())
+        return clamp_rect_to_visible_screen(base_geometry)
+
+    def _remember_runtime_geometry(self, rect: QRect | None = None):
+        geometry = QRect(rect) if rect is not None else QRect(self.geometry())
+        if geometry.width() <= 0 or geometry.height() <= 0:
+            return
+        if self._is_minimized:
+            expanded_geometry = self._expanded_geometry_for_current_position()
+            if expanded_geometry is None:
+                return
+            self._pre_minimized_geometry = QRect(expanded_geometry)
+            self.last_geometry = QRect(expanded_geometry)
+            return
+        self.last_geometry = clamp_rect_to_visible_screen(geometry)
+
+    def _minimized_target_geometry(self, expanded_geometry: QRect | None = None) -> QRect:
+        base_geometry = QRect(expanded_geometry) if expanded_geometry is not None else QRect(self.geometry())
+        if base_geometry.width() <= 0:
+            base_geometry.setWidth(max(self.MIN_WIDTH, int(self.app_window.current_overlay_width() or self.MIN_WIDTH)))
+        target = QRect(base_geometry.x(), base_geometry.y(), max(self.MIN_WIDTH, base_geometry.width()), self._header_only_height())
+        return clamp_rect_to_visible_screen(target)
+
+    def _set_minimized(self, minimized: bool, *, restore_geometry: bool = True, emit_status: bool = False) -> bool:
+        minimized = bool(minimized)
+        if minimized == self._is_minimized:
+            return False
+
+        if minimized:
+            # 最小化时只折叠 body，保留展开态几何用于后续恢复和 Pin 持久化。
+            expanded_geometry = self._expanded_geometry_for_current_position()
+            self._pre_minimized_geometry = QRect(expanded_geometry) if expanded_geometry is not None else None
+            self._is_minimized = True
+            self._apply_minimized_chrome_state()
+            self.setGeometry(self._minimized_target_geometry(expanded_geometry))
+            self._remember_runtime_geometry()
+        else:
+            expanded_geometry = self._expanded_geometry_for_current_position()
+            self._is_minimized = False
+            self._pre_minimized_geometry = None
+            self._apply_minimized_chrome_state()
+            if restore_geometry and expanded_geometry is not None:
+                self.setGeometry(expanded_geometry)
+                self._remember_runtime_geometry()
+
+        self._refresh_minimize_button()
+        self._update_cursor()
+        if emit_status:
+            self.app_window.set_status("overlay_minimized" if minimized else "overlay_restored")
+        return True
+
+    def toggle_minimized(self):
+        self._set_minimized(not self._is_minimized, restore_geometry=True, emit_status=True)
 
     def pinned_geometry_from_config(self) -> QRect | None:
         config = getattr(self.app_window, "config", None)
@@ -574,7 +785,7 @@ class TranslationOverlay(QWidget):
         config.overlay_pinned_height = int(clamped.height())
 
     def persist_current_geometry_as_pinned(self):
-        current_rect = QRect(self.geometry())
+        current_rect = self._expanded_geometry_for_current_position() or QRect(self.geometry())
         if current_rect.width() > 0 and current_rect.height() > 0:
             pass
         elif self.last_geometry is not None:
@@ -628,6 +839,10 @@ class TranslationOverlay(QWidget):
         self.set_overlay_opacity(self._current_overlay_opacity() + delta)
 
     def show_text(self, text: str, x: int, y: int, width: int, height: int, *, keep_manual_position: bool = False, remember_state: bool = True):
+        normalized_text = self._normalized_text(text)
+        render_markdown = bool(remember_state)
+        if remember_state and self._is_minimized:
+            self._set_minimized(False, restore_geometry=False, emit_status=False)
         if remember_state:
             self._clear_partial_result_state()
             self.refresh_language()
@@ -636,25 +851,27 @@ class TranslationOverlay(QWidget):
         if geometry_changed:
             self.setGeometry(target_rect)
         if remember_state:
-            self.last_geometry = self.geometry()
-        current_text = self.body.toPlainText()
-        if current_text != text:
+            self._remember_runtime_geometry()
+        if not self._body_matches_source(normalized_text, render_markdown=render_markdown):
+            current_plain_text = self.body.toPlainText()
             can_append_partial = bool(
-                not remember_state
+                not render_markdown
                 and self._partial_result_state
-                and current_text
-                and str(text).startswith(current_text)
+                and current_plain_text
+                and normalized_text.startswith(current_plain_text)
             )
             if can_append_partial:
-                suffix = str(text)[len(current_text) :]
+                suffix = normalized_text[len(current_plain_text) :]
                 if suffix:
                     cursor = self.body.textCursor()
                     cursor.movePosition(QTextCursor.End)
                     cursor.insertText(suffix)
+                    self._body_source_text = normalized_text
+                    self._body_renders_markdown = False
             else:
-                self.body.setPlainText(text)
+                self._set_body_content(normalized_text, render_markdown=render_markdown)
         if remember_state:
-            self.last_text = text
+            self.last_text = normalized_text
         self.manual_positioned = bool(keep_manual_position)
         should_raise_overlay = remember_state or not self.isVisible()
         if should_raise_overlay:
@@ -664,11 +881,13 @@ class TranslationOverlay(QWidget):
     def restore_last_overlay(self):
         if not self.last_text.strip() or self.last_geometry is None:
             return
+        if self._is_minimized:
+            self._set_minimized(False, restore_geometry=False, emit_status=False)
         self._clear_partial_result_state()
         self.refresh_language()
         self.setGeometry(clamp_rect_to_visible_screen(self.last_geometry))
-        self.last_geometry = self.geometry()
-        self.body.setPlainText(self.last_text)
+        self._remember_runtime_geometry()
+        self._set_body_content(self.last_text, render_markdown=True)
         self._show_as_topmost()
         self._sync_topbar_hover_state(QCursor.pos())
 
@@ -679,6 +898,7 @@ class TranslationOverlay(QWidget):
             self.opacity_value_label,
             self.opacity_up_button,
             self.copy_button,
+            self.minimize_button,
             self.close_button,
         ):
             clear_focus_if_alive(widget)
@@ -748,6 +968,8 @@ class TranslationOverlay(QWidget):
         return watched.mapTo(self, local_pos)
 
     def _resize_mode_at(self, pos: QPoint) -> str | None:
+        if self._is_minimized:
+            return None
         rect = self.rect()
         if rect.width() <= 0 or rect.height() <= 0:
             return None
@@ -839,14 +1061,14 @@ class TranslationOverlay(QWidget):
         if self._resize_mode and event.buttons() & Qt.LeftButton:
             geometry = self._resize_geometry(event.globalPosition().toPoint())
             self.setGeometry(geometry)
-            self.last_geometry = self.geometry()
+            self._remember_runtime_geometry()
             self.manual_positioned = True
             self._update_cursor(pos)
             return True
         if self._dragging and event.buttons() & Qt.LeftButton:
             self.move(self._clamped_drag_position(event.globalPosition().toPoint()))
             self.manual_positioned = True
-            self.last_geometry = self.geometry()
+            self._remember_runtime_geometry()
             return True
         self._update_cursor(pos)
         return False
@@ -858,7 +1080,7 @@ class TranslationOverlay(QWidget):
         released_resize = bool(self._resize_mode)
         self._dragging = False
         self._resize_mode = None
-        self.last_geometry = self.geometry()
+        self._remember_runtime_geometry()
         if released_drag and self.is_pinned:
             self.persist_current_geometry_as_pinned()
             self._persist_runtime_overlay_state()

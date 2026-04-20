@@ -35,12 +35,12 @@ def clamp_rect_to_visible_screen(rect: QRect) -> QRect:
     return QRect(int(x), int(y), int(width), int(height))
 
 
-def clamp_overlay_size_to_screen(config, translation_overlay, screen_rect: QRect, text: str, width: int, height: int) -> tuple[int, int]:
+def clamp_overlay_size_to_screen(config, translation_overlay, screen_rect: QRect, text: str, width: int, height: int, *, render_markdown: bool = True) -> tuple[int, int]:
     margin = config.margin
     top_margin, bottom_margin = overlay_vertical_safe_margins(config)
     width = min(width, max(240, screen_rect.width() - margin * 2))
     available_height = max(220, screen_rect.height() - top_margin - bottom_margin)
-    desired_height = translation_overlay.measure_content_height(text, width)
+    desired_height = translation_overlay.measure_content_height(text, width, render_markdown=render_markdown)
     height = max(height, desired_height)
     height = min(height, available_height)
     return int(width), int(height)
@@ -57,7 +57,7 @@ def preferred_overlay_width_for_bbox(config, bbox) -> int:
     return int(left_space if ((left + right) / 2) >= screen_rect.center().x() else right_space)
 
 
-def fit_overlay_size(config, translation_overlay, bbox, text: str, width: int, height: int) -> tuple[int, int]:
+def fit_overlay_size(config, translation_overlay, bbox, text: str, width: int, height: int, *, render_markdown: bool = True) -> tuple[int, int]:
     left, top, right, bottom = bbox
     screen_rect = get_target_screen_rect(bbox)
     margin = config.margin
@@ -76,7 +76,7 @@ def fit_overlay_size(config, translation_overlay, bbox, text: str, width: int, h
         preferred_height = bottom_space if ((top + bottom) / 2) < screen_rect.center().y() else top_space
         height = min(height, preferred_height)
 
-    return clamp_overlay_size_to_screen(config, translation_overlay, screen_rect, text, width, height)
+    return clamp_overlay_size_to_screen(config, translation_overlay, screen_rect, text, width, height, render_markdown=render_markdown)
 
 
 def compute_overlay_position(config, bbox, width: int, height: int) -> tuple[int, int]:

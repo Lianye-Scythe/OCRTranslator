@@ -122,12 +122,16 @@ class OverlayPresenter:
     def _prepare_hidden_first_partial_rect(self, *, text: str, preset_name: str, initial_planned_rect: QRect, overlay_config, bbox, anchor_point) -> QRect:
         body = getattr(self.overlay, "body", None)
         set_geometry = getattr(self.overlay, "setGeometry", None)
+        set_body_content = getattr(self.overlay, "_set_body_content", None)
         if body is None or not callable(getattr(body, "setPlainText", None)) or not callable(set_geometry):
             return QRect(initial_planned_rect)
 
         current_text = body.toPlainText() if callable(getattr(body, "toPlainText", None)) else ""
         if current_text != text:
-            body.setPlainText(text)
+            if callable(set_body_content):
+                set_body_content(text, render_markdown=False)
+            else:
+                body.setPlainText(text)
         set_geometry(QRect(initial_planned_rect))
         actual_rect = QRect(self.overlay.geometry())
         if actual_rect.size() == initial_planned_rect.size():
@@ -238,6 +242,7 @@ class OverlayPresenter:
                         text,
                         width,
                         height,
+                        render_markdown=False,
                     )
                     margin = overlay_config.margin
                     soft_top_margin, soft_bottom_margin = overlay_vertical_safe_margins(overlay_config)
@@ -273,7 +278,7 @@ class OverlayPresenter:
             width = preserved_geometry.width()
             height = preserved_geometry.height()
         elif bbox is not None:
-            width, height = fit_overlay_size(overlay_config, self.overlay, bbox, text, width, height)
+            width, height = fit_overlay_size(overlay_config, self.overlay, bbox, text, width, height, render_markdown=not partial)
             target_screen_rect = get_target_screen_rect(bbox)
             if preserve_manual_position and self.overlay.last_geometry is not None:
                 margin = overlay_config.margin
@@ -291,7 +296,15 @@ class OverlayPresenter:
         else:
             anchor_point = anchor_point or self.overlay.last_anchor_point or QCursor.pos()
             target_screen_rect = get_screen_rect_for_point(anchor_point)
-            width, height = clamp_overlay_size_to_screen(overlay_config, self.overlay, target_screen_rect, text, width, height)
+            width, height = clamp_overlay_size_to_screen(
+                overlay_config,
+                self.overlay,
+                target_screen_rect,
+                text,
+                width,
+                height,
+                render_markdown=not partial,
+            )
             if preserve_manual_position and self.overlay.last_geometry is not None:
                 margin = overlay_config.margin
                 soft_top_margin, soft_bottom_margin = overlay_vertical_safe_margins(overlay_config)
