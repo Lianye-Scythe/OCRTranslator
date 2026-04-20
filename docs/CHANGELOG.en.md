@@ -6,6 +6,18 @@ This file records important OCRTranslator changes.
 
 ## [Unreleased]
 
+## [1.0.10] - 2026-04-20
+
+### Added
+- The final result overlay now renders Markdown while keeping the raw source text for copying and restore behavior
+
+### Changed
+- Added a collapse / expand toggle for the result overlay; when collapsed it shrinks into a compact title bar to reduce obstruction
+- Overlay sizing and positioning now distinguish partial and final render paths, reducing geometry mismatches during restore and streaming updates
+
+### Test
+- Added regression coverage for Markdown rendering, raw-text copying, collapsed-geometry restore, and the partial / final rerender paths
+
 ## [1.0.9] - 2026-04-11
 
 ### Added
