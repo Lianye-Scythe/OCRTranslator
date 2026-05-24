@@ -1,10 +1,9 @@
 from __future__ import annotations
 
+import ctypes
 import sys
 
 if sys.platform.startswith("win"):
-    import ctypes
-
     try:
         DWMAPI = ctypes.windll.dwmapi
     except Exception:  # noqa: BLE001

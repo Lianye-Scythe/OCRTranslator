@@ -6,6 +6,20 @@
 
 ## [Unreleased]
 
+## [1.0.11] - 2026-05-24
+
+### Changed
+- 內建 `翻譯 (Translate)` 預設方案的圖片 / 文字提示詞更新為更嚴格的 lossless OCR / translation API 指令，並補強圖片閱讀順序規則
+- Python 執行與打包依賴更新到目前穩定版本
+- README release badge 與打包文件中的版本化壓縮包範例同步更新到 `v1.0.11`
+
+### Fixed
+- 修正 Windows 專屬選取文字與截圖隱身輔助模組在 WSL / Linux 測試環境匯入時會因 Windows API 不存在而失敗的問題
+- 忽略 Windows `Zone.Identifier` sidecar 檔案，並明確將 GIF 截圖資產標記為 binary，降低跨 Windows / WSL 開發時的檔案雜訊
+
+### Test
+- 補上 WSL 環境下的完整單元測試、編譯檢查、依賴完整性檢查與提示詞同步驗證
+
 ## [1.0.10] - 2026-04-20
 
 ### Added

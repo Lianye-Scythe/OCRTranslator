@@ -12,7 +12,10 @@ COPY_TRIGGER_TIMEOUT_SECONDS = 0.65
 COPY_TRIGGER_POLL_SECONDS = 0.02
 HOTKEY_RELEASE_TIMEOUT_SECONDS = 1.0
 
-USER32 = ctypes.windll.user32
+try:
+    USER32 = ctypes.windll.user32
+except Exception:  # noqa: BLE001
+    USER32 = None
 VK_SHIFT = 0x10
 VK_CONTROL = 0x11
 VK_MENU = 0x12
@@ -240,6 +243,8 @@ def _clone_mime_data(mime_data) -> tuple[QMimeData, bool]:
 
 
 def _clipboard_sequence_number() -> int | None:
+    if USER32 is None:
+        return None
     try:
         return int(USER32.GetClipboardSequenceNumber())
     except Exception:  # noqa: BLE001
@@ -293,6 +298,8 @@ def _virtual_key_codes_for_hotkey(hotkey_text: str) -> list[int]:
 
 
 def _is_virtual_key_pressed(virtual_key: int) -> bool:
+    if USER32 is None:
+        return False
     try:
         return bool(USER32.GetAsyncKeyState(int(virtual_key)) & 0x8000)
     except Exception:  # noqa: BLE001

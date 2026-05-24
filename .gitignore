@@ -9,6 +9,7 @@ release/
 .ocrtranslator.lock
 config.json
 *.log
+*:Zone.Identifier
 .pytest_cache/
 .limcode/
 packaging/**/*.generated.*

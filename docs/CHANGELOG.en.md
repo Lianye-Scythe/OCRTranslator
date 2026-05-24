@@ -6,6 +6,20 @@ This file records important OCRTranslator changes.
 
 ## [Unreleased]
 
+## [1.0.11] - 2026-05-24
+
+### Changed
+- Updated the built-in `Translate` image / text prompts to a stricter lossless OCR / translation API instruction set, including stronger image reading-order rules
+- Updated Python runtime and packaging dependencies to their current stable versions
+- Updated the README release badge and packaging archive examples to `v1.0.11`
+
+### Fixed
+- Fixed Windows-specific selected-text and capture-concealment helpers failing to import in WSL / Linux test environments when Windows APIs are unavailable
+- Ignored Windows `Zone.Identifier` sidecar files and explicitly marked GIF screenshot assets as binary to reduce cross Windows / WSL file noise
+
+### Test
+- Verified the WSL environment with the full unit test suite, compile check, dependency integrity check, and prompt synchronization check
+
 ## [1.0.10] - 2026-04-20
 
 ### Added
