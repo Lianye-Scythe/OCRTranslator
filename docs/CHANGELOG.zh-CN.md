@@ -10,6 +10,9 @@
 - 升级至 Pillow 12.3.0、PySide6 6.12.0（Qt 6.12 LTS）与 PyInstaller 6.22.3。
 - Windows 打包使用 Python 3.15，CI 同时验证 Python 3.11 与 3.15。
 
+### Fixed
+- 修复手动从含斜线的分支运行 Release Build 时，artifact 名称无效而上传失败的问题。
+
 ## [1.0.11] - 2026-05-24
 
 ### Changed

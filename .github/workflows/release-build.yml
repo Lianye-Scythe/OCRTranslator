@@ -140,7 +140,7 @@ jobs:
       - name: Upload final release ZIP artifact
         uses: actions/upload-artifact@v7
         with:
-          name: OCRTranslator-windows-x64-${{ github.ref_name }}
+          name: OCRTranslator-windows-x64-${{ github.run_id }}
           if-no-files-found: error
           path: |
             ${{ steps.release_archive.outputs.path }}
