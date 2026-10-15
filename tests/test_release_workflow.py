@@ -8,8 +8,8 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertIn('release\\OCRTranslator-v*-windows-x64.zip', workflow)
         self.assertIn('FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"', workflow)
         self.assertIn('group: release-${{ github.workflow }}-${{ github.ref }}', workflow)
-        self.assertIn('uses: actions/checkout@v6', workflow)
-        self.assertIn('uses: actions/setup-python@v6', workflow)
+        self.assertIn('uses: actions/checkout@v7', workflow)
+        self.assertIn('uses: actions/setup-python@v7', workflow)
         self.assertIn('cache: "pip"', workflow)
         self.assertIn('uses: actions/upload-artifact@v7', workflow)
         self.assertIn('id: signpath_gate', workflow)
@@ -44,8 +44,8 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertIn('FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"', workflow)
         self.assertIn('workflow_dispatch:', workflow)
         self.assertIn('group: ci-${{ github.workflow }}-${{ github.ref }}', workflow)
-        self.assertIn('uses: actions/checkout@v6', workflow)
-        self.assertIn('uses: actions/setup-python@v6', workflow)
+        self.assertIn('uses: actions/checkout@v7', workflow)
+        self.assertIn('uses: actions/setup-python@v7', workflow)
         self.assertIn('cache: "pip"', workflow)
 
     def test_sha256_generator_script_uses_release_style_output(self):
