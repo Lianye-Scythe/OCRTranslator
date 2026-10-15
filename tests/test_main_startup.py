@@ -235,7 +235,7 @@ class MainStartupTests(unittest.TestCase):
             window.set_advanced_section_expanded(True)
             window.show()
             self.app.processEvents()
-            with patch("app.ui.main_window.QToolTip.showText") as hint:
+            with patch("app.ui.generation_controls.QToolTip.showText") as hint:
                 QTest.mouseClick(window.temperature_spin, Qt.LeftButton)
                 hint.assert_called_once()
                 self.assertEqual(hint.call_args.args[1], window.tr("temperature_disabled_hint"))
@@ -262,6 +262,15 @@ class MainStartupTests(unittest.TestCase):
             window.load_profile_to_form(profile.name)
             self.assertTrue(window.render_markdown_checkbox.isChecked())
             self.assertEqual(window.reasoning_effort_combo.currentData(), "high")
+            window.translation_in_progress = True
+            window.update_action_states()
+            window.load_profile_to_form(profile.name)
+            self.assertFalse(window.temperature_spin.isEnabled())
+            self.assertFalse(window.reasoning_effort_combo.isEnabled())
+            self.assertFalse(window.use_default_temperature_checkbox.isEnabled())
+            window.translation_in_progress = False
+            window.update_action_states()
+            self.assertTrue(window.temperature_spin.isEnabled())
             window.provider_combo.setCurrentIndex(window.provider_combo.findData("openai"))
             self.assertGreaterEqual(window.reasoning_effort_combo.findData("max"), 0)
             window.reasoning_effort_combo.setCurrentIndex(window.reasoning_effort_combo.findData("max"))

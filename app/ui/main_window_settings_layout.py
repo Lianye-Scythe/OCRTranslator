@@ -5,6 +5,7 @@ from PySide6.QtWidgets import QCheckBox, QFrame, QGridLayout, QHBoxLayout, QLabe
 from .focus_utils import install_mouse_click_focus_clear_many
 from .ime_aware_text_edit import ImeAwarePlainTextEdit
 from .main_window_layout import ScrollSafeComboBox, ScrollSafeDoubleSpinBox, ScrollSafeFontComboBox, ScrollSafeSpinBox
+from .generation_controls import GenerationControls
 
 
 class MainWindowSettingsLayoutMixin:
@@ -438,8 +439,6 @@ class MainWindowSettingsLayoutMixin:
         advanced_grid.addWidget(self.create_field_block(self.overlay_font_label, self.overlay_font_combo), 0, 1)
         advanced_grid.addWidget(self.create_field_block(self.overlay_font_size_label, self.overlay_font_size_spin), 1, 0)
         self.temperature_field_block = self.create_field_block(self.temperature_label, self.temperature_spin)
-        for widget in (self.temperature_field_block, self.temperature_spin, self.temperature_spin.lineEdit()):
-            widget.installEventFilter(self)
         advanced_grid.addWidget(self.temperature_field_block, 1, 1)
         advanced_grid.addWidget(self.create_field_block(self.overlay_width_label, self.overlay_width_spin), 2, 0)
         advanced_grid.addWidget(self.create_field_block(self.overlay_height_label, self.overlay_height_spin), 2, 1)
@@ -464,12 +463,18 @@ class MainWindowSettingsLayoutMixin:
         self.set_advanced_section_expanded(False)
 
     def _connect_settings_form_signals(self):
+        self.generation_controls = GenerationControls(
+            reasoning_combo=self.reasoning_effort_combo,
+            default_temperature_checkbox=self.use_default_temperature_checkbox,
+            temperature_spin=self.temperature_spin,
+            temperature_field=self.temperature_field_block,
+            translate=self.tr,
+        )
         self.profile_name_edit.textChanged.connect(self.on_form_input_changed)
         self.base_url_edit.textChanged.connect(self.on_form_input_changed)
         self.model_combo.currentTextChanged.connect(self.on_form_input_changed)
         self.reasoning_effort_combo.currentIndexChanged.connect(self.on_form_input_changed)
         self.use_default_temperature_checkbox.toggled.connect(self.on_form_input_changed)
-        self.use_default_temperature_checkbox.toggled.connect(lambda checked: self.temperature_spin.setEnabled(not checked))
         self.prompt_preset_name_edit.textChanged.connect(self.on_form_input_changed)
         self.image_prompt_edit.textChanged.connect(self.on_form_input_changed)
         self.text_prompt_edit.textChanged.connect(self.on_form_input_changed)

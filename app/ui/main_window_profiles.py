@@ -25,7 +25,6 @@ from ..profile_utils import (
     normalize_model_value,
     normalize_provider_name,
     unique_non_empty,
-    reasoning_effort_values,
 )
 from ..settings_models import SettingsFormSnapshot
 from ..settings_service import build_candidate_config, build_profile_from_snapshot, validate_profile_name as validate_profile_name_rule, validate_settings_snapshot
@@ -226,13 +225,7 @@ class MainWindowProfilesMixin:
         self.provider_combo.blockSignals(False)
 
     def update_reasoning_effort_options(self, value: str | None = None):
-        selected = value if value is not None else (self.reasoning_effort_combo.currentData() or "default")
-        self.reasoning_effort_combo.blockSignals(True)
-        self.reasoning_effort_combo.clear()
-        for effort in reasoning_effort_values(self.provider_combo.currentData() or "gemini"):
-            self.reasoning_effort_combo.addItem(self.tr("reasoning_default") if effort == "default" else effort, effort)
-        self.reasoning_effort_combo.setCurrentIndex(max(0, self.reasoning_effort_combo.findData(selected)))
-        self.reasoning_effort_combo.blockSignals(False)
+        self.generation_controls.update_reasoning_options(self.provider_combo.currentData() or "gemini", value)
 
     def on_provider_selected(self):
         provider = normalize_provider_name(self.provider_combo.currentData() or "gemini")
@@ -856,8 +849,7 @@ class MainWindowProfilesMixin:
             self.refresh_api_keys_editor()
             self.retry_count_spin.setValue(profile.retry_count)
             self.retry_interval_spin.setValue(profile.retry_interval)
-            self.update_reasoning_effort_options(profile.reasoning_effort)
-            self.use_default_temperature_checkbox.setChecked(profile.use_default_temperature)
+            self.generation_controls.load(profile, self.config.temperature)
             self.target_language_edit.setText(self.config.target_language)
             self.ui_language_combo.setCurrentText(self.config.ui_language)
             self.update_theme_mode_options(getattr(self.config, "theme_mode", DEFAULT_THEME_MODE))
@@ -865,8 +857,6 @@ class MainWindowProfilesMixin:
             self.selection_hotkey_edit.setText(self.config.selection_hotkey)
             self.input_hotkey_edit.setText(self.config.input_hotkey)
             self.overlay_font_combo.setCurrentFont(QFont(self.config.overlay_font_family))
-            self.temperature_spin.setValue(self.config.temperature)
-            self.temperature_spin.setEnabled(not profile.use_default_temperature)
             self.overlay_font_size_spin.setValue(self.config.overlay_font_size)
             self.overlay_width_spin.setValue(self.config.overlay_width)
             self.overlay_height_spin.setValue(self.config.overlay_height)

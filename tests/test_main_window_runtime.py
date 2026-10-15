@@ -927,6 +927,7 @@ class MainWindowRuntimeTests(unittest.TestCase):
 
     def test_update_action_states_freezes_settings_during_translation(self):
         window = MainWindow.__new__(MainWindow)
+        window.generation_controls = SimpleNamespace(set_busy=Mock())
         window.tr = lambda key, **kwargs: key
         window.fetch_models_in_progress = False
         window.test_profile_in_progress = False
@@ -985,6 +986,7 @@ class MainWindowRuntimeTests(unittest.TestCase):
 
         window.update_action_states()
 
+        window.generation_controls.set_busy.assert_called_once_with(True)
         self.assertFalse(window.target_language_edit.enabled)
         self.assertFalse(window.prompt_preset_combo.enabled)
         self.assertFalse(window.close_to_tray_on_close_checkbox.enabled)

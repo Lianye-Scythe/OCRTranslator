@@ -110,6 +110,7 @@ OCRTranslator/
 │  │  └─ system_tray.py              # 系统托盘建立、更新与动作绑定
 │  │
 │  └─ ui/
+│     ├─ generation_controls.py      # 生成参数 UI 状态、思考程度选项与禁用提示
 │     ├─ __init__.py                 # UI 包标记
 │     ├─ main_window.py              # 主窗口协调层，整合 mixin 与 service 调用
 │     ├─ main_window_layout.py       # 主壳层布局、workspace surface、导航、button variant 与样式套用

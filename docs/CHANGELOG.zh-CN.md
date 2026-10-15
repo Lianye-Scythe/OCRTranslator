@@ -7,6 +7,7 @@
 ## [Unreleased]
 
 ### Changed
+- 集中管理生成参数的 UI 状态与点击提示，避免忙碌期间加载设置重新启用温度字段。
 - 协作、行为准则、安全与支持文档集中到 `.github/`；crash log 改存运行目录下的 `logs/`，减少根目录杂项。
 - Gemini 默认模型改为 `gemini-flash-lite-latest`，并更新图片与文本翻译提示词。
 - API Profile 新增思考程度与模型默认 temperature；Gemini 使用 3+ 的 `thinkingLevel`，OpenAI 使用 `reasoning_effort`。

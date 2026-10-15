@@ -110,6 +110,7 @@ OCRTranslator/
 │  │  └─ system_tray.py              # system tray creation, updates, and action binding
 │  │
 │  └─ ui/
+│     ├─ generation_controls.py      # generation-control state, reasoning options, and disabled-field hints
 │     ├─ __init__.py                 # package marker for UI
 │     ├─ main_window.py              # main window coordinator, integrating mixins and service calls
 │     ├─ main_window_layout.py       # shell layout, workspace surface, navigation, button variants, and style application
