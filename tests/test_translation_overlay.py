@@ -306,6 +306,7 @@ class TranslationOverlayTests(unittest.TestCase):
         mock_show_topmost.assert_not_called()
 
     def test_show_text_final_result_renders_markdown_and_keeps_raw_source(self):
+        self.window.config.render_markdown = True
         with patch.object(self.overlay, "_set_body_content", wraps=self.overlay._set_body_content) as mock_set_body_content:
             self.overlay.show_text("**Hello**", 120, 140, 500, 360, remember_state=True)
 
@@ -314,6 +315,7 @@ class TranslationOverlayTests(unittest.TestCase):
         self.assertEqual(self.overlay.last_text, "**Hello**")
 
     def test_show_text_final_result_restores_from_minimized_overlay(self):
+        self.window.config.render_markdown = True
         self.overlay.setGeometry(120, 140, 500, 360)
         self.overlay.show()
         self.overlay.toggle_minimized()
@@ -326,6 +328,7 @@ class TranslationOverlayTests(unittest.TestCase):
         self.assertEqual(self.overlay.body.toPlainText(), "Hello")
 
     def test_show_text_final_result_rerenders_markdown_after_partial_plain_text_of_same_source(self):
+        self.window.config.render_markdown = True
         self.overlay.show_text("**Hello**", 120, 140, 500, 360, remember_state=True)
         self.overlay.set_partial_result_state("streaming", preset_name="翻译")
         self.overlay.show_text("**Hello**", 120, 140, 500, 360, remember_state=False)
@@ -357,6 +360,7 @@ class TranslationOverlayTests(unittest.TestCase):
         self.assertEqual(self.overlay.body.toPlainText(), "Hi")
 
     def test_restore_last_overlay_renders_markdown_from_saved_source(self):
+        self.window.config.render_markdown = True
         self.overlay.last_text = "**Hello**"
         self.overlay.last_geometry = self.overlay.geometry()
 
@@ -365,3 +369,18 @@ class TranslationOverlayTests(unittest.TestCase):
 
         mock_set_body_content.assert_called_once_with("**Hello**", render_markdown=True)
         self.assertEqual(self.overlay.body.toPlainText(), "Hello")
+
+    def test_markdown_is_disabled_by_default_for_display_and_restore(self):
+        self.assertFalse(self.window.config.render_markdown)
+        self.overlay.show_text("**Hello**", 120, 140, 500, 360)
+        self.assertEqual(self.overlay.body.toPlainText(), "**Hello**")
+        self.overlay.body.clear()
+        self.overlay.restore_last_overlay()
+        self.assertEqual(self.overlay.body.toPlainText(), "**Hello**")
+
+    def test_disabling_markdown_after_render_replaces_formatted_body(self):
+        self.window.config.render_markdown = True
+        self.overlay.show_text("**Hello**", 120, 140, 500, 360)
+        self.window.config.render_markdown = False
+        self.overlay.show_text("**Hello**", 120, 140, 500, 360)
+        self.assertEqual(self.overlay.body.toPlainText(), "**Hello**")

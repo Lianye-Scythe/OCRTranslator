@@ -40,13 +40,17 @@ OCRTranslator 目前主要分成這幾層：
 - 若便攜位置尚未存在設定檔，且目前執行目錄不可寫，則會回退到使用者設定目錄
 - Windows fallback 路徑：`%LOCALAPPDATA%\OCRTranslator\config.json`
 - 其他環境 fallback 路徑：`~/.ocrtranslator/config.json`
-- crash log 仍以 runtime base dir 為主，也就是專案根目錄 / exe 同層，不跟著 fallback 設定檔路徑移動
+- crash log 仍以 runtime base dir 為主，也就是專案根目錄 / exe 所在目錄下的 `logs/`，不跟著 fallback 設定檔路徑移動
 
 ## 詳細專案結構
 
 ```text
 OCRTranslator/
 ├─ .github/
+│  ├─ CONTRIBUTING.md              # Contribution guide
+│  ├─ CODE_OF_CONDUCT.md           # Code of conduct
+│  ├─ SECURITY.md                  # Security policy
+│  ├─ SUPPORT.md                   # Support guide
 │  ├─ ISSUE_TEMPLATE/
 │  │  ├─ bug_report.yml              # Bug 回報模板
 │  │  ├─ config.yml                  # GitHub issue 模板設定
@@ -173,8 +177,8 @@ OCRTranslator/
 ├─ CHANGELOG.md                      # 變更記錄（繁中預設版）
 ├─ config.example.json               # 設定檔範例
 ├─ config.json                       # 本機執行設定（runtime 產物，不應提交）
-├─ CONTRIBUTING.md                   # 協作與貢獻指南（繁中預設版）
 ├─ launcher.pyw                      # GUI 啟動器
+├─ logs/                             # Local crash logs (ignored by Git)
 ├─ packaging/
 │  ├─ signpath/
 │  │  ├─ artifact-configurations/
@@ -185,9 +189,8 @@ OCRTranslator/
 ├─ README.md                         # 專案說明（繁中預設版）
 ├─ requirements-dev.txt              # 開發 / 打包依賴
 ├─ requirements.txt                  # 執行期依賴
-├─ SUPPORT.md                        # 支援與聯繫方式（繁中預設版）
-├─ SECURITY.md                       # 安全性回報說明（繁中預設版）
-└─ start.bat                         # Windows 一鍵啟動腳本
+├─ start.bat                         # Windows 一鍵啟動腳本
+└─ start_wsl.bat                     # Run WSL source with Windows Python
 ```
 
 ## 維護建議

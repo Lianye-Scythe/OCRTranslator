@@ -639,7 +639,7 @@ class TranslationOverlay(QWidget):
         return False
 
     def calculate_size(self, text: str, *, base_width: int | None = None, preset_name: str | None = None, partial_state: str | None = None):
-        render_markdown = not self._has_partial_state(partial_state)
+        render_markdown = bool(getattr(self.app_window.config, "render_markdown", False)) and not self._has_partial_state(partial_state)
         plain_text = self._content_plain_text(text, render_markdown=render_markdown)
         lines = plain_text.splitlines() or [plain_text]
         metrics = QFontMetrics(self.body.font())
@@ -654,7 +654,7 @@ class TranslationOverlay(QWidget):
         return width, height
 
     def measure_content_height(self, text: str, width: int, *, render_markdown: bool = True) -> int:
-        doc = self._build_content_document(text, render_markdown=render_markdown)
+        doc = self._build_content_document(text, render_markdown=render_markdown and bool(getattr(self.app_window.config, "render_markdown", False)))
         text_width = max(220, width - 42)
         doc.setTextWidth(text_width)
         header_height = 58
@@ -840,7 +840,7 @@ class TranslationOverlay(QWidget):
 
     def show_text(self, text: str, x: int, y: int, width: int, height: int, *, keep_manual_position: bool = False, remember_state: bool = True):
         normalized_text = self._normalized_text(text)
-        render_markdown = bool(remember_state)
+        render_markdown = bool(remember_state) and bool(getattr(self.app_window.config, "render_markdown", False))
         if remember_state and self._is_minimized:
             self._set_minimized(False, restore_geometry=False, emit_status=False)
         if remember_state:
@@ -887,7 +887,7 @@ class TranslationOverlay(QWidget):
         self.refresh_language()
         self.setGeometry(clamp_rect_to_visible_screen(self.last_geometry))
         self._remember_runtime_geometry()
-        self._set_body_content(self.last_text, render_markdown=True)
+        self._set_body_content(self.last_text, render_markdown=bool(getattr(self.app_window.config, "render_markdown", False)))
         self._show_as_topmost()
         self._sync_topbar_hover_state(QCursor.pos())
 

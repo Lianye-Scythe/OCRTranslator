@@ -19,8 +19,8 @@
 
 ## 协作与治理
 
-- [Code of Conduct](../CODE_OF_CONDUCT.md)
-- [Support](../SUPPORT.md)
+- [Code of Conduct](../.github/CODE_OF_CONDUCT.md)
+- [Support](../.github/SUPPORT.md)
 - [Contributing](CONTRIBUTING.zh-CN.md)
 - [Security Policy](SECURITY.zh-CN.md)
 - [Changelog](CHANGELOG.zh-CN.md)

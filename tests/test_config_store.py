@@ -3,10 +3,23 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
-from app.config_store import _migrate_legacy_config, load_config, save_config
+from app.config_store import _config_to_dict, _migrate_legacy_config, load_config, save_config
 
 
 class ConfigStoreMigrationTests(unittest.TestCase):
+    def test_new_generation_settings_default_and_round_trip(self):
+        config = _migrate_legacy_config({})
+        self.assertFalse(config.render_markdown)
+        self.assertEqual(config.api_profiles[0].reasoning_effort, "default")
+        self.assertTrue(config.api_profiles[0].use_default_temperature)
+        config.render_markdown = True
+        config.api_profiles[0].reasoning_effort = "high"
+        config.api_profiles[0].use_default_temperature = False
+        restored = _migrate_legacy_config(_config_to_dict(config))
+        self.assertTrue(restored.render_markdown)
+        self.assertEqual(restored.api_profiles[0].reasoning_effort, "high")
+        self.assertFalse(restored.api_profiles[0].use_default_temperature)
+
     def test_migrate_profiles_with_invalid_shapes_is_normalized(self):
         with patch("app.config_store.detect_system_ui_language", return_value="zh-CN"):
             config = _migrate_legacy_config(

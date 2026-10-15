@@ -258,6 +258,8 @@ class RequestWorkflowController:
             profile.provider,
             profile.base_url.strip(),
             tuple(profile.api_keys),
+            getattr(profile, "reasoning_effort", "default") if include_model else "",
+            bool(getattr(profile, "use_default_temperature", True)) if include_model else True,
             str(profile.model or "").strip() if include_model else "",
         )
 
@@ -415,10 +417,11 @@ class RequestWorkflowController:
         request_id = self.window._test_profile_request_id = self.window._test_profile_request_id + 1
         stream_enabled = bool(getattr(self.window, "current_stream_responses", lambda: True)())
         request_signature = self.profile_request_signature(profile, include_model=True)
+        temperature = self.window.current_temperature()
         self.window.log_tr("log_test_started", name=profile.name, model=profile.model)
         self.window.run_worker(
-            lambda request_context, stream_enabled=stream_enabled: (
-                request_id, request_signature, self.window.api_client.test_profile(profile, stream=stream_enabled, request_context=request_context)
+            lambda request_context, stream_enabled=stream_enabled, temperature=temperature: (
+                request_id, request_signature, self.window.api_client.test_profile(profile, temperature=temperature, stream=stream_enabled, request_context=request_context)
             ),
             self.on_test_success,
             operation_key="test_profile",

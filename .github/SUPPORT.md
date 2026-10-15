@@ -1,6 +1,6 @@
 # Support
 
-繁體中文｜[简体中文](docs/SUPPORT.zh-CN.md)｜[English](docs/SUPPORT.en.md)
+繁體中文｜[简体中文](../docs/SUPPORT.zh-CN.md)｜[English](../docs/SUPPORT.en.md)
 
 這份文件說明 OCRTranslator 目前建議的提問、回報與聯繫方式。
 
@@ -8,11 +8,11 @@
 
 建立 issue 或寄信前，建議先依序查看：
 
-- [README](README.md)
-- [FAQ](docs/FAQ.md)
+- [README](../README.md)
+- [FAQ](../docs/FAQ.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security Policy](SECURITY.md)
-- [Changelog](CHANGELOG.md)
+- [Changelog](../CHANGELOG.md)
 
 ## 一般使用問題
 
@@ -23,7 +23,7 @@
 - 支援的 provider / Base URL 類型
 - 選取文字、截圖、浮窗等使用方式
 
-請先查看 [FAQ](docs/FAQ.md) 與 [README](README.md)。
+請先查看 [FAQ](../docs/FAQ.md) 與 [README](../README.md)。
 
 ## Bug 回報
 

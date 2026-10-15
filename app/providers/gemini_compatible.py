@@ -5,6 +5,7 @@ import requests
 
 from ..models import ApiProfile
 from ..operation_control import RequestCancelledError, RequestContext
+from ..profile_utils import reasoning_effort_values
 
 
 def _merge_stream_text(current_text: str, chunk_text: str) -> str:
@@ -88,6 +89,8 @@ class GeminiCompatibleAdapter:
     @staticmethod
     def _mark_stream_fallback_allowed(exc: Exception):
         status_code = int(getattr(exc, "status_code", 0) or 0)
+        if status_code in {400, 422} and any(key in str(exc).lower() for key in ("reasoning", "thinking", "temperature")):
+            return exc
         if status_code in {400, 404, 405, 406, 415, 422, 501}:
             setattr(exc, "stream_fallback_allowed", True)
         return exc
@@ -145,6 +148,13 @@ class GeminiCompatibleAdapter:
         parts = [{"text": prompt}]
         if image_base64:
             parts.append({"inline_data": {"mime_type": "image/png", "data": image_base64}})
+        generation_config = {}
+        if not profile.use_default_temperature:
+            generation_config["temperature"] = temperature
+        if profile.reasoning_effort not in reasoning_effort_values("gemini"):
+            raise self._error_factory("Unsupported Gemini thinkingLevel", retryable=False, retry_same_key=False)
+        if profile.reasoning_effort != "default":
+            generation_config["thinkingConfig"] = {"thinkingLevel": profile.reasoning_effort.upper(), "includeThoughts": False}
         try:
             response = self._request_with_auth_fallback(
                 "POST",
@@ -153,7 +163,7 @@ class GeminiCompatibleAdapter:
                 request_context=request_context,
                 json={
                     "contents": [{"role": "user", "parts": parts}],
-                    "generationConfig": {"temperature": temperature},
+                    "generationConfig": generation_config,
                 },
                 params={"alt": "sse"} if stream else None,
                 timeout=120,
@@ -208,7 +218,7 @@ class GeminiCompatibleAdapter:
                 continue
             candidate = candidates[0]
             parts = candidate.get("content", {}).get("parts", [])
-            piece = "\n".join(part.get("text", "") for part in parts if isinstance(part, dict) and part.get("text"))
+            piece = "\n".join(part.get("text", "") for part in parts if isinstance(part, dict) and part.get("text") and not part.get("thought"))
             if piece.strip():
                 current_text = _merge_stream_text(current_text, piece)
                 if callable(stream_callback):
@@ -244,7 +254,7 @@ class GeminiCompatibleAdapter:
             raise self._error_factory("Gemini returned no candidates", user_message="Gemini 沒有回傳可用候選結果。")
         candidate = candidates[0]
         parts = candidate.get("content", {}).get("parts", [])
-        text = "\n".join(part.get("text", "") for part in parts if isinstance(part, dict) and part.get("text")).strip()
+        text = "\n".join(part.get("text", "") for part in parts if isinstance(part, dict) and part.get("text") and not part.get("thought")).strip()
         if text:
             return text
         finish_reason = gemini_finish_reason_text(candidate.get("finishReason"))

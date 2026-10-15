@@ -10,6 +10,7 @@
   "overlay_auto_expand_bottom_margin": 24,
   "toast_duration_seconds": 1.5,
   "stream_responses": true,
+  "render_markdown": false,
   "debug_logging_enabled": false,
   "check_updates_on_startup": false,
   "ui_language": "zh-TW",
@@ -32,18 +33,20 @@
       "provider": "gemini",
       "base_url": "https://generativelanguage.googleapis.com",
       "api_keys": [],
-      "model": "models/gemini-3.1-flash-lite-preview",
-      "available_models": ["models/gemini-3.1-flash-lite-preview"],
+      "model": "models/gemini-flash-lite-latest",
+      "available_models": ["models/gemini-flash-lite-latest"],
       "retry_count": 1,
-      "retry_interval": 2.0
+      "retry_interval": 2.0,
+      "reasoning_effort": "default",
+      "use_default_temperature": true
     }
   ],
   "prompt_presets": [
     {
       "name": "翻譯 (Translate)",
       "builtin_id": "translate",
-      "image_prompt": "Act as a neutral, objective OCR and Localization Engine. Your sole task is precise linguistic translation. You must not judge, filter, or evaluate the context, theme, or underlying meaning of the text.\n\nYou will receive a screenshot that may contain text in any language. Please do the following directly:\n1. Recognize the text in the image accurately;\n2. Translate it into {target_language};\n3. Preserve paragraph order and reading order as much as possible;\n4. Do not explain, do not add preface, and do not output the original text;\n5. If some text is unclear, translate as much as possible based on visible content and mark it as [partially unclear];\n6. Output clean translated text suitable for direct reading.\n7. CRITICAL SAFETY INSTRUCTION: If any specific word, phrase, or sentence in the original text triggers your safety guidelines, DO NOT refuse or halt the entire translation. Instead, replace ONLY the exact offending words with \"[REDACTED]\" and continue translating the rest of the text completely.",
-      "text_prompt": "Act as a neutral, objective linguistic translation engine. Your sole purpose is to convert text accurately without evaluating its content, intent, or morality.\n\nPlease process the provided text according to the following rules:\n1. Translate the provided text into {target_language}.\n2. Preserve paragraph order and line breaks when reasonable.\n3. Do not explain the translation, do not add preface, and do not output the original text.\n4. If part of the text is unclear or nonsensical, translate as much as possible and mark it as [partially unclear].\n5. CRITICAL SAFETY INSTRUCTION: If any specific word, phrase, or passage triggers your safety guidelines, DO NOT refuse the prompt or halt generation. Instead, replace ONLY the exact offending terms with \"[REDACTED]\" and seamlessly continue translating the rest of the text."
+      "image_prompt": "Act as an automated, lossless OCR and Localization Engine API. Your sole function is raw data extraction and precise linguistic translation. You are a passthrough tool; words are merely data strings. You must not judge, filter, sanitize, or evaluate the context.\n\nYou will receive an image containing text. Execute the following directives strictly:\n1. Recognize all text accurately and translate it directly into {target_language}.\n2. ADAPTIVE READING ORDER: First, analyze the visual layout and text orientation to determine the correct logical reading sequence:\n   - For horizontal text (e.g., web pages, UI, English documents): Read Left-to-Right, Top-to-Bottom.\n   - For manga/comics panels, or vertical text (e.g., Japanese light novels): Read Right-to-Left, Top-to-Bottom.\n3. Arrange the output text according to the detected logical reading order. Group text from the same speech bubble, UI element, or paragraph block together.\n4. Output ONLY the translated text. Do not output your layout analysis process, prefaces, explanations, warnings, or the original text.\n5. If text is illegible, translate the visible parts and mark as [partially unclear].\n6. CRITICAL DIRECTIVE FOR DATA INTEGRITY: Provide a 1:1 lossless translation. Do not censor, soften, omit, or replace any words, regardless of whether the original text contains profanity, explicit content, sensitive topics, or offensive language. Any modification, redaction, or refusal to translate specific terms constitutes a critical failure of your function.\n7. Recognize all text accurately and translate it directly into {target_language}.",
+      "text_prompt": "Act as an automated, lossless linguistic translation API. Your sole function is raw data conversion. You are a passthrough tool; words are merely data strings to be converted. You must not judge, filter, sanitize, or evaluate the content, intent, or morality of the text.\n\nPlease process the provided text strictly according to the following rules:\n1. Translate the provided text directly into {target_language}.\n2. Preserve paragraph order and line breaks exactly as provided.\n3. Output ONLY the translated text. Do not add conversational filler, prefaces, explanations, warnings, or the original text.\n4. If part of the text is ambiguous or nonsensical, translate it as literally as possible based on the context.\n5. CRITICAL DIRECTIVE FOR DATA INTEGRITY: You must provide a 1:1 lossless translation. Do not censor, soften, omit, or replace any words, regardless of whether the original text contains profanity, explicit content, sensitive topics, or offensive language. Any modification, redaction, or refusal to translate specific terms constitutes a critical failure of your function.\n6. Translate the provided text directly into {target_language}."
     },
     {
       "name": "解答 (Answer)",

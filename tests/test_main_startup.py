@@ -213,5 +213,65 @@ class MainStartupTests(unittest.TestCase):
             window.deleteLater()
             self.app.processEvents()
 
+    @patch.object(MainWindow, "setup_hotkey_listener", autospec=True, return_value=True)
+    @patch("app.ui.main_window.UpdateCheckService", _FakeUpdateCheckService)
+    @patch("app.ui.main_window.TransientToastService", _FakeToastService)
+    @patch("app.ui.main_window.SystemTrayService", _FakeTrayService)
+    @patch("app.ui.main_window.InstanceServerService", _FakeInstanceServerService)
+    @patch("app.ui.main_window.SelectionOverlay", _FakeSelectionOverlay)
+    @patch("app.ui.main_window.load_config", side_effect=AppConfig)
+    def test_generation_controls_round_trip_and_switch_api_format(self, _load_config, _hotkeys):
+        from app.settings_service import build_candidate_config
+
+        window = MainWindow()
+        try:
+            self.assertFalse(window.render_markdown_checkbox.isChecked())
+            self.assertFalse(window.temperature_spin.isEnabled())
+            self.assertTrue(window.advanced_content.isAncestorOf(window.use_default_temperature_checkbox))
+            self.assertIs(window.use_default_temperature_checkbox.parentWidget(), window.advanced_content)
+            from PySide6.QtCore import Qt
+            from PySide6.QtTest import QTest
+
+            window.set_advanced_section_expanded(True)
+            window.show()
+            self.app.processEvents()
+            with patch("app.ui.main_window.QToolTip.showText") as hint:
+                QTest.mouseClick(window.temperature_spin, Qt.LeftButton)
+                hint.assert_called_once()
+                self.assertEqual(hint.call_args.args[1], window.tr("temperature_disabled_hint"))
+            self.assertTrue(window.use_default_temperature_checkbox.isChecked())
+            self.assertEqual(window.reasoning_effort_combo.findData("max"), -1)
+            window.reasoning_effort_combo.setCurrentIndex(window.reasoning_effort_combo.findData("high"))
+            window.use_default_temperature_checkbox.setChecked(False)
+            window.render_markdown_checkbox.setChecked(True)
+            self.assertTrue(window.temperature_spin.isEnabled())
+            window.temperature_spin.setValue(0.7)
+            window.use_default_temperature_checkbox.setChecked(True)
+            self.assertFalse(window.temperature_spin.isEnabled())
+            self.assertEqual(window.temperature_spin.value(), 0.7)
+            window.use_default_temperature_checkbox.setChecked(False)
+            self.assertTrue(window.temperature_spin.isEnabled())
+            snapshot = window.capture_settings_snapshot()
+            _, config, profile, _ = build_candidate_config(
+                window.config, snapshot, current_profile=window.get_active_profile(), current_prompt_preset=window.get_active_prompt_preset()
+            )
+            self.assertTrue(config.render_markdown)
+            self.assertEqual(profile.reasoning_effort, "high")
+            self.assertFalse(profile.use_default_temperature)
+            window.config = config
+            window.load_profile_to_form(profile.name)
+            self.assertTrue(window.render_markdown_checkbox.isChecked())
+            self.assertEqual(window.reasoning_effort_combo.currentData(), "high")
+            window.provider_combo.setCurrentIndex(window.provider_combo.findData("openai"))
+            self.assertGreaterEqual(window.reasoning_effort_combo.findData("max"), 0)
+            window.reasoning_effort_combo.setCurrentIndex(window.reasoning_effort_combo.findData("max"))
+            self.assertEqual(window.build_profile_from_form(validate_name=False).reasoning_effort, "max")
+            window.provider_combo.setCurrentIndex(window.provider_combo.findData("gemini"))
+            self.assertEqual(window.reasoning_effort_combo.currentData(), "default")
+        finally:
+            window.hide()
+            window.deleteLater()
+            self.app.processEvents()
+
 if __name__ == "__main__":
     unittest.main()

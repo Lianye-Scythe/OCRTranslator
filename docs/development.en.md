@@ -4,7 +4,9 @@
 
 ## Environment setup
 
-Use Python 3.15 (latest stable patch) for new environments and Windows packaging. CI also tests Python 3.11 as the minimum supported version.
+Use the latest stable Python 3.15 patch for development, CI, and Windows packaging. Compatibility with older Python versions is no longer maintained.
+
+On WSL / Linux, create the environment with `python3.15 -m venv .venv` and activate it with `source .venv/bin/activate`. On Windows, confirm `python --version` is 3.15 before using the commands below.
 
 ```bash
 python -m venv .venv
@@ -19,6 +21,12 @@ pip install -r requirements-dev.txt
 ```
 
 ## Common commands
+
+### Test WSL source from Windows
+
+Open the repository through `\\wsl.localhost\Ubuntu\home\po120\Git\OCRTranslator` in File Explorer (adjust the distribution and path), then double-click `start_wsl.bat` in the repository root. Windows Python 3.15 and the `py` launcher are required.
+
+The script creates a Windows-only environment at `%LOCALAPPDATA%\OCRTranslator\venv-win315` and installs `requirements.txt`, leaving the WSL `.venv` separate. Keep the console open until the application exits so the WSL drive mapping remains available. Run `start_wsl.bat --check` to verify imports without launching the GUI; screen capture and hotkeys still require interactive testing.
 
 ### Start the application
 

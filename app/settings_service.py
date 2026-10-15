@@ -3,7 +3,7 @@ from copy import deepcopy
 from .app_defaults import DEFAULT_CAPTURE_HOTKEY, DEFAULT_INPUT_HOTKEY, DEFAULT_SELECTION_HOTKEY, DEFAULT_THEME_MODE
 from .hotkey_utils import find_hotkey_conflicts, hotkey_has_primary_key, hotkey_unsupported_parts
 from .models import ApiProfile, AppConfig, PromptPreset
-from .profile_utils import default_base_url_for_provider, default_model_for_provider, normalize_model_value, normalize_provider_name, unique_non_empty
+from .profile_utils import default_base_url_for_provider, default_model_for_provider, normalize_model_value, normalize_provider_name, reasoning_effort_values, unique_non_empty
 from .settings_models import SettingsFormSnapshot, SettingsValidationResult, ValidationIssue
 
 
@@ -76,6 +76,9 @@ def validate_settings_snapshot(
 
         if flags["require_model"] and not snapshot.model_text.strip():
             add_issue("model", "api", tr("validation_model_required"))
+
+        if snapshot.reasoning_effort not in reasoning_effort_values(snapshot.provider):
+            add_issue("reasoning_effort", "api", tr("validation_reasoning_effort"))
 
         if not unique_non_empty(snapshot.api_keys_text.splitlines()):
             add_issue("api_keys", "api", tr("validation_api_keys_required"))
@@ -172,6 +175,8 @@ def build_profile_from_snapshot(snapshot: SettingsFormSnapshot, *, current_profi
         available_models=available_models,
         retry_count=int(snapshot.retry_count),
         retry_interval=float(snapshot.retry_interval),
+        reasoning_effort=snapshot.reasoning_effort,
+        use_default_temperature=bool(snapshot.use_default_temperature),
     )
 
 
@@ -249,6 +254,7 @@ def build_candidate_config(
     candidate_config.overlay_auto_expand_bottom_margin = int(snapshot.overlay_auto_expand_bottom_margin)
     candidate_config.toast_duration_seconds = float(snapshot.toast_duration_seconds)
     candidate_config.stream_responses = bool(snapshot.stream_responses)
+    candidate_config.render_markdown = bool(snapshot.render_markdown)
     candidate_config.debug_logging_enabled = bool(snapshot.debug_logging_enabled)
     candidate_config.check_updates_on_startup = bool(snapshot.check_updates_on_startup)
     candidate_config.close_to_tray_on_close = bool(snapshot.close_to_tray_on_close)

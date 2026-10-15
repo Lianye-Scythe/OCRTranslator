@@ -6,6 +6,7 @@ __pycache__/
 build/
 dist/
 release/
+logs/
 .ocrtranslator.lock
 config.json
 *.log

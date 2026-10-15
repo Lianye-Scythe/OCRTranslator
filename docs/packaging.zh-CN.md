@@ -153,6 +153,6 @@ dist\
 - 如果便携位置没有配置文件，且当前运行目录不可写，配置文件会自动回退到：
   - Windows：`%LOCALAPPDATA%\OCRTranslator\config.json`
   - 其他环境 fallback：`~/.ocrtranslator/config.json`
-- crash log 仍然会写回项目根目录 / exe 同层，不会跟着 fallback 配置路径移动
+- crash log 仍然会写回项目根目录 / exe 所在目录下的 `logs/`，不会跟着 fallback 配置路径移动
 
 这样能让应用在可写目录中保持便携，同时也能在只读或受限目录下稳定启动、保存配置与分发。

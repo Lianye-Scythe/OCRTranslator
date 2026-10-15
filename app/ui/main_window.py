@@ -9,7 +9,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QEvent, QPoint, Qt, QTimer
 from PySide6.QtGui import QGuiApplication, QPixmap
-from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QWidget
+from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QToolTip, QWidget
 
 from ..app_defaults import DEFAULT_UI_LANGUAGE, normalize_theme_mode
 from ..app_metadata import APP_VERSION
@@ -432,6 +432,15 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             return False
 
     def eventFilter(self, watched, event):
+        if (
+            event.type() == QEvent.Type.MouseButtonPress
+            and hasattr(self, "temperature_field_block")
+            and self.use_default_temperature_checkbox.isChecked()
+            and watched in (self.temperature_field_block, self.temperature_spin, self.temperature_spin.lineEdit())
+            and self.temperature_spin.rect().contains(self.temperature_spin.mapFromGlobal(event.globalPosition().toPoint()))
+        ):
+            QToolTip.showText(event.globalPosition().toPoint(), self.tr("temperature_disabled_hint"), self.temperature_field_block)
+            return True
         if self._should_track_startup_interaction(watched, event):
             self._last_user_interaction_at = time.perf_counter()
         return super().eventFilter(watched, event)
@@ -973,6 +982,8 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             "image_prompt_edit",
             "text_prompt_edit",
             "temperature_spin",
+            "reasoning_effort_combo",
+            "use_default_temperature_checkbox",
             "overlay_width_spin",
             "overlay_height_spin",
             "overlay_margin_spin",
@@ -980,11 +991,13 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             "overlay_auto_expand_bottom_margin_spin",
             "toast_duration_spin",
             "stream_responses_checkbox",
+            "render_markdown_checkbox",
             "debug_logging_checkbox",
             "close_to_tray_on_close_checkbox",
         ):
             if hasattr(self, widget_name):
                 getattr(self, widget_name).setEnabled(not any_background_busy)
+        self.temperature_spin.setEnabled(not any_background_busy and not self.use_default_temperature_checkbox.isChecked())
         self.fetch_models_button.setText(self.tr("fetch_models_busy") if self.fetch_models_in_progress else self.tr("fetch_models"))
         self.test_button.setText(self.tr("test_api_busy") if self.test_profile_in_progress else self.tr("test_api"))
         capture_text = self.tr("start_capture_busy") if self.translation_in_progress else self.tr("start_capture")

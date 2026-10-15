@@ -11,6 +11,8 @@ class SettingsFormSnapshot:
     api_keys_text: str = ""
     retry_count: int = 0
     retry_interval: float = 0.0
+    reasoning_effort: str = "default"
+    use_default_temperature: bool = True
     target_language: str = ""
     ui_language: str = ""
     theme_mode: str = "system"
@@ -27,6 +29,7 @@ class SettingsFormSnapshot:
     overlay_auto_expand_bottom_margin: int = 24
     toast_duration_seconds: float = 1.5
     stream_responses: bool = True
+    render_markdown: bool = False
     debug_logging_enabled: bool = False
     check_updates_on_startup: bool = False
     close_to_tray_on_close: bool = False

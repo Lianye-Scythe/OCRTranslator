@@ -4,7 +4,7 @@ contact_links:
     url: https://github.com/Lianye-Scythe/OCRTranslator/blob/main/docs/FAQ.md
     about: 先查看常見問題，確認是否已有對應說明。
   - name: OCRTranslator Support
-    url: https://github.com/Lianye-Scythe/OCRTranslator/blob/main/SUPPORT.md
+    url: https://github.com/Lianye-Scythe/OCRTranslator/blob/main/.github/SUPPORT.md
     about: 查看提問、bug 回報、功能建議與安全聯繫方式。
   - name: Private Security Contact
     url: mailto:po12017po@gmail.com

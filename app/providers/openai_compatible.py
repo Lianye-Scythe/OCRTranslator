@@ -4,11 +4,12 @@ import requests
 
 from ..models import ApiProfile
 from ..operation_control import RequestCancelledError, RequestContext
+from ..profile_utils import reasoning_effort_values
 
 
 def openai_url(base_url: str, path: str) -> str:
     base = (base_url or "").rstrip("/")
-    if base.endswith("/v1"):
+    if base.endswith(("/v1", "/v1beta/openai")):
         return f"{base}{path}"
     return f"{base}/v1{path}"
 
@@ -71,6 +72,8 @@ class OpenAICompatibleAdapter:
     @staticmethod
     def _mark_stream_fallback_allowed(exc: Exception):
         status_code = int(getattr(exc, "status_code", 0) or 0)
+        if status_code in {400, 422} and any(key in str(exc).lower() for key in ("reasoning", "thinking", "temperature")):
+            return exc
         if status_code in {400, 404, 405, 406, 415, 422, 501}:
             setattr(exc, "stream_fallback_allowed", True)
         return exc
@@ -104,8 +107,14 @@ class OpenAICompatibleAdapter:
         )
         http_client = request_context.session if request_context else requests
         payload = {
-            "model": profile.model, "temperature": temperature, "messages": [{"role": "user", "content": content}], "stream": bool(stream)
+            "model": profile.model, "messages": [{"role": "user", "content": content}], "stream": bool(stream)
         }
+        if not profile.use_default_temperature:
+            payload["temperature"] = temperature
+        if profile.reasoning_effort not in reasoning_effort_values("openai"):
+            raise self._error_factory("Unsupported reasoning_effort", retryable=False, retry_same_key=False)
+        if profile.reasoning_effort != "default":
+            payload["reasoning_effort"] = profile.reasoning_effort
         try:
             response = http_client.post(
                 openai_url(profile.base_url, "/chat/completions"),

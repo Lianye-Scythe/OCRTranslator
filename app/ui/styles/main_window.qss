@@ -426,6 +426,24 @@ QDoubleSpinBox::down-arrow {
     height:9px;
 }
 
+QDoubleSpinBox#TemperatureSpin:disabled,
+QDoubleSpinBox#TemperatureSpin:disabled:hover {
+    background:{{surface_panel}};
+    color:{{menu_disabled_fg}};
+    border:1px solid {{border_base}};
+}
+
+QDoubleSpinBox#TemperatureSpin QLineEdit:disabled {
+    color:{{menu_disabled_fg}};
+    background:transparent;
+}
+
+QDoubleSpinBox#TemperatureSpin::up-button:disabled,
+QDoubleSpinBox#TemperatureSpin::down-button:disabled {
+    background:{{surface_panel}};
+    border-color:{{border_base}};
+}
+
 QAbstractItemView {
     background:{{list_bg}};
     color:{{text_primary}};

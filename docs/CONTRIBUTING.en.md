@@ -1,12 +1,12 @@
 # Contributing
 
-[繁體中文](../CONTRIBUTING.md)｜[简体中文](CONTRIBUTING.zh-CN.md)｜English
+[繁體中文](../.github/CONTRIBUTING.md)｜[简体中文](CONTRIBUTING.zh-CN.md)｜English
 
 Thanks for your interest in OCRTranslator.
 
 The project is still primarily maintained by a single owner, but contributions through issues and pull requests are welcome. Please review the following guidelines first.
 
-Before participating, please read and follow the repository-root `CODE_OF_CONDUCT.md`.
+Before participating, please read and follow the `.github/CODE_OF_CONDUCT.md`.
 
 ## Development principles
 

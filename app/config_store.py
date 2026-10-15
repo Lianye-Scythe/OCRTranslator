@@ -186,6 +186,8 @@ def _dict_to_profile(data: dict) -> ApiProfile:
         available_models=normalized_models,
         retry_count=_coerce_int(merged.get("retry_count"), defaults["retry_count"], min_value=0, max_value=10),
         retry_interval=_coerce_float(merged.get("retry_interval"), defaults["retry_interval"], min_value=0, max_value=60),
+        reasoning_effort=_coerce_text(merged.get("reasoning_effort"), "default").lower(),
+        use_default_temperature=_coerce_bool(merged.get("use_default_temperature"), True),
     )
 
 
@@ -268,6 +270,7 @@ def _migrate_legacy_config(data: dict) -> AppConfig:
         overlay_auto_expand_bottom_margin=_coerce_int(source.get("overlay_auto_expand_bottom_margin"), 24, min_value=8, max_value=200),
         toast_duration_seconds=_coerce_float(source.get("toast_duration_seconds"), 1.5, min_value=0, max_value=10),
         stream_responses=_coerce_bool(source.get("stream_responses", True), True),
+        render_markdown=_coerce_bool(source.get("render_markdown", False), False),
         debug_logging_enabled=_coerce_bool(source.get("debug_logging_enabled", False), False),
         check_updates_on_startup=_coerce_bool(source.get("check_updates_on_startup", False), False),
         ui_language=ui_language,

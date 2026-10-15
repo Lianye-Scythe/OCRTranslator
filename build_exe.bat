@@ -118,7 +118,7 @@ exit /b 0
 :no_python
 echo.
 echo [ERROR] Python was not found on PATH.
-echo Please install Python 3.11+ and enable "Add Python to PATH", then run this file again.
+echo Please install the latest stable Python 3.15 patch and enable "Add Python to PATH", then run this file again.
 call :maybe_pause
 exit /b 1
 

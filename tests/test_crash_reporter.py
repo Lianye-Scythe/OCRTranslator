@@ -7,7 +7,7 @@ from app.crash_reporter import CRASH_LOG_PREFIX, build_crash_log_path, format_cr
 
 
 class CrashReporterTests(unittest.TestCase):
-    def test_record_exception_writes_report_to_root_directory(self):
+    def test_record_exception_writes_report_to_logs_directory(self):
         with TemporaryDirectory() as temp_dir:
             base_dir = Path(temp_dir)
             try:
@@ -16,6 +16,7 @@ class CrashReporterTests(unittest.TestCase):
                 crash_log_path = record_exception(type(exc), exc, exc.__traceback__, context="unit test", base_dir=base_dir)
 
             self.assertTrue(crash_log_path.exists())
+            self.assertEqual(crash_log_path.parent, base_dir / "logs")
             self.assertTrue(crash_log_path.name.startswith(CRASH_LOG_PREFIX))
             content = crash_log_path.read_text(encoding="utf-8")
             self.assertIn("OCRTranslator Crash Report", content)
@@ -39,6 +40,11 @@ class CrashReporterTests(unittest.TestCase):
                 second = build_crash_log_path(base_dir)
         self.assertNotEqual(first, second)
         self.assertRegex(first.name, rf"^{CRASH_LOG_PREFIX}-20260101-010101-\d{{9}}\.log$")
+
+    def test_default_crash_log_directory_is_under_runtime_base(self):
+        with TemporaryDirectory() as temp_dir:
+            with patch("app.crash_reporter.get_runtime_base_dir", return_value=Path(temp_dir)):
+                self.assertEqual(build_crash_log_path().parent, Path(temp_dir) / "logs")
 
     def test_format_exception_report_redacts_sensitive_values_in_traceback(self):
         try:

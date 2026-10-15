@@ -4,7 +4,9 @@
 
 ## 环境准备
 
-新环境与 Windows 打包请使用 Python 3.15 的最新稳定补丁版。CI 同时验证最低支持版本 Python 3.11。
+开发环境、CI 与 Windows 打包统一使用 Python 3.15 的最新稳定补丁版，不再维护旧版 Python 的兼容性。
+
+WSL / Linux 使用 `python3.15 -m venv .venv` 创建环境，再运行 `source .venv/bin/activate`。Windows 请先确认 `python --version` 为 3.15，再使用下面的命令。
 
 ```bash
 python -m venv .venv
@@ -19,6 +21,12 @@ pip install -r requirements-dev.txt
 ```
 
 ## 常用命令
+
+### 从 Windows 测试 WSL 源码
+
+在文件资源管理器打开 `\\wsl.localhost\Ubuntu\home\po120\Git\OCRTranslator`（按自己的发行版与路径调整），双击项目根目录的 `start_wsl.bat`。需要 Windows Python 3.15 与 `py` launcher。
+
+脚本自动在 `%LOCALAPPDATA%\OCRTranslator\venv-win315` 创建 Windows 专用环境并按 `requirements.txt` 安装依赖，不使用 WSL 的 `.venv`。程序关闭前请保留 console，让 WSL 路径映射持续有效。只验证环境可运行 `start_wsl.bat --check`，截图与热键仍需在实际 GUI 中测试。
 
 ### 启动应用
 

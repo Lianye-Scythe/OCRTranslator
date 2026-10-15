@@ -7,10 +7,16 @@
 ## [Unreleased]
 
 ### Changed
+- 協作、行為準則、安全性與支援文件集中到 `.github/`；crash log 改存執行目錄下的 `logs/`，減少根目錄雜項。
+- Gemini 預設模型改為 `gemini-flash-lite-latest`，並更新圖片與文字翻譯提示詞。
+- API Profile 新增思考程度與模型預設 temperature；Gemini 使用 3+ 的 `thinkingLevel`，OpenAI 使用 `reasoning_effort`。
+- 進階設定新增 Markdown 排版開關，預設關閉；顯示、量測與還原結果遵守同一設定。
 - 升級至 Pillow 12.3.0、PySide6 6.12.0（Qt 6.12 LTS）與 PyInstaller 6.22.3。
-- Windows 打包使用 Python 3.15，CI 同時驗證 Python 3.11 與 3.15。
+- 開發、CI 與 Windows 打包統一使用 Python 3.15，不再維護舊版 Python 的相容性。
 
 ### Fixed
+- 過濾 Gemini 回應中的思考摘要，避免混入翻譯結果；Test API 沿用請求的生成設定。
+- 修正 Google OpenAI 相容端點被多加 `/v1` 的問題。
 - 修正手動從含斜線的分支執行 Release Build 時，artifact 名稱無效而上傳失敗的問題。
 
 ## [1.0.11] - 2026-05-24

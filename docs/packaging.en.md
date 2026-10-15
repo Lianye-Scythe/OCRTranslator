@@ -153,6 +153,6 @@ dist\
 - if no portable config exists and the current runtime directory is not writable, config storage falls back to:
   - Windows: `%LOCALAPPDATA%\OCRTranslator\config.json`
   - other environments: `~/.ocrtranslator/config.json`
-- crash logs still stay in the project root / executable directory instead of following the fallback config path
+- crash logs are stored in `logs/` under the project root / executable directory instead of following the fallback config path
 
 This keeps the app portable when the runtime directory is writable while still allowing stable startup and config saves from read-only or otherwise restricted locations.

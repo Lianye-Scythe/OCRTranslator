@@ -39,7 +39,7 @@ def normalize_theme_mode(value, *, default: str = DEFAULT_THEME_MODE) -> str:
     return normalized if normalized in VALID_THEME_MODES else default
 
 
-DEFAULT_MODEL = "models/gemini-3.1-flash-lite-preview"
+DEFAULT_MODEL = "models/gemini-flash-lite-latest"
 DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com"
 DEFAULT_OPENAI_BASE_URL = "https://api.openai.com"
 MODEL_PREFIX = "models/"

@@ -39,6 +39,12 @@ def display_model_value(model_name: str, provider: str) -> str:
     return value
 
 
+def reasoning_effort_values(provider: str) -> tuple[str, ...]:
+    if normalize_provider_name(provider) == "gemini":
+        return ("default", "minimal", "low", "medium", "high")
+    return ("default", "none", "minimal", "low", "medium", "high", "xhigh", "max")
+
+
 def unique_non_empty(values: Iterable[object]) -> list[str]:
     result: list[str] = []
     seen: set[str] = set()

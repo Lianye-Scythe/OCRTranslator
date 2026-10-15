@@ -1,6 +1,6 @@
 # Security Policy
 
-繁體中文｜[简体中文](docs/SECURITY.zh-CN.md)｜[English](docs/SECURITY.en.md)
+繁體中文｜[简体中文](../docs/SECURITY.zh-CN.md)｜[English](../docs/SECURITY.en.md)
 
 如果你發現 OCRTranslator 存在安全性問題，請不要直接在公開 issue 中貼出可被濫用的細節、密鑰或敏感請求內容。
 

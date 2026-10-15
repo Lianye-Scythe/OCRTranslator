@@ -1,12 +1,12 @@
 # Contributing
 
-繁體中文｜[简体中文](docs/CONTRIBUTING.zh-CN.md)｜[English](docs/CONTRIBUTING.en.md)
+繁體中文｜[简体中文](../docs/CONTRIBUTING.zh-CN.md)｜[English](../docs/CONTRIBUTING.en.md)
 
 感謝你對 OCRTranslator 的關注。
 
 這個專案目前仍以個人主導維護為主，但歡迎透過 issue 與 pull request 提出修正與建議。為了降低溝通成本，請先閱讀下列規則。
 
-參與本專案前，請先閱讀並遵守根目錄的 `CODE_OF_CONDUCT.md`。
+參與本專案前，請先閱讀並遵守 [Code of Conduct](CODE_OF_CONDUCT.md)。
 
 ## 開發原則
 

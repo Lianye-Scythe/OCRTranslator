@@ -153,6 +153,6 @@ dist\
 - 若便攜位置沒有設定檔，且當前執行目錄不可寫，設定檔會自動回退到：
   - Windows：`%LOCALAPPDATA%\OCRTranslator\config.json`
   - 其他環境 fallback：`~/.ocrtranslator/config.json`
-- crash log 仍維持寫回專案根目錄 / exe 同層，不跟著 fallback 設定檔路徑移動
+- crash log 仍維持寫回專案根目錄 / exe 所在目錄下的 `logs/`，不跟著 fallback 設定檔路徑移動
 
 這讓應用在可寫目錄中保持便攜，同時也能在唯讀或受限目錄中穩定啟動、保存設定與分發。

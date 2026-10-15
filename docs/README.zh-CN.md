@@ -252,7 +252,7 @@ python -m app.main --capture
 - `config.example.json`
 
 > `config.json` 可能包含 API Keys 与私有 Base URL，请勿直接分享。
-> crash log 仍会优先写回项目根目录或 exe 同层，不会跟着 fallback 配置路径移动。
+> crash log 仍会优先写回项目根目录或 exe 所在目录下的 `logs/`，不会跟着 fallback 配置路径移动。
 
 ## 托盘、单实例与错误处理
 
@@ -287,10 +287,10 @@ python -m app.main --capture
 - 最多保留最近 100 条
 - 可从界面导出
 
-若程序遇到未处理异常，会在根目录或 exe 同层生成：
+若程序遇到未处理异常，会在根目录或 exe 所在目录下的 `logs/` 生成：
 
 ```text
-ocrtranslator-crash-YYYYMMDD-HHMMSS-xxxxxxxxx.log
+logs/ocrtranslator-crash-YYYYMMDD-HHMMSS-xxxxxxxxx.log
 ```
 
 ## 测试与检查
@@ -307,8 +307,8 @@ python -m compileall app tests launcher.pyw
 - [开发指南](development.zh-CN.md)
 - [打包与发布](packaging.zh-CN.md)
 - [常见问题 FAQ](FAQ.zh-CN.md)
-- [Code of Conduct](../CODE_OF_CONDUCT.md)
-- [Support](../SUPPORT.md)
+- [Code of Conduct](../.github/CODE_OF_CONDUCT.md)
+- [Support](../.github/SUPPORT.md)
 - [贡献指南](CONTRIBUTING.zh-CN.md)
 - [安全性回报](SECURITY.zh-CN.md)
 - [变更记录](CHANGELOG.zh-CN.md)

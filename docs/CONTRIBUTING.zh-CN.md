@@ -1,12 +1,12 @@
 # Contributing
 
-[繁體中文](../CONTRIBUTING.md)｜简体中文｜[English](CONTRIBUTING.en.md)
+[繁體中文](../.github/CONTRIBUTING.md)｜简体中文｜[English](CONTRIBUTING.en.md)
 
 感谢你关注 OCRTranslator。
 
 这个项目目前仍以个人主导维护为主，但欢迎通过 issue 与 pull request 提出修正与建议。为了降低沟通成本，请先阅读下面的规则。
 
-参与本项目之前，请先阅读并遵守仓库根目录的 `CODE_OF_CONDUCT.md`。
+参与本项目之前，请先阅读并遵守`.github/CODE_OF_CONDUCT.md`。
 
 ## 开发原则
 

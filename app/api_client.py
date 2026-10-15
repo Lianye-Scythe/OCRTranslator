@@ -356,11 +356,11 @@ class ApiClient:
             request_context=request_context,
         )
 
-    def test_profile(self, profile: ApiProfile, *, stream: bool = False, request_context: RequestContext | None = None) -> str:
+    def test_profile(self, profile: ApiProfile, *, temperature: float = 0.0, stream: bool = False, request_context: RequestContext | None = None) -> str:
         response = self.request_text(
             "Reply with the single word OK.",
             profile,
-            temperature=0.0,
+            temperature=temperature,
             stream=stream,
             request_label="Test request",
             request_context=request_context,

@@ -24,6 +24,8 @@ class ApiProfile:
     available_models: list[str] = field(default_factory=lambda: [DEFAULT_MODEL])
     retry_count: int = 1
     retry_interval: float = 2.0
+    reasoning_effort: str = "default"
+    use_default_temperature: bool = True
 
 
 @dataclass
@@ -51,6 +53,7 @@ class AppConfig:
     overlay_auto_expand_bottom_margin: int = 24
     toast_duration_seconds: float = 1.5
     stream_responses: bool = True
+    render_markdown: bool = False
     debug_logging_enabled: bool = False
     check_updates_on_startup: bool = False
     ui_language: str = DEFAULT_UI_LANGUAGE

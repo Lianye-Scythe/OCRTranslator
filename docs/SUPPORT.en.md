@@ -1,6 +1,6 @@
 # Support
 
-[繁體中文](../SUPPORT.md)｜[简体中文](SUPPORT.zh-CN.md)｜English
+[繁體中文](../.github/SUPPORT.md)｜[简体中文](SUPPORT.zh-CN.md)｜English
 
 This document explains the recommended support, reporting, and contact paths for OCRTranslator.
 

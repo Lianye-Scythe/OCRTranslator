@@ -235,7 +235,7 @@ Typical contents include:
 - overlay font, opacity, default size, and pinned geometry
 
 > `config.json` may contain API keys and private base URLs. Do not share it directly.
-> Crash logs still default to the project root or the executable directory instead of following the fallback config path.
+> Crash logs are stored in `logs/` under the project root or executable directory instead of following the fallback config path.
 
 ## Tray, single-instance, and error handling
 
@@ -270,10 +270,10 @@ Enable the corresponding setting if you want `X` to minimize to the system tray 
 - the latest 100 entries are kept
 - logs can be viewed or exported from the UI
 
-Unhandled exceptions create a crash log in the project root or next to the executable:
+Unhandled exceptions create a crash log in `logs/` under the project root or executable directory:
 
 ```text
-ocrtranslator-crash-YYYYMMDD-HHMMSS-xxxxxxxxx.log
+logs/ocrtranslator-crash-YYYYMMDD-HHMMSS-xxxxxxxxx.log
 ```
 
 ## Checks
@@ -290,8 +290,8 @@ python -m compileall app tests launcher.pyw
 - [Development Guide](development.en.md)
 - [Packaging and Distribution](packaging.en.md)
 - [FAQ](FAQ.en.md)
-- [Code of Conduct](../CODE_OF_CONDUCT.md)
-- [Support](../SUPPORT.md)
+- [Code of Conduct](../.github/CODE_OF_CONDUCT.md)
+- [Support](../.github/SUPPORT.md)
 - [Contributing](CONTRIBUTING.en.md)
 - [Security Policy](SECURITY.en.md)
 - [Changelog](CHANGELOG.en.md)

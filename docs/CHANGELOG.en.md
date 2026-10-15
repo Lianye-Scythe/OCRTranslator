@@ -7,10 +7,16 @@ This file records important OCRTranslator changes.
 ## [Unreleased]
 
 ### Changed
+- Move contribution, conduct, security, and support documents into `.github/`; store crash logs in `logs/` under the runtime base directory.
+- Default Gemini to `gemini-flash-lite-latest` and update the image and text translation prompts.
+- Add per-profile reasoning effort and model-default temperature settings, using Gemini 3+ `thinkingLevel` and OpenAI `reasoning_effort`.
+- Add an advanced Markdown toggle, off by default, applied consistently to result display, measurement, and restore.
 - Upgrade to Pillow 12.3.0, PySide6 6.12.0 (Qt 6.12 LTS), and PyInstaller 6.22.3.
-- Use Python 3.15 for Windows packaging and test Python 3.11 and 3.15 in CI.
+- Use Python 3.15 for development, CI, and Windows packaging; older Python versions are no longer maintained.
 
 ### Fixed
+- Filter Gemini thought summaries out of translations and use the same generation settings in Test API.
+- Preserve the API prefix on Google's OpenAI-compatible endpoint instead of appending an extra `/v1`.
 - Fix Release Build artifact uploads failing when manually dispatched from a branch with slashes in its name.
 
 ## [1.0.11] - 2026-05-24

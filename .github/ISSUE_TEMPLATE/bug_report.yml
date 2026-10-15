@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        感謝你回報問題。請盡量附上重現步驟、畫面截圖、執行紀錄，以及根目錄中的 crash log（若有）。若內容包含 API Key、私有 Base URL 或未檢查的敏感日誌，請先自行移除或改走私下回報。
+        感謝你回報問題。請盡量附上重現步驟、畫面截圖、執行紀錄，以及`logs/` 中的 crash log（若有）。若內容包含 API Key、私有 Base URL 或未檢查的敏感日誌，請先自行移除或改走私下回報。
   - type: textarea
     id: summary
     attributes:
@@ -60,7 +60,7 @@ body:
     attributes:
       label: 環境資訊
       description: 作業系統、Python 版本、顯示器數量、是否高 DPI 等
-      placeholder: Windows 11 / Python 3.11 / 雙螢幕 / 150% 縮放
+      placeholder: Windows 11 / Python 3.15 / 雙螢幕 / 150% 縮放
   - type: textarea
     id: logs
     attributes:

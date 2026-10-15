@@ -25,6 +25,7 @@ from ..profile_utils import (
     normalize_model_value,
     normalize_provider_name,
     unique_non_empty,
+    reasoning_effort_values,
 )
 from ..settings_models import SettingsFormSnapshot
 from ..settings_service import build_candidate_config, build_profile_from_snapshot, validate_profile_name as validate_profile_name_rule, validate_settings_snapshot
@@ -35,6 +36,7 @@ class MainWindowProfilesMixin:
         "profile_name": "profile_name_edit",
         "base_url": "base_url_edit",
         "model": "model_combo",
+        "reasoning_effort": "reasoning_effort_combo",
         "api_keys": "api_keys_edit",
         "prompt_preset_name": "prompt_preset_name_edit",
         "image_prompt": "image_prompt_edit",
@@ -223,8 +225,18 @@ class MainWindowProfilesMixin:
         self.provider_combo.setCurrentIndex(max(0, idx))
         self.provider_combo.blockSignals(False)
 
+    def update_reasoning_effort_options(self, value: str | None = None):
+        selected = value if value is not None else (self.reasoning_effort_combo.currentData() or "default")
+        self.reasoning_effort_combo.blockSignals(True)
+        self.reasoning_effort_combo.clear()
+        for effort in reasoning_effort_values(self.provider_combo.currentData() or "gemini"):
+            self.reasoning_effort_combo.addItem(self.tr("reasoning_default") if effort == "default" else effort, effort)
+        self.reasoning_effort_combo.setCurrentIndex(max(0, self.reasoning_effort_combo.findData(selected)))
+        self.reasoning_effort_combo.blockSignals(False)
+
     def on_provider_selected(self):
         provider = normalize_provider_name(self.provider_combo.currentData() or "gemini")
+        self.update_reasoning_effort_options()
         if self.is_form_tracking_suppressed():
             self._form_provider = provider
             return
@@ -458,6 +470,8 @@ class MainWindowProfilesMixin:
             api_keys_text=self.get_api_keys_text(),
             retry_count=self.retry_count_spin.value(),
             retry_interval=self.retry_interval_spin.value(),
+            reasoning_effort=self.reasoning_effort_combo.currentData() or "default",
+            use_default_temperature=self.use_default_temperature_checkbox.isChecked(),
             target_language=self.target_language_edit.text().strip(),
             ui_language=self.ui_language_combo.currentText().strip(),
             theme_mode=self.current_theme_mode(),
@@ -474,6 +488,7 @@ class MainWindowProfilesMixin:
             overlay_auto_expand_bottom_margin=self.overlay_auto_expand_bottom_margin_spin.value(),
             toast_duration_seconds=self.toast_duration_spin.value(),
             stream_responses=self.stream_responses_checkbox.isChecked(),
+            render_markdown=self.render_markdown_checkbox.isChecked(),
             debug_logging_enabled=self.debug_logging_checkbox.isChecked(),
             check_updates_on_startup=self.check_updates_on_startup_checkbox.isChecked(),
             close_to_tray_on_close=self.close_to_tray_on_close_checkbox.isChecked(),
@@ -841,6 +856,8 @@ class MainWindowProfilesMixin:
             self.refresh_api_keys_editor()
             self.retry_count_spin.setValue(profile.retry_count)
             self.retry_interval_spin.setValue(profile.retry_interval)
+            self.update_reasoning_effort_options(profile.reasoning_effort)
+            self.use_default_temperature_checkbox.setChecked(profile.use_default_temperature)
             self.target_language_edit.setText(self.config.target_language)
             self.ui_language_combo.setCurrentText(self.config.ui_language)
             self.update_theme_mode_options(getattr(self.config, "theme_mode", DEFAULT_THEME_MODE))
@@ -849,6 +866,7 @@ class MainWindowProfilesMixin:
             self.input_hotkey_edit.setText(self.config.input_hotkey)
             self.overlay_font_combo.setCurrentFont(QFont(self.config.overlay_font_family))
             self.temperature_spin.setValue(self.config.temperature)
+            self.temperature_spin.setEnabled(not profile.use_default_temperature)
             self.overlay_font_size_spin.setValue(self.config.overlay_font_size)
             self.overlay_width_spin.setValue(self.config.overlay_width)
             self.overlay_height_spin.setValue(self.config.overlay_height)
@@ -857,6 +875,7 @@ class MainWindowProfilesMixin:
             self.overlay_auto_expand_bottom_margin_spin.setValue(int(getattr(self.config, "overlay_auto_expand_bottom_margin", 24)))
             self.toast_duration_spin.setValue(float(getattr(self.config, "toast_duration_seconds", 1.5)))
             self.stream_responses_checkbox.setChecked(bool(getattr(self.config, "stream_responses", True)))
+            self.render_markdown_checkbox.setChecked(bool(getattr(self.config, "render_markdown", False)))
             self.debug_logging_checkbox.setChecked(bool(getattr(self.config, "debug_logging_enabled", False)))
             self.check_updates_on_startup_checkbox.setChecked(bool(getattr(self.config, "check_updates_on_startup", False)))
             self.close_to_tray_on_close_checkbox.setChecked(bool(getattr(self.config, "close_to_tray_on_close", False)))

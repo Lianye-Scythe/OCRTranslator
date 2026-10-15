@@ -159,7 +159,7 @@ class RequestWorkflowControllerTests(unittest.TestCase):
         result = worker_target(None)
 
         self.assertEqual(result[2], "OK | provider=openai | model=gpt-4o-mini | response=OK")
-        window.api_client.test_profile.assert_called_once_with(unittest.mock.ANY, stream=True, request_context=None)
+        window.api_client.test_profile.assert_called_once_with(unittest.mock.ANY, temperature=0.2, stream=True, request_context=None)
 
         window.api_client.test_profile.reset_mock()
         window.run_worker.reset_mock()
@@ -168,7 +168,7 @@ class RequestWorkflowControllerTests(unittest.TestCase):
         controller.test_profile()
         worker_target = window.run_worker.call_args.args[0]
         worker_target(None)
-        window.api_client.test_profile.assert_called_once_with(unittest.mock.ANY, stream=False, request_context=None)
+        window.api_client.test_profile.assert_called_once_with(unittest.mock.ANY, temperature=0.2, stream=False, request_context=None)
 
     def test_translate_selected_text_uses_in_app_selection_before_clipboard_capture(self):
         window = self._build_window()

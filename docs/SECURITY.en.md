@@ -1,6 +1,6 @@
 # Security Policy
 
-[繁體中文](../SECURITY.md)｜[简体中文](SECURITY.zh-CN.md)｜English
+[繁體中文](../.github/SECURITY.md)｜[简体中文](SECURITY.zh-CN.md)｜English
 
 If you discover a security issue in OCRTranslator, please do not post exploitable details, secrets, or sensitive request content directly in a public issue.
 

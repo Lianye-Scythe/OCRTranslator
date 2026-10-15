@@ -1,6 +1,6 @@
 # Support
 
-[繁體中文](../SUPPORT.md)｜简体中文｜[English](SUPPORT.en.md)
+[繁體中文](../.github/SUPPORT.md)｜简体中文｜[English](SUPPORT.en.md)
 
 这份文档说明 OCRTranslator 当前建议的提问、回报与联系路径。
 

@@ -208,7 +208,7 @@ class SettingsServiceTests(unittest.TestCase):
             api_profiles=[ApiProfile(name="Default Gemini", provider="gemini", base_url="https://generativelanguage.googleapis.com", api_keys=["legacy"], model="models/gemini-1.5-flash")],
             prompt_presets=[PromptPreset(name="翻譯 (Translate)", builtin_id="translate", image_prompt="old-image", text_prompt="old-text")],
         )
-        snapshot = self._snapshot()
+        snapshot = self._snapshot(reasoning_effort="high", use_default_temperature=False, render_markdown=True)
 
         previous_language, candidate_config, profile, prompt_preset = build_candidate_config(
             base_config,
@@ -226,6 +226,9 @@ class SettingsServiceTests(unittest.TestCase):
         self.assertEqual(candidate_config.active_profile_name, "Demo")
         self.assertEqual(candidate_config.active_prompt_preset_name, "Translate")
         self.assertEqual(profile.provider, "openai")
+        self.assertEqual(profile.reasoning_effort, "high")
+        self.assertFalse(profile.use_default_temperature)
+        self.assertTrue(candidate_config.render_markdown)
         self.assertEqual(prompt_preset.name, "Translate")
         self.assertEqual(candidate_config.api_profiles[0].api_keys, ["key-1", "key-2"])
         self.assertEqual(candidate_config.overlay_auto_expand_top_margin, 56)

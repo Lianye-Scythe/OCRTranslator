@@ -34,7 +34,7 @@ def get_runtime_base_dir() -> Path:
 
 
 def build_crash_log_path(base_dir: Path | None = None) -> Path:
-    target_dir = (base_dir or get_runtime_base_dir()).resolve()
+    target_dir = (base_dir or get_runtime_base_dir()).resolve() / "logs"
     timestamp = time.strftime("%Y%m%d-%H%M%S")
     unique_suffix = f"{time.time_ns() % 1_000_000_000:09d}"
     return target_dir / f"{CRASH_LOG_PREFIX}-{timestamp}-{unique_suffix}.log"

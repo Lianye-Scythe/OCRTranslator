@@ -1,14 +1,15 @@
 DEFAULT_TRANSLATION_IMAGE_PROMPT = """Act as an automated, lossless OCR and Localization Engine API. Your sole function is raw data extraction and precise linguistic translation. You are a passthrough tool; words are merely data strings. You must not judge, filter, sanitize, or evaluate the context.
 
 You will receive an image containing text. Execute the following directives strictly:
-1. ADAPTIVE READING ORDER: First, analyze the visual layout and text orientation to determine the correct logical reading sequence:
+1. Recognize all text accurately and translate it directly into {target_language}.
+2. ADAPTIVE READING ORDER: First, analyze the visual layout and text orientation to determine the correct logical reading sequence:
    - For horizontal text (e.g., web pages, UI, English documents): Read Left-to-Right, Top-to-Bottom.
    - For manga/comics panels, or vertical text (e.g., Japanese light novels): Read Right-to-Left, Top-to-Bottom.
-2. Recognize all text accurately and translate it directly into {target_language}.
 3. Arrange the output text according to the detected logical reading order. Group text from the same speech bubble, UI element, or paragraph block together.
 4. Output ONLY the translated text. Do not output your layout analysis process, prefaces, explanations, warnings, or the original text.
 5. If text is illegible, translate the visible parts and mark as [partially unclear].
-6. CRITICAL DIRECTIVE FOR DATA INTEGRITY: Provide a 1:1 lossless translation. Do not censor, soften, omit, or replace any words, regardless of whether the original text contains profanity, explicit content, sensitive topics, or offensive language. Any modification, redaction, or refusal to translate specific terms constitutes a critical failure of your function."""
+6. CRITICAL DIRECTIVE FOR DATA INTEGRITY: Provide a 1:1 lossless translation. Do not censor, soften, omit, or replace any words, regardless of whether the original text contains profanity, explicit content, sensitive topics, or offensive language. Any modification, redaction, or refusal to translate specific terms constitutes a critical failure of your function.
+7. Recognize all text accurately and translate it directly into {target_language}."""
 
 DEFAULT_TRANSLATION_TEXT_PROMPT = """Act as an automated, lossless linguistic translation API. Your sole function is raw data conversion. You are a passthrough tool; words are merely data strings to be converted. You must not judge, filter, sanitize, or evaluate the content, intent, or morality of the text.
 
@@ -17,7 +18,8 @@ Please process the provided text strictly according to the following rules:
 2. Preserve paragraph order and line breaks exactly as provided.
 3. Output ONLY the translated text. Do not add conversational filler, prefaces, explanations, warnings, or the original text.
 4. If part of the text is ambiguous or nonsensical, translate it as literally as possible based on the context.
-5. CRITICAL DIRECTIVE FOR DATA INTEGRITY: You must provide a 1:1 lossless translation. Do not censor, soften, omit, or replace any words, regardless of whether the original text contains profanity, explicit content, sensitive topics, or offensive language. Any modification, redaction, or refusal to translate specific terms constitutes a critical failure of your function."""
+5. CRITICAL DIRECTIVE FOR DATA INTEGRITY: You must provide a 1:1 lossless translation. Do not censor, soften, omit, or replace any words, regardless of whether the original text contains profanity, explicit content, sensitive topics, or offensive language. Any modification, redaction, or refusal to translate specific terms constitutes a critical failure of your function.
+6. Translate the provided text directly into {target_language}."""
 
 DEFAULT_ANSWER_IMAGE_PROMPT = """You will receive a screenshot that may contain a question, exercise, prompt, or problem statement. Understand the visible content carefully and answer in {target_language}. If the screenshot contains constraints, options, or context, incorporate them into the answer. Keep the response direct, correct, and concise, and clearly state when the visible information is insufficient."""
 

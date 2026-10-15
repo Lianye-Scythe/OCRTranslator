@@ -40,13 +40,17 @@ OCRTranslator is mainly split into these layers:
 - If no portable config exists yet and the current runtime directory is not writable, config storage falls back to a user-level config directory
 - Windows fallback path: `%LOCALAPPDATA%\OCRTranslator\config.json`
 - Other-environment fallback path: `~/.ocrtranslator/config.json`
-- Crash logs still default to the runtime base directory (project root / executable directory) instead of following the fallback config path
+- Crash logs still default to the runtime base directory (`logs/` under the project root / executable directory) instead of following the fallback config path
 
 ## Detailed project structure
 
 ```text
 OCRTranslator/
 ├─ .github/
+│  ├─ CONTRIBUTING.md              # Contribution guide
+│  ├─ CODE_OF_CONDUCT.md           # Code of conduct
+│  ├─ SECURITY.md                  # Security policy
+│  ├─ SUPPORT.md                   # Support guide
 │  ├─ ISSUE_TEMPLATE/
 │  │  ├─ bug_report.yml              # bug report template
 │  │  ├─ config.yml                  # GitHub issue template config
@@ -173,8 +177,8 @@ OCRTranslator/
 ├─ CHANGELOG.md                      # changelog (default Traditional Chinese version)
 ├─ config.example.json               # sample config file
 ├─ config.json                       # local runtime config (generated file, should not be committed)
-├─ CONTRIBUTING.md                   # contribution guide (default Traditional Chinese version)
 ├─ launcher.pyw                      # GUI launcher
+├─ logs/                             # Local crash logs (ignored by Git)
 ├─ packaging/
 │  ├─ signpath/
 │  │  ├─ artifact-configurations/
@@ -185,9 +189,8 @@ OCRTranslator/
 ├─ README.md                         # project overview (default Traditional Chinese version)
 ├─ requirements-dev.txt              # development / packaging dependencies
 ├─ requirements.txt                  # runtime dependencies
-├─ SUPPORT.md                        # support and contact guide (default Traditional Chinese version)
-├─ SECURITY.md                       # security policy (default Traditional Chinese version)
-└─ start.bat                         # one-click Windows startup script
+├─ start.bat                         # one-click Windows startup script
+└─ start_wsl.bat                     # Run WSL source with Windows Python
 ```
 
 ## Maintenance suggestions
