@@ -4,6 +4,8 @@
 
 ## Environment setup
 
+Use Python 3.15 (latest stable patch) for new environments and Windows packaging. CI also tests Python 3.11 as the minimum supported version.
+
 ```bash
 python -m venv .venv
 .venv\Scripts\activate

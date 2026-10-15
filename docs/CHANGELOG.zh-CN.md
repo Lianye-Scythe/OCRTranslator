@@ -6,6 +6,10 @@
 
 ## [Unreleased]
 
+### Changed
+- 升级至 Pillow 12.3.0、PySide6 6.12.0（Qt 6.12 LTS）与 PyInstaller 6.22.3。
+- Windows 打包使用 Python 3.15，CI 同时验证 Python 3.11 与 3.15。
+
 ## [1.0.11] - 2026-05-24
 
 ### Changed
