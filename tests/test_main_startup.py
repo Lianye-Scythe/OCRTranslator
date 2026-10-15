@@ -282,5 +282,34 @@ class MainStartupTests(unittest.TestCase):
             window.deleteLater()
             self.app.processEvents()
 
+    @patch.object(MainWindow, "setup_hotkey_listener", autospec=True, return_value=True)
+    @patch("app.ui.main_window.UpdateCheckService", _FakeUpdateCheckService)
+    @patch("app.ui.main_window.TransientToastService", _FakeToastService)
+    @patch("app.ui.main_window.SystemTrayService", _FakeTrayService)
+    @patch("app.ui.main_window.InstanceServerService", _FakeInstanceServerService)
+    @patch("app.ui.main_window.SelectionOverlay", _FakeSelectionOverlay)
+    @patch("app.ui.main_window.load_config", side_effect=AppConfig)
+    def test_hotkey_recording_escape_reaches_extracted_event_filter(self, _load_config, _hotkeys):
+        from PySide6.QtCore import Qt
+        from PySide6.QtTest import QTest
+
+        window = MainWindow()
+        try:
+            window.show()
+            self.app.processEvents()
+            with patch.object(window, "_start_global_hotkey_recorder") as recorder:
+                window.start_hotkey_recording("input")
+                recorder.assert_called_once_with("input")
+                self.assertTrue(window.input_hotkey_edit.isReadOnly())
+                QTest.keyClick(window.input_hotkey_edit, Qt.Key_Escape)
+            self.assertIsNone(window.hotkey_record_target)
+            self.assertFalse(window.input_hotkey_edit.isReadOnly())
+            self.assertEqual(window.input_hotkey_record_button.text(), window.tr("record_hotkey"))
+        finally:
+            window.hide()
+            window.deleteLater()
+            self.app.processEvents()
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -114,7 +114,8 @@ OCRTranslator/
 │     ├─ __init__.py                 # UI 套件標記
 │     ├─ main_window.py              # 主視窗協調層，整合 mixin 與 service 呼叫
 │     ├─ main_window_layout.py       # 主殼層版面、workspace surface、導航、button variant 與樣式套用
-│     ├─ main_window_profiles.py     # Profile 表單綁定、驗證呈現、快捷鍵錄製
+│     ├─ main_window_profiles.py     # Profile 表單綁定與驗證呈現
+│     ├─ main_window_hotkeys.py      # 快捷鍵欄位、錄製生命週期與按鍵攔截
 │     ├─ main_window_prompts.py      # Prompt Preset 表單邏輯與內建 preset 保護
 │     ├─ main_window_settings_layout.py # workflow-first Settings 版面（連線 / 翻譯 / 進階）
 │     ├─ focus_utils.py              # 共用滑鼠點擊後焦點清理與安全 clearFocus 工具

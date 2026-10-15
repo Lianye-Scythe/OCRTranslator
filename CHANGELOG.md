@@ -7,6 +7,7 @@
 ## [Unreleased]
 
 ### Changed
+- 將快捷鍵錄製、欄位綁定與按鍵攔截從 Profile 模組分離，保留既有錄製與註冊行為。
 - 生成參數的 UI 狀態與點擊提示集中管理，避免忙碌期間載入設定重新啟用溫度欄位。
 - 協作、行為準則、安全性與支援文件集中到 `.github/`；crash log 改存執行目錄下的 `logs/`，減少根目錄雜項。
 - Gemini 預設模型改為 `gemini-flash-lite-latest`，並更新圖片與文字翻譯提示詞。

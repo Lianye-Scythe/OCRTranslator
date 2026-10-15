@@ -111,10 +111,11 @@ OCRTranslator/
 │  │
 │  └─ ui/
 │     ├─ generation_controls.py      # generation-control state, reasoning options, and disabled-field hints
+│     ├─ main_window_hotkeys.py      # hotkey fields, recording lifecycle, and key interception
 │     ├─ __init__.py                 # package marker for UI
 │     ├─ main_window.py              # main window coordinator, integrating mixins and service calls
 │     ├─ main_window_layout.py       # shell layout, workspace surface, navigation, button variants, and style application
-│     ├─ main_window_profiles.py     # profile form binding, validation rendering, hotkey recording
+│     ├─ main_window_profiles.py     # profile form binding and validation rendering
 │     ├─ main_window_prompts.py      # prompt preset form logic and built-in preset protection
 │     ├─ main_window_settings_layout.py # workflow-first settings layout (connection / translation / advanced)
 │     ├─ focus_utils.py              # shared post-click focus clearing and safe clearFocus helpers

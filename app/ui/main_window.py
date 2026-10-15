@@ -37,10 +37,11 @@ from .focus_utils import clear_focus_if_alive
 from .main_window_settings_layout import MainWindowSettingsLayoutMixin
 from .main_window_prompts import MainWindowPromptPresetsMixin
 from .main_window_profiles import MainWindowProfilesMixin
+from .main_window_hotkeys import MainWindowHotkeysMixin
 from .selection_overlay import SelectionOverlay
 
 
-class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindowPromptPresetsMixin, MainWindowProfilesMixin, QMainWindow):
+class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindowPromptPresetsMixin, MainWindowHotkeysMixin, MainWindowProfilesMixin, QMainWindow):
     STARTUP_INTERACTION_EVENTS = {
         QEvent.Type.MouseButtonPress,
         QEvent.Type.MouseButtonDblClick,

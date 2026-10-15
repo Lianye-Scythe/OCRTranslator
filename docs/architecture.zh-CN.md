@@ -111,10 +111,11 @@ OCRTranslator/
 │  │
 │  └─ ui/
 │     ├─ generation_controls.py      # 生成参数 UI 状态、思考程度选项与禁用提示
+│     ├─ main_window_hotkeys.py      # 快捷键字段、录制生命周期与按键拦截
 │     ├─ __init__.py                 # UI 包标记
 │     ├─ main_window.py              # 主窗口协调层，整合 mixin 与 service 调用
 │     ├─ main_window_layout.py       # 主壳层布局、workspace surface、导航、button variant 与样式套用
-│     ├─ main_window_profiles.py     # Profile 表单绑定、验证呈现、快捷键录制
+│     ├─ main_window_profiles.py     # Profile 表单绑定与验证呈现
 │     ├─ main_window_prompts.py      # Prompt Preset 表单逻辑与内建 preset 保护
 │     ├─ main_window_settings_layout.py # workflow-first Settings 布局（连接 / 翻译 / 进阶）
 │     ├─ focus_utils.py              # 共用鼠标点击后焦点清理与安全 clearFocus 工具

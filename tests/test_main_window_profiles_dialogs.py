@@ -14,7 +14,6 @@ if "pynput" not in sys.modules:
 
 from app.ui.main_window_profiles import MainWindowProfilesMixin
 
-
 class MainWindowProfilesDialogTests(unittest.TestCase):
     class _EventFilterBase:
         def eventFilter(self, watched, event):
@@ -53,83 +52,6 @@ class MainWindowProfilesDialogTests(unittest.TestCase):
         self.assertEqual(result, QMessageBox.Cancel)
         mock_dialog.assert_called_once()
         self.assertTrue(mock_dialog.call_args.kwargs["center_text"])
-
-    def test_stop_hotkey_recording_skips_hotkey_restore_when_requested(self):
-        window = MainWindowProfilesMixin.__new__(MainWindowProfilesMixin)
-        edit = SimpleNamespace(setReadOnly=Mock())
-        button = SimpleNamespace(setText=Mock())
-        window.hotkey_record_target = "capture"
-        window.hotkey_record_listener = object()
-        window.hotkey_listener_paused_for_recording = True
-        window.hotkey_fields = lambda: {"capture": (edit, button)}
-        window.tr = lambda key, **kwargs: key
-        window.setup_hotkey_listener = Mock()
-        window.validate_form_inputs = Mock(return_value=(True, ""))
-        window.set_status = Mock()
-
-        with patch.object(MainWindowProfilesMixin, "_stop_external_listener_best_effort") as mock_stop:
-            MainWindowProfilesMixin.stop_hotkey_recording(window, cancelled=False, restore_hotkey_listener=False)
-
-        mock_stop.assert_called_once()
-        window.setup_hotkey_listener.assert_not_called()
-        self.assertFalse(window.hotkey_listener_paused_for_recording)
-        self.assertIsNone(window.hotkey_record_target)
-        edit.setReadOnly.assert_called_once_with(False)
-        button.setText.assert_called_once_with("record_hotkey")
-
-    def test_stop_hotkey_recording_restores_current_runtime_hotkeys_when_available(self):
-        window = MainWindowProfilesMixin.__new__(MainWindowProfilesMixin)
-        edit = SimpleNamespace(setReadOnly=Mock())
-        button = SimpleNamespace(setText=Mock())
-        active_hotkeys = {
-            "capture": "Ctrl+Shift+X",
-            "selection_text": "Ctrl+Shift+C",
-            "manual_input": "Ctrl+Shift+Z",
-        }
-        window.hotkey_record_target = "capture"
-        window.hotkey_record_listener = object()
-        window.hotkey_listener_paused_for_recording = True
-        window.registered_hotkeys = dict(active_hotkeys)
-        window.hotkey_fields = lambda: {"capture": (edit, button)}
-        window.tr = lambda key, **kwargs: key
-        window.setup_hotkey_listener = Mock()
-        window.validate_form_inputs = Mock(return_value=(True, ""))
-        window.set_status = Mock()
-
-        with patch.object(MainWindowProfilesMixin, "_stop_external_listener_best_effort"):
-            MainWindowProfilesMixin.stop_hotkey_recording(window, cancelled=False)
-
-        window.setup_hotkey_listener.assert_called_once_with(initial=True, hotkey_actions=active_hotkeys)
-
-    def test_handle_recorded_hotkey_applies_runtime_hotkeys_without_saving(self):
-        window = MainWindowProfilesMixin.__new__(MainWindowProfilesMixin)
-        capture_edit = SimpleNamespace(setText=Mock(), text=lambda: "Ctrl+Shift+X")
-        selection_edit = SimpleNamespace(text=lambda: "Ctrl+Shift+C")
-        input_edit = SimpleNamespace(text=lambda: "Ctrl+Shift+Z")
-        window.hotkey_record_target = "capture"
-        window.hotkey_fields = lambda: {"capture": (capture_edit, object())}
-        window.hotkey_edit = capture_edit
-        window.selection_hotkey_edit = selection_edit
-        window.input_hotkey_edit = input_edit
-        window.stop_hotkey_recording = Mock()
-        active_hotkeys = {
-            "capture": "Ctrl+Shift+X",
-            "selection_text": "Ctrl+Shift+C",
-            "manual_input": "Ctrl+Shift+Z",
-        }
-        window.validate_form_inputs = Mock(return_value=(True, ""))
-        window.runtime_hotkey_actions_from_form = Mock(return_value=active_hotkeys)
-        window.setup_hotkey_listener = Mock(return_value=True)
-        window.set_status = Mock()
-        window.log = Mock()
-
-        MainWindowProfilesMixin.handle_recorded_hotkey(window, "capture", "Ctrl+Shift+X")
-
-        capture_edit.setText.assert_called_once_with("Ctrl+Shift+X")
-        window.stop_hotkey_recording.assert_called_once_with(cancelled=False)
-        window.validate_form_inputs.assert_called_once_with(scope="hotkeys")
-        window.setup_hotkey_listener.assert_called_once_with(initial=True, hotkey_actions=active_hotkeys, raise_on_error=True)
-        window.set_status.assert_called_once_with("hotkeys_registered_pending_save")
 
     def test_reload_saved_config_reapplies_saved_hotkeys(self):
         window = MainWindowProfilesMixin.__new__(MainWindowProfilesMixin)

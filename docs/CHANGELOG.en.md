@@ -7,6 +7,7 @@ This file records important OCRTranslator changes.
 ## [Unreleased]
 
 ### Changed
+- Separate hotkey recording, field bindings, and key interception from profile handling without changing recording or registration behavior.
 - Centralize generation-control state and click hints so loading a profile cannot re-enable temperature editing while busy.
 - Move contribution, conduct, security, and support documents into `.github/`; store crash logs in `logs/` under the runtime base directory.
 - Default Gemini to `gemini-flash-lite-latest` and update the image and text translation prompts.
