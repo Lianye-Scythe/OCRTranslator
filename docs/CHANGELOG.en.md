@@ -6,6 +6,11 @@ This file records important OCRTranslator changes.
 
 ## [Unreleased]
 
+## [1.0.13] - 2026-10-15
+
+### Fixed
+- Set explicit numeric-editor text margins to prevent values touching the left border after the Qt upgrade.
+
 ## [1.0.12] - 2026-10-15
 
 ### Changed

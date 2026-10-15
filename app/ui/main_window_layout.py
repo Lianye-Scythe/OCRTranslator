@@ -57,6 +57,8 @@ class ScrollSafeSpinBox(QSpinBox):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setFocusPolicy(Qt.StrongFocus)
+        # Qt's styled spin-box editor does not reliably inherit the outer padding.
+        self.lineEdit().setTextMargins(12, 0, 0, 0)
 
     def wheelEvent(self, event):
         if self.hasFocus():
@@ -69,6 +71,7 @@ class ScrollSafeDoubleSpinBox(QDoubleSpinBox):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setFocusPolicy(Qt.StrongFocus)
+        self.lineEdit().setTextMargins(12, 0, 0, 0)
 
     def wheelEvent(self, event):
         if self.hasFocus():
