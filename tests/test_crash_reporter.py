@@ -16,7 +16,7 @@ class CrashReporterTests(unittest.TestCase):
                 crash_log_path = record_exception(type(exc), exc, exc.__traceback__, context="unit test", base_dir=base_dir)
 
             self.assertTrue(crash_log_path.exists())
-            self.assertEqual(crash_log_path.parent, base_dir / "logs")
+            self.assertEqual(crash_log_path.parent, base_dir.resolve() / "logs")
             self.assertTrue(crash_log_path.name.startswith(CRASH_LOG_PREFIX))
             content = crash_log_path.read_text(encoding="utf-8")
             self.assertIn("OCRTranslator Crash Report", content)
@@ -44,7 +44,7 @@ class CrashReporterTests(unittest.TestCase):
     def test_default_crash_log_directory_is_under_runtime_base(self):
         with TemporaryDirectory() as temp_dir:
             with patch("app.crash_reporter.get_runtime_base_dir", return_value=Path(temp_dir)):
-                self.assertEqual(build_crash_log_path().parent, Path(temp_dir) / "logs")
+                self.assertEqual(build_crash_log_path().parent, Path(temp_dir).resolve() / "logs")
 
     def test_format_exception_report_redacts_sensitive_values_in_traceback(self):
         try:
