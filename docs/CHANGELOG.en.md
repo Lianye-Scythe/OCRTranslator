@@ -6,6 +6,8 @@ This file records important OCRTranslator changes.
 
 ## [Unreleased]
 
+## [1.0.12] - 2026-10-15
+
 ### Changed
 - Separate hotkey recording, field bindings, and key interception from profile handling without changing recording or registration behavior.
 - Centralize generation-control state and click hints so loading a profile cannot re-enable temperature editing while busy.
