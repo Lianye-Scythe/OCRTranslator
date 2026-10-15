@@ -4,6 +4,8 @@
 
 ## 環境準備
 
+新環境與 Windows 打包請使用 Python 3.15 的最新穩定修補版。CI 同時驗證最低支援版本 Python 3.11。
+
 ```bash
 python -m venv .venv
 .venv\Scripts\activate

@@ -12,6 +12,7 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertIn('uses: actions/setup-python@v7', workflow)
         self.assertIn('cache: "pip"', workflow)
         self.assertIn('uses: actions/upload-artifact@v7', workflow)
+        self.assertIn('name: OCRTranslator-windows-x64-${{ github.run_id }}', workflow)
         self.assertIn('id: signpath_gate', workflow)
         self.assertIn("if: ${{ steps.signpath_gate.outputs.enabled == 'true' }}", workflow)
         self.assertIn('id: checksum', workflow)

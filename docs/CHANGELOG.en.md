@@ -6,6 +6,13 @@ This file records important OCRTranslator changes.
 
 ## [Unreleased]
 
+### Changed
+- Upgrade to Pillow 12.3.0, PySide6 6.12.0 (Qt 6.12 LTS), and PyInstaller 6.22.3.
+- Use Python 3.15 for Windows packaging and test Python 3.11 and 3.15 in CI.
+
+### Fixed
+- Fix Release Build artifact uploads failing when manually dispatched from a branch with slashes in its name.
+
 ## [1.0.11] - 2026-05-24
 
 ### Changed
