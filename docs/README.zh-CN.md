@@ -9,6 +9,8 @@
 
 Windows 便携式 OCR／AI 翻译工具：框选屏幕、获取选中文本或手动输入，通过你配置的模型服务处理内容，并以浮窗显示结果。
 
+[下载与要求](#下载与要求) · [首次使用](#首次使用) · [界面预览](#界面预览) · [FAQ](FAQ.zh-CN.md) · [开发](development.zh-CN.md)
+
 ## 下载与要求
 
 **[下载最新 Windows 版本](https://github.com/Lianye-Scythe/OCRTranslator/releases/latest)**
@@ -18,35 +20,9 @@ Windows 便携式 OCR／AI 翻译工具：框选屏幕、获取选中文本或�
 - 需要自行准备 Gemini 或 OpenAI 兼容服务的 API Key；使用服务可能产生费用。
 - 目前 Windows 发布包**尚未数字签名**。请从官方 Releases 下载，可用同页的 `SHA256SUMS.txt` 校验 ZIP；校验值不等于数字签名。
 
-从源码运行或开发：请参阅[开发指南](development.zh-CN.md)，使用 Python 3.15。WSL 可用于开发与测试；操作 Windows 截图／全局快捷键请在 Windows 运行，也可通过 `start_wsl.bat` 直接使用 WSL 源码。
+从源码运行或开发：请参阅[开发指南](development.zh-CN.md)，使用 Python 3.15。
 
-## 界面预览
-
-### 动态预览
-
-以下动图与翻译浮窗为旧版操作示意；主窗口截图为当前界面，使用示例设置。
-
-![旧版操作动态预览](images/screenshots/ocrtranslator-preview.gif)
-
-### 主窗口
-
-<p>
-  <img src="images/screenshots/main-window-light.png" width="49%" alt="主窗口：浅色主题" />
-  <img src="images/screenshots/main-window-dark.png" width="49%" alt="主窗口：深色主题" />
-</p>
-
-### 翻译浮窗
-
-<p>
-  <img src="images/screenshots/overlay-light-manga.png" width="49%" alt="漫画翻译浮窗：浅色主题（旧版示例）" />
-  <img src="images/screenshots/overlay-light-novel.png" width="49%" alt="小说翻译浮窗：浅色主题（旧版示例）" />
-</p>
-<p>
-  <img src="images/screenshots/overlay-dark-manga.png" width="49%" alt="漫画翻译浮窗：深色主题（旧版示例）" />
-  <img src="images/screenshots/overlay-dark-novel.png" width="49%" alt="小说翻译浮窗：深色主题（旧版示例）" />
-</p>
-
-[查看完整尺寸图片](gallery.md)。
+已验证的工作方式：Windows 11 x64 运行桌面程序与打包版；WSL 用于开发与自动化测试。`start_wsl.bat` 使用 Windows Python 运行 WSL 中的源码，并不是在 Linux 原生运行 Windows 截图和全局快捷键。
 
 ## 首次使用
 
@@ -67,6 +43,36 @@ Gemini 默认模型为 `gemini-flash-lite-latest`。模型可用性、支持参�
 | 手动输入 | `Shift + Win + Z` |
 
 快捷键可自行调整；少数应用可能不支持模拟复制，选字获取不一定适用所有程序。
+
+## 界面预览
+
+### 动态预览
+
+以下动图与翻译浮窗为旧版操作示意；主窗口截图为当前界面，使用示例设置。
+
+![旧版操作动态预览](images/screenshots/ocrtranslator-preview.gif)
+
+### 主窗口
+
+<p>
+  <a href="images/screenshots/main-window-light.png"><img src="images/screenshots/main-window-light.png" width="900" alt="主窗口：浅色主题" /></a>
+</p>
+<p>
+  <a href="images/screenshots/main-window-dark.png"><img src="images/screenshots/main-window-dark.png" width="900" alt="主窗口：深色主题" /></a>
+</p>
+
+### 翻译浮窗
+
+<p>
+  <a href="images/screenshots/overlay-light-manga.png"><img src="images/screenshots/overlay-light-manga.png" width="49%" alt="漫画翻译浮窗：浅色主题（旧版示例）" /></a>
+  <a href="images/screenshots/overlay-light-novel.png"><img src="images/screenshots/overlay-light-novel.png" width="49%" alt="小说翻译浮窗：浅色主题（旧版示例）" /></a>
+</p>
+<p>
+  <a href="images/screenshots/overlay-dark-manga.png"><img src="images/screenshots/overlay-dark-manga.png" width="49%" alt="漫画翻译浮窗：深色主题（旧版示例）" /></a>
+  <a href="images/screenshots/overlay-dark-novel.png"><img src="images/screenshots/overlay-dark-novel.png" width="49%" alt="小说翻译浮窗：深色主题（旧版示例）" /></a>
+</p>
+
+[查看完整尺寸图片](gallery.md)。
 
 ## 核心功能
 
