@@ -22,6 +22,12 @@
 
 合并前必须通过 `test` 和 `windows-package`，且分支需与 `main` 保持最新。打包不使用签名凭证、不发布 Release。特权流程只执行 base commit 上的政策代码、检查元数据与 diff，每次 PR 更新都会重新判定；不执行 PR 代码、不安装其依赖、不自动提交 Approve，也不绕过必要检查。政策调整需要人工审核。
 
+## 纯文档修改
+
+`main` 仍要求 PR。仅修改根目录 README／CHANGELOG、`docs/` 下 Markdown、`docs/images/` 下展示图片或 `.github/` 直属 Markdown 时，只检查本地文档链接和图片路径，不安装应用依赖、不跑 Windows 测试或打包。修改程序、依赖、workflow、政策脚本、打包文档（`packaging/windows/README.md`）或手动执行 CI 时，仍运行完整检查。
+
+`ci-required` 汇总关卡必须成功；纯文档流程的 `windows-package` 显示为跳过，而非打包成功。仓库拥有者在本仓库创建、目标为 `main` 的非草稿纯文档 PR，会在必要检查通过后自动合并；外部 PR 仍需人工决定。每次 PR 更新都会先撤销旧的自动合并要求，再重新判断。
+
 ## 建议流程
 
 

@@ -22,6 +22,12 @@ Only Dependabot pip PRs from this repository targeting `main` can enable auto-me
 
 The `test` and `windows-package` checks must pass against an up-to-date branch. Packaging uses no signing credentials and publishes no release. The privileged policy workflow executes only base-commit code, validates metadata and diffs, and resets its decision on every PR update. It never executes PR code, installs its dependencies, submits approval reviews, or bypasses required checks. Policy changes require human review.
 
+## Documentation-only changes
+
+`main` still requires a PR. Changes limited to the root README/CHANGELOG, Markdown under `docs/`, raster previews under `docs/images/`, or Markdown directly under `.github/` use lightweight local-link and image-path checks, without application dependencies, Windows tests, or packaging. Code, dependencies, workflows, policy scripts, packaged documentation (`packaging/windows/README.md`), and manual CI runs still receive full checks.
+
+The `ci-required` gate must succeed; documentation-only runs report `windows-package` as skipped, not built. Non-draft documentation-only PRs created by the repository owner in this repository targeting `main` enable auto-merge after required checks pass. External contributions remain manual. Every PR update resets the old auto-merge decision before rechecking.
+
 ## Recommended workflow
 
 

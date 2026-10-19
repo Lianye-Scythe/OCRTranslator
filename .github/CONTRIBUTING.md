@@ -27,6 +27,13 @@
 
 新增白名單套件或放寬版本範圍需要人工審核政策與測試。若需調整有問題的套件版本，更新程式以支援新版，而不是跳過驗證。
 
+## 純文件修改
+
+- `main` 仍要求 PR；只修改根目錄 README／CHANGELOG、`docs/` 下 Markdown、`docs/images/` 下點陣展示圖片或 `.github/` 直屬 Markdown 時，CI 僅檢查本地文件連結與圖片路徑，不安裝應用依賴、不跑 Windows 測試或打包。
+- 修改程式、依賴、workflow、政策程式或 `packaging/windows/README.md` 等打包內容時，仍執行完整測試與 Windows 打包。手動執行 CI 也保留完整檢查。
+- `ci-required` 彙總關卡必須成功；純文件路徑的 `windows-package` 會顯示為跳過，而不是打包成功。
+- 倉庫擁有者在本倉庫建立、目標為 `main` 的非草稿純文件 PR，會於必要檢查通過後自動合併。外部 PR 仍需人工決定；更新 PR 時會撤銷舊的自動合併要求並重新判斷。
+
 ## 建議流程
 
 1. Fork / 建立分支
