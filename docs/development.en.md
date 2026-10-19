@@ -117,3 +117,9 @@ Current automated checks focus on:
 To update dependencies, adjust `constraints.txt` and minimum requirements when needed. Install and run `python -m pip check` and tests on both Windows and WSL; packaging changes must also pass Windows CI packaging. Do not overwrite the cross-platform constraints with a single environment's complete `pip freeze`, or update only one local virtual environment.
 
 Constraints pin installed package versions, not pip, Python patches, isolated build tools, or artifact hashes. They do not guarantee byte-identical executables and do not change existing release ZIPs.
+
+## Maintaining the sharing image
+
+Run `python tools/generate_social_preview.py --thumbnail build/social-preview-320.png` to update `docs/images/social-preview.png` and produce a 320 × 160 review image. The generator displays the complete wide main-window screenshot at its original aspect ratio. Recheck text and safe margins when changing source assets; do not crop or stretch the interface.
+
+After committing the image, upload the new PNG under repository Settings → Social preview → Edit. GitHub does not automatically use a repository image as its sharing image. Sharing platforms may also cache the previous preview.
