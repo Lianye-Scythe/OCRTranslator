@@ -109,3 +109,11 @@ python -m compileall app tests launcher.pyw
    - `release/`
    - `ocrtranslator-crash-*.log`
    - `ocrtranslator-log-*.txt`
+
+## 依賴版本與更新
+
+`requirements.txt` 自動引用根目錄的 `constraints.txt`，因此現有啟動腳本、安裝命令與 CI 都會使用相同的固定套件版本。Windows 專屬依賴不會安裝到 WSL，Linux 專屬依賴也不會安裝到 Windows；打包工具僅在安裝 `requirements-dev.txt` 時加入。
+
+更新依賴時，調整 `constraints.txt`，必要時同步最低版本範圍，並在 Windows 與 WSL 分別安裝、執行 `python -m pip check` 和測試；涉及打包依賴時確認 Windows CI 打包成功。不要將單一環境的完整 `pip freeze` 直接覆蓋跨平台約束檔，也不要只更新其中一台的虛擬環境。
+
+約束檔固定套件版本，但不固定 pip、Python 修補版、隔離建置工具或下載檔案雜湊，不保證逐位元組相同的 exe。已發布 ZIP 不會因更新原始碼的約束檔而改變。

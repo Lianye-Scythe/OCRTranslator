@@ -7,7 +7,8 @@ This file records important OCRTranslator changes.
 ## [Unreleased]
 
 ### Changed
-- Reorganize the three READMEs around downloads and first use, refresh main-window screenshots, move extra examples into a gallery, and clarify data handling, costs, limitations, and upgrades.
+- Prioritize downloads and first use in all three READMEs while retaining every preview asset and original-image links. Separate Windows/WSL setup commands and add bilingual issue forms and private vulnerability-reporting links.
+- Pin Windows/WSL application and packaging dependencies through `constraints.txt`, aligning Pillow 13.0.0 and certifi 2026.10.18. Allowlisted Dependabot patch checks also support constraints; other updates remain manual.
 - Include a standalone ZIP guide and actual build inventory in `BUILD-INFO.json`; packaged documentation no longer relies on repository-relative images or docs. The inventory is not a dependency lockfile.
 - Allow only allowlisted Dependabot patch updates to auto-merge after tests and unsigned Windows packaging; major, Qt, packaging, and signing updates remain manual.
 - Update the SignPath Action to v3 with the official Pipeline Connector and existing inputs.

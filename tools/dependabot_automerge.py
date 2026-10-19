@@ -9,6 +9,7 @@ import sys
 
 ALLOWED_PACKAGES = {"pillow", "requests", "pynput"}
 REQUIREMENT = re.compile(r"([A-Za-z][A-Za-z0-9_-]*)>=(\d+)\.(\d+)\.(\d+)")
+CONSTRAINT = re.compile(r"([A-Za-z][A-Za-z0-9_-]*)==(\d+)\.(\d+)\.(\d+)")
 
 
 def eligible_patch(metadata: dict, files: list[dict]) -> bool:
@@ -21,32 +22,43 @@ def eligible_patch(metadata: dict, files: list[dict]) -> bool:
         or metadata.get("maintainer_changes") != "false"
     ):
         return False
-    if len(files) != 1 or files[0].get("filename") != "requirements.txt" or files[0].get("status") != "modified":
+    patterns = {"requirements.txt": REQUIREMENT, "constraints.txt": CONSTRAINT}
+    filenames = [file.get("filename") for file in files]
+    if not files or len(set(filenames)) != len(files) or not set(filenames) <= patterns.keys():
         return False
 
-    file = files[0]
-    removed, added = {}, {}
-    for line in file.get("patch", "").splitlines():
-        if not line.startswith(("+", "-")):
-            continue
-        match = REQUIREMENT.fullmatch(line[1:])
-        if not match:
+    changed_names, target_versions = set(), {}
+    for file in files:
+        if file.get("status") != "modified":
             return False
-        name = match[1].lower()
-        versions = added if line[0] == "+" else removed
-        if name in versions:
-            return False
-        versions[name] = tuple(int(value) for value in match.groups()[1:])
+        removed, added = {}, {}
+        for line in file.get("patch", "").splitlines():
+            if not line.startswith(("+", "-")):
+                continue
+            match = patterns[file["filename"]].fullmatch(line[1:])
+            if not match:
+                return False
+            name = match[1].lower()
+            versions = added if line[0] == "+" else removed
+            if name in versions:
+                return False
+            versions[name] = tuple(int(value) for value in match.groups()[1:])
 
-    # Missing/truncated patches or unrelated edits must fail closed.
-    if (
-        set(removed) != names
-        or set(added) != names
-        or file.get("additions") != len(added)
-        or file.get("deletions") != len(removed)
-    ):
-        return False
-    return all(added[name][:2] == removed[name][:2] and added[name][2] > removed[name][2] for name in names)
+        # Missing/truncated patches or unrelated edits must fail closed.
+        if (
+            not added or set(removed) != set(added) or not set(added) <= names
+            or file.get("additions") != len(added)
+            or file.get("deletions") != len(removed)
+        ):
+            return False
+        for name, version in added.items():
+            if version[:2] != removed[name][:2] or version[2] <= removed[name][2]:
+                return False
+            if name in target_versions and target_versions[name] != version:
+                return False
+            target_versions[name] = version
+        changed_names.update(added)
+    return changed_names == names
 
 
 def main():

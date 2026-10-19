@@ -105,7 +105,9 @@ release\SHA256SUMS.txt
 
 ZIP 中的 `BUILD-INFO.json` 記錄應用版本、可取得時的 Git commit、Python、作業平台與當次環境中的套件版本。不包含環境變數、金鑰或套件來源 URL。
 
-這是追溯清單，**不是 lockfile**；目前 `requirements*.txt` 仍採最低版本範圍，因此同一 commit 未必能重建出相同依賴或相同位元組的 exe。重現問題時應先比對此清單；若要完整可重現發布，還需維護 Windows 專用鎖版與建置環境。
+這是追溯清單，**不是 lockfile**。`requirements.txt` 會自動套用根目錄的 `constraints.txt`，固定 Python 3.15 下 Windows／WSL 的應用與打包依賴版本；平台專屬套件以環境標記區分，不會為執行應用而額外安裝打包工具。CI 快取也包含此約束檔。
+
+這是套件版本鎖定，不是下載檔案雜湊或完整建置環境鎖定；pip、隔離建置工具、Python 修補版與作業系統仍可能不同，因此不保證 exe 逐位元組相同。重現問題時仍應比對 `BUILD-INFO.json`。
 
 ### 發布說明格式
 

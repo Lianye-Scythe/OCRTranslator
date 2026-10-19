@@ -63,6 +63,7 @@ jobs:
           cache: "pip"
           cache-dependency-path: |
             requirements.txt
+            constraints.txt
 
       - name: Install dependencies
         if: needs.changes.outputs.docs_only != 'true'
@@ -97,6 +98,7 @@ jobs:
           cache-dependency-path: |
             requirements.txt
             requirements-dev.txt
+            constraints.txt
 
       - name: Build unsigned Windows package
         shell: cmd

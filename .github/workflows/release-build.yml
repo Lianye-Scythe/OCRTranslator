@@ -41,6 +41,7 @@ jobs:
           cache-dependency-path: |
             requirements.txt
             requirements-dev.txt
+            constraints.txt
 
       - name: Detect SignPath configuration
         id: signpath_gate

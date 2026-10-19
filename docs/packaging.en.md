@@ -103,7 +103,9 @@ release\SHA256SUMS.txt
 
 The ZIP includes a standalone guide from `packaging/windows/README.md` and `BUILD-INFO.json`, recording the app version, source commit when available, Python, platform, and installed package versions. Environment variables, keys, and package source URLs are not included.
 
-This inventory is **not a lockfile**. The requirements still use minimum-version ranges, so rebuilding the same commit may resolve different dependencies and does not guarantee a byte-identical executable. Compare inventories when reproducing problems; fully reproducible releases would additionally need a maintained Windows lock and build environment.
+This inventory is **not a lockfile**. `requirements.txt` automatically includes the root `constraints.txt`, pinning installed application and packaging dependency versions for Python 3.15 on Windows and WSL. Platform-specific dependencies use environment markers. Constraints do not install otherwise-unused build tools, and CI cache keys include the constraints file.
+
+These are version pins, not artifact hashes or a complete build-environment lock. pip, isolated build tools, Python patches, and operating systems can still differ, so byte-identical executables are not guaranteed. Continue comparing `BUILD-INFO.json` when reproducing problems.
 
 Annotated tag notes become the Release body. Order them as user-visible improvements, fixes, upgrade instructions (including settings backup/migration), and download/trust information. Keep internal refactoring details in the changelog. Tell users to download the Windows ZIP, verify `SHA256SUMS.txt`, and state the artifact's actual signing status. A checksum is not a digital signature. Documentation changes do not rewrite or rebuild historical releases.
 
