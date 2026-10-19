@@ -47,7 +47,8 @@ class RequestWorkflowController:
 
     @staticmethod
     def _normalize_internal_selected_text(text) -> str:
-        return str(text or "").replace("\u2029", "\n").replace("\u2028", "\n").strip()
+        normalized = str(text or "").replace("\u2029", "\n").replace("\u2028", "\n")
+        return normalized if normalized.strip() else ""
 
     def _read_selected_text_from_widget(self, widget) -> str:
         if widget is None:
@@ -437,7 +438,7 @@ class RequestWorkflowController:
         self.window.set_status("test_success")
 
     def submit_text_request(self, text: str, *, profile, target_language: str, prompt_preset, anchor_point, source_key: str):
-        prompt = build_text_request_prompt(prompt_preset.text_prompt, text, target_language=target_language)
+        prompt = build_text_request_prompt(prompt_preset.text_prompt, target_language=target_language)
         self.window.set_status(source_key)
         self.window.log_tr("log_text_request_submitted", preset=prompt_preset.name, chars=len(text))
         self.window.show_tray_toast(self.window.tr(source_key))
@@ -483,10 +484,11 @@ class RequestWorkflowController:
             self.window.overlay_presenter.show_response(result, **kwargs)
 
         self.window.run_worker(
-            lambda request_context, prompt=prompt, profile=profile, temperature=temperature, stream_enabled=stream_enabled, stream_callback=stream_callback: self.window.api_client.request_text(
-                prompt,
+            lambda request_context, text=text, prompt=prompt, profile=profile, temperature=temperature, stream_enabled=stream_enabled, stream_callback=stream_callback: self.window.api_client.request_text(
+                text,
                 profile,
                 temperature,
+                instructions=prompt,
                 stream=stream_enabled,
                 stream_callback=stream_callback,
                 request_context=request_context,

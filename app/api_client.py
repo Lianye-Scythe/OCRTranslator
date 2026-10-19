@@ -418,9 +418,9 @@ class ApiClient:
             request_context=request_context,
         )
 
-    def request_text(self, prompt: str, profile: ApiProfile, temperature: float, *, stream: bool = False, stream_callback=None, request_context: RequestContext | None = None, request_label: str = "Text request") -> str:
-        prompt_text = str(prompt or "").strip()
-        if not prompt_text:
+    def request_text(self, prompt: str, profile: ApiProfile, temperature: float, *, instructions: str = "", stream: bool = False, stream_callback=None, request_context: RequestContext | None = None, request_label: str = "Text request") -> str:
+        prompt_text = str(prompt or "")
+        if not prompt_text.strip():
             raise ApiClientError("No prompt configured", user_message="目前提示詞不可為空。", retryable=False, retry_same_key=False)
         return self._execute_keyed_operation(
             profile,
@@ -430,14 +430,14 @@ class ApiClient:
                 profile=profile,
                 request_label=request_label,
                 stream_request=lambda: (
-                    self._request_openai_prompt(profile, api_key, prompt_text, temperature, stream=True, stream_callback=stream_callback, request_context=request_context)
+                    self._request_openai_prompt(profile, api_key, prompt_text, temperature, instructions=instructions, stream=True, stream_callback=stream_callback, request_context=request_context)
                     if profile.provider == "openai"
-                    else self._request_gemini_prompt(profile, api_key, prompt_text, temperature, stream=True, stream_callback=stream_callback, request_context=request_context)
+                    else self._request_gemini_prompt(profile, api_key, prompt_text, temperature, instructions=instructions, stream=True, stream_callback=stream_callback, request_context=request_context)
                 ),
                 non_stream_request=lambda: (
-                    self._request_openai_prompt(profile, api_key, prompt_text, temperature, stream=False, stream_callback=None, request_context=request_context)
+                    self._request_openai_prompt(profile, api_key, prompt_text, temperature, instructions=instructions, stream=False, stream_callback=None, request_context=request_context)
                     if profile.provider == "openai"
-                    else self._request_gemini_prompt(profile, api_key, prompt_text, temperature, stream=False, stream_callback=None, request_context=request_context)
+                    else self._request_gemini_prompt(profile, api_key, prompt_text, temperature, instructions=instructions, stream=False, stream_callback=None, request_context=request_context)
                 ),
                 request_context=request_context,
             ),
@@ -457,6 +457,7 @@ class ApiClient:
         prompt: str,
         temperature: float,
         *,
+        instructions: str = "",
         image_base64: str | None = None,
         stream: bool = False,
         stream_callback=None,
@@ -467,6 +468,7 @@ class ApiClient:
             api_key,
             prompt,
             temperature,
+            instructions=instructions,
             image_base64=image_base64,
             stream=stream,
             stream_callback=stream_callback,
@@ -477,8 +479,9 @@ class ApiClient:
         return self._request_openai_prompt(
             profile,
             api_key,
-            prompt,
+            "",
             temperature,
+            instructions=prompt,
             stream=stream,
             stream_callback=stream_callback,
             request_context=request_context,
@@ -492,6 +495,7 @@ class ApiClient:
         prompt: str,
         temperature: float,
         *,
+        instructions: str = "",
         image_base64: str | None = None,
         stream: bool = False,
         stream_callback=None,
@@ -502,6 +506,7 @@ class ApiClient:
             api_key,
             prompt,
             temperature,
+            instructions=instructions,
             image_base64=image_base64,
             stream=stream,
             stream_callback=stream_callback,
@@ -512,8 +517,9 @@ class ApiClient:
         return self._request_gemini_prompt(
             profile,
             api_key,
-            prompt,
+            "",
             temperature,
+            instructions=prompt,
             stream=stream,
             stream_callback=stream_callback,
             request_context=request_context,

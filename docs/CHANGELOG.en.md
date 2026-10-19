@@ -6,12 +6,22 @@ This file records important OCRTranslator changes.
 
 ## [Unreleased]
 
+## [1.0.14] - 2026-10-19
+
 ### Changed
+- Send translation instructions separately from source text and images: use Gemini `systemInstruction`, `developer` for modern official OpenAI models, and `system` for legacy models and third-party compatible services, consistently for streaming and non-streaming requests.
+- Use lightweight CI for documentation, preview images, and sharing-card tooling; application, dependency, and CI changes still require full Windows tests and packaging.
 - Prioritize downloads and first use in all three READMEs while retaining every preview asset and original-image links. Separate Windows/WSL setup commands and add bilingual issue forms and private vulnerability-reporting links.
 - Pin Windows/WSL application and packaging dependencies through `constraints.txt`, aligning Pillow 13.0.0 and certifi 2026.10.18. Allowlisted Dependabot patch checks also support constraints; other updates remain manual.
 - Include a standalone ZIP guide and actual build inventory in `BUILD-INFO.json`; packaged documentation no longer relies on repository-relative images or docs. The inventory is not a dependency lockfile.
 - Allow only allowlisted Dependabot patch updates to auto-merge after tests and unsigned Windows packaging; major, Qt, packaging, and signing updates remain manual.
 - Update the SignPath Action to v3 with the official Pipeline Connector and existing inputs.
+
+### Fixed
+- Preserve leading and trailing whitespace and line breaks in manual and selected-text input, remove the source-text `<text-input>` wrapper, and continue rejecting whitespace-only input.
+
+### Test
+- Add regression coverage for request roles, image-content separation, stream fallback, and whitespace preservation. All 8 live text/image, streaming/non-streaming requests passed across Gemini and OpenAI-compatible formats.
 
 ## [1.0.13] - 2026-10-15
 

@@ -99,13 +99,13 @@ class PromptInputDialog(QDialog):
         self.text_edit.setFocus()
 
     def _refresh_send_state(self, *_args):
-        self.send_button.setEnabled(bool(self.input_text()) and bool(self.target_language_text()))
+        self.send_button.setEnabled(bool(self.input_text().strip()) and bool(self.target_language_text()))
 
     def _refresh_target_chip(self, *_args):
         self.target_chip.setText(self.app_window.tr("meta_target", value=self.target_language_text() or "—"))
 
     def input_text(self) -> str:
-        return self.text_edit.toPlainText().strip()
+        return self.text_edit.toPlainText()
 
     def _suggested_target_languages(self) -> list[str]:
         seen: set[str] = set()
@@ -116,7 +116,7 @@ class PromptInputDialog(QDialog):
         return self.target_language_edit.currentText().strip()
 
     def accept(self):
-        if not self.input_text():
+        if not self.input_text().strip():
             self.app_window.set_status("manual_input_empty")
             self.text_edit.setFocus()
             return

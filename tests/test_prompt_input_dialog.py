@@ -87,6 +87,20 @@ class PromptInputDialogTests(unittest.TestCase):
         self.app.processEvents()
         self.assertTrue(self.dialog.send_button.isEnabled())
 
+    def test_input_text_preserves_whitespace_and_line_breaks(self):
+        text = "\n  Line 1\n\nLine 2  \n"
+        self.dialog.text_edit.setPlainText(text)
+
+        self.assertEqual(self.dialog.input_text(), text)
+        self.assertTrue(self.dialog.send_button.isEnabled())
+
+    def test_whitespace_only_input_stays_disabled_and_cannot_submit(self):
+        self.dialog.text_edit.setPlainText(" \n\t ")
+
+        self.assertFalse(self.dialog.send_button.isEnabled())
+        self.dialog.accept()
+        self.assertEqual(self.window.last_status, "manual_input_empty")
+
     def test_accept_reports_empty_target_language_before_submitting(self):
         self.dialog.text_edit.setPlainText("hello")
         self.dialog.target_language_edit.setCurrentText("")
