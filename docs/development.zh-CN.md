@@ -117,3 +117,9 @@ python -m compileall app tests launcher.pyw
 更新依赖时，调整 `constraints.txt`，必要时同步最低版本范围，并在 Windows 和 WSL 分别安装、运行 `python -m pip check` 和测试；涉及打包依赖时确认 Windows CI 打包成功。不要用单一环境的完整 `pip freeze` 直接覆盖跨平台约束文件，也不要只更新其中一台的虚拟环境。
 
 约束文件固定包版本，但不固定 pip、Python 补丁版、隔离构建工具或下载文件哈希，不保证逐字节相同的 exe，也不会改变已经发布的 ZIP。
+
+## 分享图维护
+
+运行 `python tools/generate_social_preview.py --thumbnail build/social-preview-320.png`，更新 `docs/images/social-preview.png` 并生成 320 × 160 检查图。产图使用仓库内的真实翻译浮窗截图；更换素材时需要重新检查裁剪位置、文字和安全边距。
+
+图片提交到 GitHub 后，仍需在仓库 Settings → Social preview → Edit 上传新版 PNG；GitHub 不会自动把仓库内图片设为分享图。各分享平台也可能保留旧预览缓存。
