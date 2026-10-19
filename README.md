@@ -22,9 +22,31 @@ Windows 便攜式 OCR／AI 翻譯工具：框選螢幕、擷取選取文字或�
 
 ## 介面預覽
 
-![主視窗：繁體中文、深色主題](docs/images/screenshots/main-window-dark.png)
+### 動態預覽
 
-更多淺色介面、結果浮窗與操作示意：[介面展示](docs/gallery.md)。
+以下動態圖與翻譯浮窗為舊版操作示意；主視窗截圖為目前介面，使用示例設定。
+
+![舊版操作動態預覽](docs/images/screenshots/ocrtranslator-preview.gif)
+
+### 主視窗
+
+<p>
+  <img src="docs/images/screenshots/main-window-light.png" width="49%" alt="主視窗：淺色主題" />
+  <img src="docs/images/screenshots/main-window-dark.png" width="49%" alt="主視窗：深色主題" />
+</p>
+
+### 翻譯浮窗
+
+<p>
+  <img src="docs/images/screenshots/overlay-light-manga.png" width="49%" alt="漫畫翻譯浮窗：淺色主題（舊版示例）" />
+  <img src="docs/images/screenshots/overlay-light-novel.png" width="49%" alt="小說翻譯浮窗：淺色主題（舊版示例）" />
+</p>
+<p>
+  <img src="docs/images/screenshots/overlay-dark-manga.png" width="49%" alt="漫畫翻譯浮窗：深色主題（舊版示例）" />
+  <img src="docs/images/screenshots/overlay-dark-novel.png" width="49%" alt="小說翻譯浮窗：深色主題（舊版示例）" />
+</p>
+
+[查看完整尺寸圖片](docs/gallery.md)。
 
 ## 第一次使用
 
