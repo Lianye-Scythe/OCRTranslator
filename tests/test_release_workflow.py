@@ -55,7 +55,7 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertIn('cache: "pip"', workflow)
         self.assertIn('contents: read', workflow)
         self.assertIn('windows-package:', workflow)
-        self.assertIn('needs: test', workflow)
+        self.assertIn('needs: [changes, test]', workflow)
         self.assertIn('run: build_exe.bat', workflow)
         self.assertNotIn('SIGNPATH_API_TOKEN', workflow)
 

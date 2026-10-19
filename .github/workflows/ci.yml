@@ -19,15 +19,44 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+    steps:
+      - name: Checkout repository history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Classify changed files
+        id: classify
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: python3 tools/docs_policy.py --base "$BASE_SHA"
+
   test:
-    runs-on: windows-latest
+    needs: changes
+    runs-on: ${{ needs.changes.outputs.docs_only == 'true' && 'ubuntu-latest' || 'windows-latest' }}
     timeout-minutes: 20
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check documentation links and image paths
+        if: needs.changes.outputs.docs_only == 'true'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: python3 tools/docs_policy.py --base "$BASE_SHA" --check
 
       - name: Set up Python
+        if: needs.changes.outputs.docs_only != 'true'
         uses: actions/setup-python@v7
         with:
           python-version: "3.15"
@@ -36,18 +65,22 @@ jobs:
             requirements.txt
 
       - name: Install dependencies
+        if: needs.changes.outputs.docs_only != 'true'
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Run unit tests
+        if: needs.changes.outputs.docs_only != 'true'
         run: python -m unittest discover -v
 
       - name: Compile source files
+        if: needs.changes.outputs.docs_only != 'true'
         run: python -m compileall app tests launcher.pyw
 
   windows-package:
-    needs: test
+    needs: [changes, test]
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
@@ -70,3 +103,25 @@ jobs:
         env:
           BUILD_NO_PAUSE: "1"
         run: build_exe.bat
+
+  ci-required:
+    if: always()
+    needs: [changes, test, windows-package]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Enforce the selected CI path
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          DOCS_ONLY: ${{ needs.changes.outputs.docs_only }}
+          TEST_RESULT: ${{ needs.test.result }}
+          PACKAGE_RESULT: ${{ needs.windows-package.result }}
+        run: |
+          test "$CHANGES_RESULT" = success
+          test "$TEST_RESULT" = success
+          if [ "$DOCS_ONLY" = true ]; then
+            test "$PACKAGE_RESULT" = skipped
+          else
+            test "$DOCS_ONLY" = false
+            test "$PACKAGE_RESULT" = success
+          fi
