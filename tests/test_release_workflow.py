@@ -48,6 +48,11 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertIn('uses: actions/checkout@v7', workflow)
         self.assertIn('uses: actions/setup-python@v7', workflow)
         self.assertIn('cache: "pip"', workflow)
+        self.assertIn('contents: read', workflow)
+        self.assertIn('windows-package:', workflow)
+        self.assertIn('needs: test', workflow)
+        self.assertIn('run: build_exe.bat', workflow)
+        self.assertNotIn('SIGNPATH_API_TOKEN', workflow)
 
     def test_sha256_generator_script_uses_release_style_output(self):
         script = Path('tools/generate_sha256sums.py').read_text(encoding='utf-8')

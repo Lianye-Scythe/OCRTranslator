@@ -6,6 +6,10 @@ This file records important OCRTranslator changes.
 
 ## [Unreleased]
 
+### Changed
+- Allow only allowlisted Dependabot patch updates to auto-merge after tests and unsigned Windows packaging; major, Qt, packaging, and signing updates remain manual.
+- Update the SignPath Action to v3 with the official Pipeline Connector and existing inputs.
+
 ## [1.0.13] - 2026-10-15
 
 ### Fixed
