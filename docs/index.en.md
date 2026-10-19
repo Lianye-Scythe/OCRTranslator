@@ -10,19 +10,21 @@ This page collects the main OCRTranslator documentation entry points.
 - [README (Simplified Chinese)](README.zh-CN.md)
 - [README (English)](README.en.md)
 
-## Engineering docs
+## User documentation
 
+- [FAQ](FAQ.en.md)
 - [Interface gallery](gallery.md)
+- [Support](SUPPORT.en.md)
+- [Changelog](CHANGELOG.en.md)
+
+## Development and releases
 
 - [Architecture](architecture.en.md)
 - [Development Guide](development.en.md)
 - [Packaging and Distribution](packaging.en.md)
-- [FAQ](FAQ.en.md)
 
 ## Collaboration and governance
 
 - [Code of Conduct](../.github/CODE_OF_CONDUCT.md)
-- [Support](../.github/SUPPORT.md)
 - [Contributing](CONTRIBUTING.en.md)
 - [Security Policy](SECURITY.en.md)
-- [Changelog](CHANGELOG.en.md)

@@ -30,5 +30,6 @@ If the issue could expose sensitive information or enable remote abuse, please c
 
 ## Private contact
 
+- Prefer [GitHub private vulnerability reporting](https://github.com/Lianye-Scythe/OCRTranslator/security/advisories/new), which does not create a public issue.
 - Email: `po12017po@gmail.com`
 - Suggested subject: `[OCRTranslator Security] <short summary>`

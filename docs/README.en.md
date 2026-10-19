@@ -9,6 +9,8 @@
 
 A portable Windows OCR and AI translation tool. Capture a screen region, use selected text, or enter text manually; your configured model service processes the content and results appear in an overlay.
 
+[Download and requirements](#download-and-requirements) · [First run](#first-run) · [Preview](#preview) · [FAQ](FAQ.en.md) · [Development](development.en.md)
+
 ## Download and requirements
 
 **[Download the latest Windows release](https://github.com/Lianye-Scythe/OCRTranslator/releases/latest)**
@@ -18,35 +20,9 @@ A portable Windows OCR and AI translation tool. Capture a screen region, use sel
 - Bring your own API key for a Gemini- or OpenAI-compatible service. Provider usage may incur charges.
 - Windows releases are currently **unsigned**. Download from official Releases and compare the ZIP against the accompanying `SHA256SUMS.txt`; a checksum is not a digital signature.
 
-To run from source or develop, use Python 3.15 and follow the [development guide](development.en.md). WSL supports development and tests; run on Windows for Windows screen capture and global hotkeys. `start_wsl.bat` can run WSL-hosted source using Windows Python.
+To run from source or develop, use Python 3.15 and follow the [development guide](development.en.md).
 
-## Preview
-
-### Animation
-
-The animation and translation overlays are historical workflow examples. The main-window screenshots show the current interface with example settings.
-
-![Historical workflow animation](images/screenshots/ocrtranslator-preview.gif)
-
-### Main window
-
-<p>
-  <img src="images/screenshots/main-window-light.png" width="49%" alt="Main window: light theme" />
-  <img src="images/screenshots/main-window-dark.png" width="49%" alt="Main window: dark theme" />
-</p>
-
-### Translation overlays
-
-<p>
-  <img src="images/screenshots/overlay-light-manga.png" width="49%" alt="Manga overlay: light theme (historical example)" />
-  <img src="images/screenshots/overlay-light-novel.png" width="49%" alt="Novel overlay: light theme (historical example)" />
-</p>
-<p>
-  <img src="images/screenshots/overlay-dark-manga.png" width="49%" alt="Manga overlay: dark theme (historical example)" />
-  <img src="images/screenshots/overlay-dark-novel.png" width="49%" alt="Novel overlay: dark theme (historical example)" />
-</p>
-
-[View full-size images](gallery.md).
+Verified workflows: native desktop and packaged-app testing on Windows 11 x64, plus development and automated tests in WSL. `start_wsl.bat` runs WSL-hosted source with Windows Python; it does not provide native Linux support for Windows screen capture or global hotkeys.
 
 ## First run
 
@@ -67,6 +43,36 @@ The default Gemini model is `gemini-flash-lite-latest`. Availability, supported 
 | Enter text manually | `Shift + Win + Z` |
 
 Hotkeys are configurable. Some applications do not support simulated copying, so selected-text capture cannot work everywhere.
+
+## Preview
+
+### Animation
+
+The animation and translation overlays are historical workflow examples. The main-window screenshots show the current interface with example settings.
+
+![Historical workflow animation](images/screenshots/ocrtranslator-preview.gif)
+
+### Main window
+
+<p>
+  <a href="images/screenshots/main-window-light.png"><img src="images/screenshots/main-window-light.png" width="900" alt="Main window: light theme" /></a>
+</p>
+<p>
+  <a href="images/screenshots/main-window-dark.png"><img src="images/screenshots/main-window-dark.png" width="900" alt="Main window: dark theme" /></a>
+</p>
+
+### Translation overlays
+
+<p>
+  <a href="images/screenshots/overlay-light-manga.png"><img src="images/screenshots/overlay-light-manga.png" width="49%" alt="Manga overlay: light theme (historical example)" /></a>
+  <a href="images/screenshots/overlay-light-novel.png"><img src="images/screenshots/overlay-light-novel.png" width="49%" alt="Novel overlay: light theme (historical example)" /></a>
+</p>
+<p>
+  <a href="images/screenshots/overlay-dark-manga.png"><img src="images/screenshots/overlay-dark-manga.png" width="49%" alt="Manga overlay: dark theme (historical example)" /></a>
+  <a href="images/screenshots/overlay-dark-novel.png"><img src="images/screenshots/overlay-dark-novel.png" width="49%" alt="Novel overlay: dark theme (historical example)" /></a>
+</p>
+
+[View full-size images](gallery.md).
 
 ## Core features
 

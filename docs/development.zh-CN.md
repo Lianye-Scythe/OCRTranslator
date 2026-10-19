@@ -4,21 +4,43 @@
 
 ## 环境准备
 
-开发环境、CI 与 Windows 打包统一使用 Python 3.15 的最新稳定补丁版，不再维护旧版 Python 的兼容性。
+开发环境、CI 与 Windows 打包使用 Python 3.15，不再维护旧版 Python 的兼容性。请在项目根目录执行命令；Windows 与 WSL 的虚拟环境不能共用。
 
-WSL / Linux 使用 `python3.15 -m venv .venv` 创建环境，再运行 `source .venv/bin/activate`。Windows 请先确认 `python --version` 为 3.15，再使用下面的命令。
+### Windows PowerShell
 
-```bash
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
+```powershell
+py -3.15 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\Activate.ps1
 ```
 
-如需打包或维护开发工具：
+如果 PowerShell 的执行策略阻止激活脚本，可以直接用 `.\.venv\Scripts\python.exe` 替代下方的 `python`，不必修改全局执行策略。
+
+### Windows CMD
+
+```bat
+py -3.15 -m venv .venv
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+call .venv\Scripts\activate.bat
+```
+
+### WSL / Linux Bash
 
 ```bash
-pip install -r requirements-dev.txt
+python3.15 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+source .venv/bin/activate
 ```
+
+WSL 用于开发与自动化测试；完整 Windows 桌面操作请在 Windows 运行，或使用下方的 `start_wsl.bat`。不要让 Windows 的 `start.bat` 使用 WSL 创建的 `.venv`。
+
+激活对应环境后，如需打包工具，执行：
+
+```text
+python -m pip install -r requirements-dev.txt
+```
+
+后续 `python` 命令均指已激活环境的 Python；可以用 `python --version` 和 `python -m pip --version` 确认。
 
 ## 常用命令
 

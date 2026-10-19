@@ -30,5 +30,6 @@
 
 ## 私下聯繫方式
 
+- 優先使用 [GitHub 私人漏洞回報](https://github.com/Lianye-Scythe/OCRTranslator/security/advisories/new)，內容不會建立為公開 Issue。
 - Email：`po12017po@gmail.com`
 - 建議主旨可標示：`[OCRTranslator Security] <簡短摘要>`

@@ -4,21 +4,43 @@
 
 ## Environment setup
 
-Use the latest stable Python 3.15 patch for development, CI, and Windows packaging. Compatibility with older Python versions is no longer maintained.
+Development, CI, and Windows packaging use Python 3.15. Older Python versions are not maintained. Run commands from the repository root; Windows and WSL virtual environments are not interchangeable.
 
-On WSL / Linux, create the environment with `python3.15 -m venv .venv` and activate it with `source .venv/bin/activate`. On Windows, confirm `python --version` is 3.15 before using the commands below.
+### Windows PowerShell
 
-```bash
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
+```powershell
+py -3.15 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\Activate.ps1
 ```
 
-If you also need packaging or development tooling:
+If PowerShell execution policy blocks activation, replace `python` below with `.\.venv\Scripts\python.exe`. No machine-wide execution-policy change is necessary.
+
+### Windows CMD
+
+```bat
+py -3.15 -m venv .venv
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+call .venv\Scripts\activate.bat
+```
+
+### WSL / Linux Bash
 
 ```bash
-pip install -r requirements-dev.txt
+python3.15 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+source .venv/bin/activate
 ```
+
+Use WSL for development and automated tests. Run full Windows desktop workflows on Windows, including through `start_wsl.bat` below. Do not point Windows `start.bat` at a WSL-created `.venv`.
+
+After activating the appropriate environment, install packaging tools if needed:
+
+```text
+python -m pip install -r requirements-dev.txt
+```
+
+Subsequent `python` commands refer to the activated environment. Check `python --version` and `python -m pip --version` to confirm.
 
 ## Common commands
 
