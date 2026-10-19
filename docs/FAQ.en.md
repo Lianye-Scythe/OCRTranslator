@@ -52,6 +52,8 @@ The public release strategy currently prefers a **versioned ZIP** because it:
 
 **Not yet.**
 
+Download from official GitHub Releases and compare the ZIP's SHA-256 checksum with the accompanying `SHA256SUMS.txt`. A matching checksum confirms file consistency; it is not a digital signature or a safety certification.
+
 The repository already includes the groundwork for SignPath / Trusted Build integration, and code signing is planned. Until that is in place, treat the versioned ZIP on GitHub Releases as the canonical public desktop package.
 
 ## 8. Where is the config file stored?

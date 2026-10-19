@@ -15,14 +15,13 @@ Windows 便攜式 OCR／AI 翻譯工具：框選螢幕、擷取選取文字或�
 
 **[下載最新 Windows 版本](https://github.com/Lianye-Scythe/OCRTranslator/releases/latest)**
 
-- 下載 Assets 中的 `OCRTranslator-v<版本>-windows-x64.zip`，不要選 GitHub 自動產生的 `Source code`。
-- 解壓縮整個 ZIP，再執行 `OCRTranslator.exe`。打包版**不需要安裝 Python**。
+- 下載 Assets 中的 `OCRTranslator-v<版本>-windows-x64.zip`（不是 `Source code`），解壓縮後執行 `OCRTranslator.exe`，**不需安裝 Python**。
 - 需自行準備 Gemini 或 OpenAI 相容服務的 API Key；使用服務可能產生費用。
-- 目前 Windows 發布包**尚未數位簽署**。請從官方 Releases 下載，可用同頁的 `SHA256SUMS.txt` 核對 ZIP；校驗值不等於數位簽章。
+- 已於 Windows 11 x64 測試。
 
-從原始碼執行或開發：請見 [開發指南](docs/development.md)，使用 Python 3.15。
+發布包**尚未數位簽署**，可用 Release 附帶的 `SHA256SUMS.txt` 校驗下載檔案；詳見 [FAQ](docs/FAQ.md)。
 
-已驗證的工作方式：Windows 11 x64 執行桌面程式與打包版；WSL 用於開發與自動化測試。`start_wsl.bat` 使用 Windows Python 執行 WSL 裡的原始碼，並不是在 Linux 原生執行 Windows 截圖與全域快捷鍵。
+原始碼執行、Windows／WSL 開發方式請見 [開發指南](docs/development.md)。
 
 ## 第一次使用
 

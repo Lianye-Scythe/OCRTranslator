@@ -52,6 +52,8 @@ OCRTranslator 不内建模型服务，也不代管任何 API Key。你需要自�
 
 **当前尚未签名。**
 
+请从官方 GitHub Releases 下载，并用同页的 `SHA256SUMS.txt` 比对 ZIP 的 SHA-256 校验值。校验值可帮助确认文件是否一致，但不等于数字签名，也不代表文件已经过安全认证。
+
 仓库已经预留 SignPath / Trusted Build 所需结构，后续有导入代码签名的规划；在正式导入前，请优先以 GitHub Releases 中的版本化 ZIP 为准。
 
 ## 8. 配置文件会存在哪里？

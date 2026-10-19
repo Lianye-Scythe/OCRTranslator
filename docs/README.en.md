@@ -15,14 +15,13 @@ A portable Windows OCR and AI translation tool. Capture a screen region, use sel
 
 **[Download the latest Windows release](https://github.com/Lianye-Scythe/OCRTranslator/releases/latest)**
 
-- Under Assets, download `OCRTranslator-v<version>-windows-x64.zip`, not GitHub's generated `Source code` archives.
-- Extract the entire ZIP, then run `OCRTranslator.exe`. The packaged app **does not require Python**.
+- Under Assets, download `OCRTranslator-v<version>-windows-x64.zip` (not `Source code`), extract it, and run `OCRTranslator.exe`. **No Python installation is required**.
 - Bring your own API key for a Gemini- or OpenAI-compatible service. Provider usage may incur charges.
-- Windows releases are currently **unsigned**. Download from official Releases and compare the ZIP against the accompanying `SHA256SUMS.txt`; a checksum is not a digital signature.
+- Tested on Windows 11 x64.
 
-To run from source or develop, use Python 3.15 and follow the [development guide](development.en.md).
+Releases are currently **unsigned**. Verify downloads against the accompanying `SHA256SUMS.txt`; see the [FAQ](FAQ.en.md).
 
-Verified workflows: native desktop and packaged-app testing on Windows 11 x64, plus development and automated tests in WSL. `start_wsl.bat` runs WSL-hosted source with Windows Python; it does not provide native Linux support for Windows screen capture or global hotkeys.
+For source execution and Windows/WSL development, see the [development guide](development.en.md).
 
 ## First run
 
