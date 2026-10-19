@@ -9,7 +9,7 @@ from tools import generate_social_preview as preview
 
 
 class SocialPreviewTests(unittest.TestCase):
-    def test_render_has_safe_margins_and_nonempty_source_and_result(self):
+    def test_render_has_safe_margins_and_complete_main_window(self):
         image = preview.render_preview()
         self.assertEqual(image.size, (1280, 640))
         self.assertEqual(image.mode, "RGB")
@@ -19,8 +19,10 @@ class SocialPreviewTests(unittest.TestCase):
         self.assertGreaterEqual(bounds[1], preview.SAFE_MARGIN)
         self.assertLessEqual(bounds[2], image.width - preview.SAFE_MARGIN)
         self.assertLessEqual(bounds[3], image.height - preview.SAFE_MARGIN)
-        for box in ((32, 232, 432, 549), (456, 232, 1248, 549)):
-            self.assertIsNotNone(ImageChops.difference(image.crop(box), background.crop(box)).getbbox())
+        self.assertEqual(preview.SCREENSHOT_PATH.name, "main-window-light.png")
+        self.assertIsNotNone(ImageChops.difference(
+            image.crop(preview.SCREENSHOT_BOX), background.crop(preview.SCREENSHOT_BOX),
+        ).getbbox())
 
     def test_text_overflow_fails_instead_of_silently_clipping(self):
         image = Image.new("RGB", preview.CANVAS_SIZE)

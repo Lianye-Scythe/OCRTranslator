@@ -120,6 +120,6 @@ Constraints pin installed package versions, not pip, Python patches, isolated bu
 
 ## Maintaining the sharing image
 
-Run `python tools/generate_social_preview.py --thumbnail build/social-preview-320.png` to update `docs/images/social-preview.png` and produce a 320 × 160 review image. The generator uses a real translation-overlay screenshot from the repository. Recheck crops, text, and safe margins when changing source assets.
+Run `python tools/generate_social_preview.py --thumbnail build/social-preview-320.png` to update `docs/images/social-preview.png` and produce a 320 × 160 review image. The generator displays the complete wide main-window screenshot at its original aspect ratio. Recheck text and safe margins when changing source assets; do not crop or stretch the interface.
 
 After committing the image, upload the new PNG under repository Settings → Social preview → Edit. GitHub does not automatically use a repository image as its sharing image. Sharing platforms may also cache the previous preview.

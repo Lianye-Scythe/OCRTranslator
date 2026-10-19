@@ -6,16 +6,16 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 ROOT = Path(__file__).resolve().parents[1]
-SCREENSHOT_PATH = ROOT / "docs/images/screenshots/overlay-light-manga.png"
+SCREENSHOT_PATH = ROOT / "docs/images/screenshots/main-window-light.png"
 ICON_PATH = ROOT / "app/assets/icons/app-icon-256.png"
 OUTPUT_PATH = ROOT / "docs/images/social-preview.png"
 
 CANVAS_SIZE = (1280, 640)
 SAFE_MARGIN = 32
-BACKGROUND = (250, 251, 252)
+BACKGROUND = (239, 243, 249)
 TEXT_PRIMARY = (21, 25, 30)
 TEXT_SECONDARY = (66, 77, 87)
-ACCENT = (16, 116, 105)
+SCREENSHOT_BOX = (480, 32, 1248, 608)
 
 
 def load_font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
@@ -44,27 +44,22 @@ def render_preview() -> Image.Image:
     canvas = Image.new("RGB", CANVAS_SIZE, BACKGROUND)
     draw = ImageDraw.Draw(canvas)
     with Image.open(ICON_PATH) as icon:
-        icon = icon.convert("RGBA").resize((52, 52), Image.Resampling.LANCZOS)
-        canvas.paste(icon, (SAFE_MARGIN, 49), icon)
+        icon = icon.convert("RGBA").resize((76, 76), Image.Resampling.LANCZOS)
+        canvas.paste(icon, (SAFE_MARGIN, 104), icon)
 
-    draw_text(draw, (104, 24), "OCRTranslator", 82, TEXT_PRIMARY, bold=True)
-    draw_text(draw, (SAFE_MARGIN, 128), "Portable OCR & AI Translation for Windows", 38, TEXT_SECONDARY)
-    draw.line((SAFE_MARGIN, 184, CANVAS_SIZE[0] - SAFE_MARGIN - 1, 184), fill=(210, 219, 223), width=2)
+    draw_text(draw, (SAFE_MARGIN, 214), "OCRTranslator", 62, TEXT_PRIMARY, bold=True)
+    draw_text(draw, (SAFE_MARGIN, 309), "Portable OCR & AI", 32, TEXT_SECONDARY)
+    draw_text(draw, (SAFE_MARGIN, 352), "Translation for Windows", 32, TEXT_SECONDARY)
+    draw_text(draw, (SAFE_MARGIN, 458), "Screenshots / Selected Text", 24, TEXT_SECONDARY)
+    draw_text(draw, (SAFE_MARGIN, 493), "Manual Input", 24, TEXT_SECONDARY)
 
-    draw_text(draw, (SAFE_MARGIN, 193), "Japanese source", 24, TEXT_SECONDARY, bold=True)
-    draw_text(draw, (456, 193), "Chinese translation", 24, ACCENT, bold=True)
-
-    # Crop a real reading example, retaining the result window's native toolbar.
+    # Preserve the complete current main window and its aspect ratio.
     with Image.open(SCREENSHOT_PATH) as screenshot:
-        source = screenshot.crop((600, 0, 1130, 325)).convert("RGB")
-        translation = screenshot.crop((18, 16, 583, 242)).convert("RGB")
-        height = round(792 * translation.height / translation.width)
-        source = ImageOps.fit(source, (400, height), method=Image.Resampling.LANCZOS)
-        translation = translation.resize((792, height), Image.Resampling.LANCZOS)
-        canvas.paste(source, (SAFE_MARGIN, 232))
-        canvas.paste(translation, (456, 232))
-
-    draw_text(draw, (SAFE_MARGIN, 564), "Screenshots  /  Selected Text  /  Manual Input", 30, TEXT_PRIMARY)
+        left, top, right, bottom = SCREENSHOT_BOX
+        fitted = ImageOps.contain(screenshot.convert("RGB"), (right - left, bottom - top), Image.Resampling.LANCZOS)
+        x = left + (right - left - fitted.width) // 2
+        y = top + (bottom - top - fitted.height) // 2
+        canvas.paste(fitted, (x, y))
     return canvas
 
 

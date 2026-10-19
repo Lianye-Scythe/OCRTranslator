@@ -120,6 +120,6 @@ python -m compileall app tests launcher.pyw
 
 ## 分享圖維護
 
-執行 `python tools/generate_social_preview.py --thumbnail build/social-preview-320.png`，更新 `docs/images/social-preview.png` 並產生 320 × 160 檢查圖。產圖使用倉庫內的真實翻譯浮窗截圖；更換來源素材時需重新檢查裁切位置、文字與安全邊界。
+執行 `python tools/generate_social_preview.py --thumbnail build/social-preview-320.png`，更新 `docs/images/social-preview.png` 並產生 320 × 160 檢查圖。產圖使用倉庫內的寬版主視窗截圖，等比例呈現完整介面；更換來源素材時需重新檢查文字與安全邊界，不要裁切或拉伸介面。
 
 圖片提交到 GitHub 後，仍須在倉庫 Settings → Social preview → Edit 上傳新版 PNG；GitHub 不會自動把倉庫內圖片設為分享圖。各分享平台也可能保留舊預覽快取。
