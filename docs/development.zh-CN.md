@@ -98,6 +98,8 @@ python -m compileall app tests launcher.pyw
 
 ## 提交前建议
 
+CI 按变更范围分流：文档检查链接，`docs/images/` 图片另检查可读性与分享图尺寸；仅修改分享图生成器、其测试及文档时，只安装固定版本的 Pillow 并运行相关测试，不打包 Windows exe。应用程序、依赖、其他工具或 CI 配置变更仍运行完整 Windows 测试与打包。分享图工具的轻量分流不适用纯文档自动合并规则。
+
 1. 跑完 `python -m unittest discover -v`
 2. 跑完 `python -m compileall app tests launcher.pyw`
 3. 若涉及打包流程，再确认 `pip install -r requirements-dev.txt`

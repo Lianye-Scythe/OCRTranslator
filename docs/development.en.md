@@ -98,6 +98,8 @@ Current automated checks focus on:
 
 ## Before you commit
 
+CI selects checks by scope: documentation runs link checks, and changes under `docs/images/` also validate image integrity and sharing-image dimensions. Changes limited to the sharing-image generator, its tests, and documentation install only the pinned Pillow dependency and run focused tests, without building the Windows exe. Application, dependency, other tooling, and CI changes still run the full Windows test and packaging jobs. The lightweight preview-tool path does not qualify for documentation auto-merge.
+
 1. Run `python -m unittest discover -v`
 2. Run `python -m compileall app tests launcher.pyw`
 3. If packaging is involved, also confirm `pip install -r requirements-dev.txt`

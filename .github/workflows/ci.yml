@@ -23,7 +23,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      docs_only: ${{ steps.classify.outputs.docs_only }}
+      scope: ${{ steps.classify.outputs.scope }}
+      preview_checks: ${{ steps.classify.outputs.preview_checks }}
     steps:
       - name: Checkout repository history
         uses: actions/checkout@v7
@@ -39,7 +40,7 @@ jobs:
 
   test:
     needs: changes
-    runs-on: ${{ needs.changes.outputs.docs_only == 'true' && 'ubuntu-latest' || 'windows-latest' }}
+    runs-on: ${{ needs.changes.outputs.scope != 'full' && 'ubuntu-latest' || 'windows-latest' }}
     timeout-minutes: 20
 
     steps:
@@ -49,14 +50,8 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Check documentation links and image paths
-        if: needs.changes.outputs.docs_only == 'true'
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: python3 tools/docs_policy.py --base "$BASE_SHA" --check
-
       - name: Set up Python
-        if: needs.changes.outputs.docs_only != 'true'
+        if: needs.changes.outputs.scope != 'docs' || needs.changes.outputs.preview_checks == 'true'
         uses: actions/setup-python@v7
         with:
           python-version: "3.15"
@@ -65,23 +60,37 @@ jobs:
             requirements.txt
             constraints.txt
 
-      - name: Install dependencies
-        if: needs.changes.outputs.docs_only != 'true'
+      - name: Install image-check dependency only
+        if: needs.changes.outputs.preview_checks == 'true'
+        run: python -m pip install --constraint constraints.txt Pillow
+
+      - name: Check documentation links and images
+        if: needs.changes.outputs.scope != 'full'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: python3 tools/docs_policy.py --base "$BASE_SHA" --check
+
+      - name: Run preview-tool and CI policy tests
+        if: needs.changes.outputs.scope == 'preview'
+        run: python -m unittest tests.test_docs_policy tests.test_social_preview -v
+
+      - name: Install application dependencies
+        if: needs.changes.outputs.scope == 'full'
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Run unit tests
-        if: needs.changes.outputs.docs_only != 'true'
+        if: needs.changes.outputs.scope == 'full'
         run: python -m unittest discover -v
 
       - name: Compile source files
-        if: needs.changes.outputs.docs_only != 'true'
+        if: needs.changes.outputs.scope == 'full'
         run: python -m compileall app tests launcher.pyw
 
   windows-package:
     needs: [changes, test]
-    if: needs.changes.outputs.docs_only != 'true'
+    if: needs.changes.outputs.scope == 'full'
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
@@ -115,15 +124,14 @@ jobs:
       - name: Enforce the selected CI path
         env:
           CHANGES_RESULT: ${{ needs.changes.result }}
-          DOCS_ONLY: ${{ needs.changes.outputs.docs_only }}
+          CI_SCOPE: ${{ needs.changes.outputs.scope }}
           TEST_RESULT: ${{ needs.test.result }}
           PACKAGE_RESULT: ${{ needs.windows-package.result }}
         run: |
           test "$CHANGES_RESULT" = success
           test "$TEST_RESULT" = success
-          if [ "$DOCS_ONLY" = true ]; then
-            test "$PACKAGE_RESULT" = skipped
-          else
-            test "$DOCS_ONLY" = false
-            test "$PACKAGE_RESULT" = success
-          fi
+          case "$CI_SCOPE" in
+            docs|preview) test "$PACKAGE_RESULT" = skipped ;;
+            full) test "$PACKAGE_RESULT" = success ;;
+            *) exit 1 ;;
+          esac
