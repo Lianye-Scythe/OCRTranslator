@@ -1,4 +1,8 @@
 import unittest
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
+
+from app.platform.windows.selected_text import SelectedTextCaptureSession
 
 from app.selected_text_capture import (
     VK_CONTROL,
@@ -11,6 +15,22 @@ from app.selected_text_capture import (
 
 
 class SelectedTextCaptureTests(unittest.TestCase):
+    def test_clipboard_capture_preserves_source_whitespace_but_rejects_blank_text(self):
+        for source, expected in (("\n  First line\n\nLast line  \n", "\n  First line\n\nLast line  \n"), (" \n\t", "")):
+            with self.subTest(source=source):
+                session = SimpleNamespace(
+                    _clipboard=SimpleNamespace(text=lambda: source),
+                    _initial_sequence=1,
+                    _finish_success=Mock(),
+                    _finish_failed=Mock(),
+                )
+                with patch("app.platform.windows.selected_text._clipboard_sequence_number", return_value=2):
+                    SelectedTextCaptureSession._advance_wait_clipboard(session)
+
+                session._finish_success.assert_called_once_with(expected)
+                session._finish_failed.assert_not_called()
+                self.assertEqual(session._captured_text, source)
+
     def test_virtual_key_codes_for_hotkey_maps_modifiers_and_letter(self):
         codes = _virtual_key_codes_for_hotkey("Shift+Win+T")
         self.assertIn(VK_SHIFT, codes)

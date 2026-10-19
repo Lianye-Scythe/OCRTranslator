@@ -9,14 +9,5 @@ def build_image_request_prompt(template: str, *, target_language: str) -> str:
     return render_prompt_template(template, target_language=target_language).strip()
 
 
-def build_text_request_prompt(template: str, text: str, *, target_language: str) -> str:
-    instructions = render_prompt_template(template, target_language=target_language).strip()
-    body = (text or "").strip()
-    if not body:
-        return instructions
-    return (
-        f"{instructions}\n\n"
-        "<text-input>\n"
-        f"{body}\n"
-        "</text-input>"
-    )
+def build_text_request_prompt(template: str, *, target_language: str) -> str:
+    return render_prompt_template(template, target_language=target_language)

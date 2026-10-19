@@ -173,7 +173,7 @@ class SelectedTextCaptureSession(QObject):
             if changed:
                 self._captured_sequence = current_sequence
                 self._captured_text = current_text
-                self._finish_success(current_text.strip())
+                self._finish_success(current_text if current_text.strip() else "")
                 return
             if self._monotonic() >= self._phase_deadline:
                 self._finish_success("")

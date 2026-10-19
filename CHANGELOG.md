@@ -6,12 +6,22 @@
 
 ## [Unreleased]
 
+## [1.0.14] - 2026-10-19
+
 ### Changed
+- 翻譯規則與原文／圖片分開傳送：Gemini 使用 `systemInstruction`，OpenAI 官方新版模型使用 `developer`，舊模型與第三方相容服務使用 `system`；串流與非串流採用一致結構。
+- 文件、預覽圖片與分享卡工具改採輕量 CI；應用程式、依賴及 CI 設定變更仍保留完整 Windows 測試與打包。
 - 三語 README 改為下載與首次使用優先，保留全部預覽素材並提供原圖連結；開發指南分開 Windows／WSL 命令，補齊雙語回報表單與私人漏洞回報入口。
 - 透過 `constraints.txt` 固定 Windows／WSL 的應用與打包依賴版本，並對齊 Pillow 13.0.0、certifi 2026.10.18；Dependabot 的白名單 patch 判斷同時支援約束檔，其他更新仍需人工處理。
 - Windows ZIP 改附獨立使用說明與實際建置版本清單 `BUILD-INFO.json`，不再依賴壓縮包外的相對圖片／文件連結；版本清單不是依賴鎖版。
 - Dependabot 僅白名單套件的 patch 更新可在測試與 Windows 未簽章打包通過後自動合併；主版本、Qt、打包與簽章相關更新保留人工審核。
 - 更新 SignPath Action 至 v3，沿用官方 Pipeline Connector 與既有參數。
+
+### Fixed
+- 手動輸入與選取文字翻譯不再裁掉原文首尾空白及換行，並移除原文的 `<text-input>` 包裝；純空白輸入仍會被擋住。
+
+### Test
+- 新增請求角色、圖片內容分離、串流降級及空白保留的回歸測試；Gemini 與 OpenAI 相容格式的文字／圖片、串流／非串流共 8 個真實請求通過驗證。
 
 ## [1.0.13] - 2026-10-15
 

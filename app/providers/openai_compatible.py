@@ -1,4 +1,5 @@
 import json
+from urllib.parse import urlsplit
 
 import requests
 
@@ -70,6 +71,18 @@ class OpenAICompatibleAdapter:
         self._error_factory = error_factory
 
     @staticmethod
+    def _instruction_role(profile: ApiProfile) -> str:
+        base = urlsplit(profile.base_url)
+        model = profile.model.lower()
+        if model.startswith("ft:"):
+            model = model.split(":")[1]
+        # Other compatible services may not implement the developer role.
+        legacy_model = model == "gpt-4" or model.startswith(("gpt-3.5", "gpt-4-", "gpt-4o", "chatgpt-4o"))
+        if base.scheme == "https" and base.hostname == "api.openai.com" and not legacy_model:
+            return "developer"
+        return "system"
+
+    @staticmethod
     def _mark_stream_fallback_allowed(exc: Exception):
         status_code = int(getattr(exc, "status_code", 0) or 0)
         if status_code in {400, 422} and any(key in str(exc).lower() for key in ("reasoning", "thinking", "temperature")):
@@ -92,22 +105,23 @@ class OpenAICompatibleAdapter:
         prompt: str,
         temperature: float,
         *,
+        instructions: str = "",
         image_base64: str | None = None,
         stream: bool = False,
         stream_callback=None,
         request_context: RequestContext | None = None,
     ) -> str:
-        content = (
-            [
-                {"type": "text", "text": prompt},
-                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}},
-            ]
-            if image_base64
-            else prompt
-        )
+        content = prompt
+        if image_base64:
+            content = [{"type": "text", "text": prompt}] if prompt else []
+            content.append({"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_base64}"}})
         http_client = request_context.session if request_context else requests
+        messages = []
+        if instructions:
+            messages.append({"role": self._instruction_role(profile), "content": instructions})
+        messages.append({"role": "user", "content": content})
         payload = {
-            "model": profile.model, "messages": [{"role": "user", "content": content}], "stream": bool(stream)
+            "model": profile.model, "messages": messages, "stream": bool(stream)
         }
         if not profile.use_default_temperature:
             payload["temperature"] = temperature

@@ -140,12 +140,13 @@ class GeminiCompatibleAdapter:
         prompt: str,
         temperature: float,
         *,
+        instructions: str = "",
         image_base64: str | None = None,
         stream: bool = False,
         stream_callback=None,
         request_context: RequestContext | None = None,
     ) -> str:
-        parts = [{"text": prompt}]
+        parts = [{"text": prompt}] if prompt else []
         if image_base64:
             parts.append({"inline_data": {"mime_type": "image/png", "data": image_base64}})
         generation_config = {}
@@ -155,16 +156,19 @@ class GeminiCompatibleAdapter:
             raise self._error_factory("Unsupported Gemini thinkingLevel", retryable=False, retry_same_key=False)
         if profile.reasoning_effort != "default":
             generation_config["thinkingConfig"] = {"thinkingLevel": profile.reasoning_effort.upper(), "includeThoughts": False}
+        payload = {
+            "contents": [{"role": "user", "parts": parts}],
+            "generationConfig": generation_config,
+        }
+        if instructions:
+            payload["systemInstruction"] = {"parts": [{"text": instructions}]}
         try:
             response = self._request_with_auth_fallback(
                 "POST",
                 gemini_stream_content_url(profile) if stream else gemini_content_url(profile),
                 api_key,
                 request_context=request_context,
-                json={
-                    "contents": [{"role": "user", "parts": parts}],
-                    "generationConfig": generation_config,
-                },
+                json=payload,
                 params={"alt": "sse"} if stream else None,
                 timeout=120,
                 stream=bool(stream),

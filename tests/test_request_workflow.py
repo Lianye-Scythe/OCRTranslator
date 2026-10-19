@@ -58,6 +58,30 @@ class _FakeSelectedTextCaptureSession:
 
 
 class RequestWorkflowControllerTests(unittest.TestCase):
+    def test_selected_text_preserves_whitespace_while_normalizing_qt_separators(self):
+        self.assertEqual(
+            RequestWorkflowController._normalize_internal_selected_text("\n  Line 1\u2029\u2028Line 2  \n"),
+            "\n  Line 1\n\nLine 2  \n",
+        )
+        self.assertEqual(RequestWorkflowController._normalize_internal_selected_text(" \u2029\t"), "")
+
+    def test_submit_text_request_keeps_source_separate_from_rendered_preset(self):
+        window = self._build_window()
+        controller = RequestWorkflowController(window)
+        source = "\n  First line\n\n{target_language}  \n"
+        controller.submit_text_request(
+            source,
+            profile=window.build_profile_from_form(),
+            target_language="English",
+            prompt_preset=window.build_prompt_preset_from_form(),
+            anchor_point=None,
+            source_key="manual_input_processing",
+        )
+        window.run_worker.call_args.args[0](None)
+
+        self.assertEqual(window.api_client.request_text.call_args.args[0], source)
+        self.assertEqual(window.api_client.request_text.call_args.kwargs["instructions"], "Translate to English")
+
     def _build_window(self):
         window = SimpleNamespace(
             capture_workflow_active=False,
@@ -195,9 +219,10 @@ class RequestWorkflowControllerTests(unittest.TestCase):
         result = worker_target(None)
         self.assertEqual(result, "done")
         window.api_client.request_text.assert_called_once_with(
-            "Translate to English\n\n<text-input>\nHello from UI\n</text-input>",
+            "Hello from UI",
             unittest.mock.ANY,
             0.2,
+            instructions="Translate to English",
             stream=False,
             stream_callback=None,
             request_context=None,
@@ -282,9 +307,10 @@ class RequestWorkflowControllerTests(unittest.TestCase):
 
         self.assertEqual(result, "done")
         window.api_client.request_text.assert_called_once_with(
-            "Translate to Japanese\n\n<text-input>\nHello manual\n</text-input>",
+            "Hello manual",
             unittest.mock.ANY,
             0.2,
+            instructions="Translate to Japanese",
             stream=False,
             stream_callback=None,
             request_context=None,

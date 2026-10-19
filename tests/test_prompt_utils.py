@@ -12,13 +12,9 @@ class PromptUtilsTests(unittest.TestCase):
         result = build_image_request_prompt("Translate into {target_language}.", target_language="日本語")
         self.assertEqual(result, "Translate into 日本語.")
 
-    def test_build_text_request_prompt_appends_wrapped_text_input(self):
-        result = build_text_request_prompt("Summarize in {target_language}.", "Line 1\nLine 2", target_language="English")
-        self.assertIn("Summarize in English.", result)
-        self.assertIn("<text-input>", result)
-        self.assertIn("Line 1\nLine 2", result)
-        self.assertIn("</text-input>", result)
-        self.assertNotIn("Please process the following text according to the instructions above.", result)
+    def test_build_text_request_prompt_only_renders_instructions(self):
+        result = build_text_request_prompt("Summarize in {target_language}.", target_language="English")
+        self.assertEqual(result, "Summarize in English.")
 
 
 if __name__ == "__main__":
