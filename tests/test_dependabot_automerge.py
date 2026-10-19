@@ -39,6 +39,39 @@ class DependabotAutomergeTests(unittest.TestCase):
                 metadata = {**self.metadata, key: value}
                 self.assertFalse(eligible_patch(metadata, self.files))
 
+    def test_constraint_only_and_synchronized_patch_updates_are_eligible(self):
+        constraint = {
+            "filename": "constraints.txt", "status": "modified", "additions": 1, "deletions": 1,
+            "patch": "@@ -1 +1 @@\n-requests==2.34.2\n+requests==2.34.3",
+        }
+        self.assertTrue(eligible_patch(self.metadata, [constraint]))
+        self.assertTrue(eligible_patch(self.metadata, self.files + [constraint]))
+        self.metadata["names"] = "requests, Pillow"
+        constraint["patch"] = "@@ -1 +1 @@\n-Pillow==13.0.0\n+Pillow==13.0.1"
+        self.assertTrue(eligible_patch(self.metadata, self.files + [constraint]))
+
+    def test_constraints_reject_other_packages_options_markers_and_non_patch_updates(self):
+        for old, new in (
+            ("requests==2.34.2", "requests==2.35.0"),
+            ("requests==2.34.2", "requests==2.34.1"),
+            ("requests==2.34.2", "requests>=2.34.3"),
+            ("requests==2.34.2", "requests==2.34.3; sys_platform == 'win32'"),
+            ("requests==2.34.2", "requests==2.34.3 --extra-index-url https://example.com"),
+            ("certifi==2026.7.22", "certifi==2026.7.23"),
+        ):
+            file = {"filename": "constraints.txt", "status": "modified", "additions": 1,
+                    "deletions": 1, "patch": "@@ -1 +1 @@\n-" + old + "\n+" + new}
+            with self.subTest(new=new):
+                self.assertFalse(eligible_patch(self.metadata, [file]))
+
+    def test_constraint_versions_must_agree_and_metadata_must_cover_the_whole_diff(self):
+        file = {"filename": "constraints.txt", "status": "modified", "additions": 1,
+                "deletions": 1, "patch": "@@ -1 +1 @@\n-requests==2.34.2\n+requests==2.34.4"}
+        self.assertFalse(eligible_patch(self.metadata, self.files + [file]))
+        self.assertFalse(eligible_patch(self.metadata, [file, file]))
+        self.assertFalse(eligible_patch({**self.metadata, "names": "requests,Pillow"}, [file]))
+        self.assertFalse(eligible_patch(self.metadata, [{**file, "additions": 2}]))
+
     def test_actual_diff_rejects_non_patch_versions_and_requirement_changes(self):
         for line in (
             "requests>=2.35.0", "requests>=3.0.0", "requests>=2.34.1", "requests>=2.34.2",

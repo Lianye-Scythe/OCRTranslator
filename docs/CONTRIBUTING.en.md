@@ -18,7 +18,7 @@ Before participating, please read and follow the `.github/CODE_OF_CONDUCT.md`.
 
 ## Dependency automation
 
-Only Dependabot pip PRs from this repository targeting `main` can enable auto-merge. The allowlist is limited to stable patch increases for Pillow, requests, and pynput, with matching changes only in `requirements.txt`. Minor/major updates, Qt, PyInstaller, Actions, signing, and release changes remain manual, including security updates outside this policy.
+Dependency auto-merge is limited to Dependabot pip PRs from this repository targeting `main`, and stable patch increases for Pillow, requests, and pynput. Diffs may only increase matching minimum versions in `requirements.txt` or exact versions in `constraints.txt`; when both change, target versions for the same package must agree. Minor/major updates, Qt, PyInstaller, Actions, signing, and release changes remain manual, including security updates outside this policy.
 
 The `test` and `windows-package` checks must pass against an up-to-date branch. Packaging uses no signing credentials and publishes no release. The privileged policy workflow executes only base-commit code, validates metadata and diffs, and resets its decision on every PR update. It never executes PR code, installs its dependencies, submits approval reviews, or bypasses required checks. Policy changes require human review.
 

@@ -18,7 +18,7 @@
 
 ## 依赖自动化
 
-只有本仓库 Dependabot 创建且目标为 `main` 的 pip PR 可以启用自动合并。白名单仅含 Pillow、requests、pynput 的稳定 patch 更新，且 diff 只能提高 `requirements.txt` 中对应的最低修补版本。minor / major、Qt、PyInstaller、Actions、签名及发布变更仍需人工审核；安全更新也不绕过这些限制。
+依赖自动合并仅适用于本仓库 Dependabot 创建且目标为 `main` 的 pip PR。白名单仅含 Pillow、requests、pynput 的稳定 patch 更新，且 diff 只能提高 `requirements.txt` 中对应的最低修补版本或 `constraints.txt` 中的固定修补版本。两文件一起修改时，同一包的目标版本必须一致。minor / major、Qt、PyInstaller、Actions、签名及发布变更仍需人工审核；安全更新也不绕过这些限制。
 
 合并前必须通过 `test` 和 `windows-package`，且分支需与 `main` 保持最新。打包不使用签名凭证、不发布 Release。特权流程只执行 base commit 上的政策代码、检查元数据与 diff，每次 PR 更新都会重新判定；不执行 PR 代码、不安装其依赖、不自动提交 Approve，也不绕过必要检查。政策调整需要人工审核。
 

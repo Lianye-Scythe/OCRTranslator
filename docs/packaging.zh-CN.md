@@ -103,7 +103,9 @@ release\SHA256SUMS.txt
 
 ZIP 附带来自 `packaging/windows/README.md` 的独立使用说明，以及记录应用版本、可获取时的 Git commit、Python、平台与已安装包版本的 `BUILD-INFO.json`，不包含环境变量、密钥或包来源 URL。
 
-该清单**不是 lockfile**。目前依赖仍使用最低版本范围，因此同一 commit 重新构建可能得到不同依赖，也不保证 exe 逐字节相同。复现问题时先对比清单；完整可重现发布还需维护 Windows 专用锁版与构建环境。
+该清单**不是 lockfile**。`requirements.txt` 自动引用根目录的 `constraints.txt`，固定 Python 3.15 下 Windows／WSL 的应用与打包依赖版本；平台专用包以环境标记区分，不会为了运行应用额外安装打包工具。CI 缓存也包含该约束文件。
+
+这是包版本锁定，不是下载文件哈希或完整构建环境锁定；pip、隔离构建工具、Python 补丁版和操作系统仍可能不同，因此不保证 exe 逐字节相同。复现问题时仍应对比 `BUILD-INFO.json`。
 
 annotated tag 的说明会成为 Release 正文，建议依“用户可见的新增／改善 → 修复 → 升级说明（含配置备份／迁移）→ 下载与信任信息”编写。内部重构细节留在更新日志；下载段落应明确选择 Windows ZIP、校验 `SHA256SUMS.txt` 并注明成品实际签名状态。校验值不等于数字签名，文档更新不会重写或重打包历史 Release。
 

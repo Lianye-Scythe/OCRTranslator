@@ -109,3 +109,11 @@ Current automated checks focus on:
    - `release/`
    - `ocrtranslator-crash-*.log`
    - `ocrtranslator-log-*.txt`
+
+## Dependency versions and updates
+
+`requirements.txt` automatically includes the root `constraints.txt`, so existing launchers, install commands, and CI use the same pinned package versions. Windows-only dependencies are not installed in WSL, and Linux-only dependencies are not installed on Windows. Packaging tools are installed only when requesting `requirements-dev.txt`.
+
+To update dependencies, adjust `constraints.txt` and minimum requirements when needed. Install and run `python -m pip check` and tests on both Windows and WSL; packaging changes must also pass Windows CI packaging. Do not overwrite the cross-platform constraints with a single environment's complete `pip freeze`, or update only one local virtual environment.
+
+Constraints pin installed package versions, not pip, Python patches, isolated build tools, or artifact hashes. They do not guarantee byte-identical executables and do not change existing release ZIPs.
