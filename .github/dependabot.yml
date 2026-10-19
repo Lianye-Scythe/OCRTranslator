@@ -9,9 +9,19 @@ updates:
       timezone: "Asia/Taipei"
     open-pull-requests-limit: 5
     groups:
+      python-patch-updates:
+        patterns:
+          - "Pillow"
+          - "requests"
+          - "pynput"
+        update-types:
+          - "patch"
       python-dependencies:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "major"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -25,3 +35,6 @@ updates:
       github-actions:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"

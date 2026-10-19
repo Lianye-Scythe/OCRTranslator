@@ -16,6 +16,17 @@
 - 對設定結構的改動，請考慮舊版 `config.json` 的遷移相容性
 - 若調整架構，請盡量維持 `ui / services / providers / platform` 的分層邊界
 
+## 依賴更新與自動合併
+
+- 僅 Dependabot 在本倉庫建立、目標為 `main` 的 pip PR 可進入自動合併判斷。
+- 只有 `Pillow`、`requests`、`pynput` 的穩定 patch 更新列入白名單；實際 diff 必須只調高 `requirements.txt` 中對應的最低修補版本。
+- minor / major、PySide6、PyInstaller、GitHub Actions、簽章與發布流程變更一律人工審核；安全更新也不繞過此限制。
+- 合併前必須通過 `test` 與 `windows-package`，且分支需與 `main` 保持最新。CI 打包不使用簽章憑證，也不發布 Release。
+- 特權自動化只讀取 PR 的中繼資料與 diff，執行的是 base commit 上的政策程式，不執行 PR 程式碼、不安裝 PR 依賴。
+- 每次 PR 更新都重新判斷，先撤銷舊的自動合併要求。此流程不會自動提交 Approve 審核，也不會繞過必要檢查。
+
+新增白名單套件或放寬版本範圍需要人工審核政策與測試。若需調整有問題的套件版本，更新程式以支援新版，而不是跳過驗證。
+
 ## 建議流程
 
 1. Fork / 建立分支

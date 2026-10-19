@@ -16,7 +16,14 @@ Before participating, please read and follow the `.github/CODE_OF_CONDUCT.md`.
 - If you change the config structure, keep backward migration for older `config.json` files in mind
 - If you refactor architecture, keep the `ui / services / providers / platform` boundary intact
 
+## Dependency automation
+
+Only Dependabot pip PRs from this repository targeting `main` can enable auto-merge. The allowlist is limited to stable patch increases for Pillow, requests, and pynput, with matching changes only in `requirements.txt`. Minor/major updates, Qt, PyInstaller, Actions, signing, and release changes remain manual, including security updates outside this policy.
+
+The `test` and `windows-package` checks must pass against an up-to-date branch. Packaging uses no signing credentials and publishes no release. The privileged policy workflow executes only base-commit code, validates metadata and diffs, and resets its decision on every PR update. It never executes PR code, installs its dependencies, submits approval reviews, or bypasses required checks. Policy changes require human review.
+
 ## Recommended workflow
+
 
 1. Fork / create a branch
 2. Make your changes

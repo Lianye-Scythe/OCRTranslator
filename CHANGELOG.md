@@ -6,6 +6,10 @@
 
 ## [Unreleased]
 
+### Changed
+- Dependabot 僅白名單套件的 patch 更新可在測試與 Windows 未簽章打包通過後自動合併；主版本、Qt、打包與簽章相關更新保留人工審核。
+- 更新 SignPath Action 至 v3，沿用官方 Pipeline Connector 與既有參數。
+
 ## [1.0.13] - 2026-10-15
 
 ### Fixed
