@@ -22,9 +22,31 @@ To run from source or develop, use Python 3.15 and follow the [development guide
 
 ## Preview
 
-![Main window: Traditional Chinese interface, dark theme](images/screenshots/main-window-dark.png)
+### Animation
 
-For the light theme, result overlays, and workflow examples, see the [gallery](gallery.md).
+The animation and translation overlays are historical workflow examples. The main-window screenshots show the current interface with example settings.
+
+![Historical workflow animation](images/screenshots/ocrtranslator-preview.gif)
+
+### Main window
+
+<p>
+  <img src="images/screenshots/main-window-light.png" width="49%" alt="Main window: light theme" />
+  <img src="images/screenshots/main-window-dark.png" width="49%" alt="Main window: dark theme" />
+</p>
+
+### Translation overlays
+
+<p>
+  <img src="images/screenshots/overlay-light-manga.png" width="49%" alt="Manga overlay: light theme (historical example)" />
+  <img src="images/screenshots/overlay-light-novel.png" width="49%" alt="Novel overlay: light theme (historical example)" />
+</p>
+<p>
+  <img src="images/screenshots/overlay-dark-manga.png" width="49%" alt="Manga overlay: dark theme (historical example)" />
+  <img src="images/screenshots/overlay-dark-novel.png" width="49%" alt="Novel overlay: dark theme (historical example)" />
+</p>
+
+[View full-size images](gallery.md).
 
 ## First run
 
