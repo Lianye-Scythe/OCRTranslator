@@ -9,6 +9,13 @@
 - [ ] Build / CI
 - [ ] Other
 
+## 使用者可見的發布說明
+- 新增或改善：
+- 修正：
+- 升級注意事項（設定遷移、備份、限制；若無請註明）：
+
+請將內部重構細節留在摘要；若影響下載包，需確認使用說明、未簽署提示與 SHA256 校驗資訊仍正確。
+
 ## 驗證方式
 - [ ] `python -m unittest discover -v`
 - [ ] `python -m compileall app tests launcher.pyw`

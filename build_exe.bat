@@ -85,12 +85,16 @@ set "OCRT_VERSION_FILE="
 if errorlevel 1 goto :build_failed
 
 echo [OCRTranslator] Copying release assets...
-copy /y "README.md" "%RELEASE_DIR%\README.md" >nul
+copy /y "packaging\windows\README.md" "%RELEASE_DIR%\README.md" >nul
 if errorlevel 1 goto :copy_failed
 copy /y "LICENSE" "%RELEASE_DIR%\LICENSE" >nul
 if errorlevel 1 goto :copy_failed
 copy /y "config.example.json" "%RELEASE_DIR%\config.example.json" >nul
 if errorlevel 1 goto :copy_failed
+
+echo [OCRTranslator] Recording build dependency versions...
+"%PYTHON_EXE%" tools\generate_build_info.py --output "%RELEASE_DIR%\BUILD-INFO.json"
+if errorlevel 1 goto :build_info_failed
 
 if not exist "%RELEASE_DIR%\%DIST_NAME%.exe" goto :missing_output
 
@@ -98,7 +102,7 @@ call :sign_release_binary "%RELEASE_DIR%\%DIST_NAME%.exe"
 if errorlevel 1 goto :sign_failed
 
 echo [OCRTranslator] Creating release archive...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Compress-Archive -Path '%RELEASE_DIR%\%DIST_NAME%.exe','%RELEASE_DIR%\README.md','%RELEASE_DIR%\LICENSE','%RELEASE_DIR%\config.example.json' -DestinationPath '%ARCHIVE_PATH%' -Force"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Compress-Archive -Path '%RELEASE_DIR%\%DIST_NAME%.exe','%RELEASE_DIR%\README.md','%RELEASE_DIR%\LICENSE','%RELEASE_DIR%\config.example.json','%RELEASE_DIR%\BUILD-INFO.json' -DestinationPath '%ARCHIVE_PATH%' -Force"
 if errorlevel 1 goto :archive_failed
 
 if not exist "%ARCHIVE_PATH%" goto :archive_failed
@@ -169,6 +173,11 @@ exit /b 1
 :missing_output
 echo.
 echo [ERROR] Build finished without producing %RELEASE_DIR%\%DIST_NAME%.exe.
+call :maybe_pause
+exit /b 1
+
+:build_info_failed
+echo [ERROR] Failed to record build dependency versions.
 call :maybe_pause
 exit /b 1
 

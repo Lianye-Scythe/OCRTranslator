@@ -12,6 +12,8 @@
 
 ## 工程文档
 
+- [界面展示](gallery.md)
+
 - [架构说明](architecture.zh-CN.md)
 - [开发指南](development.zh-CN.md)
 - [打包与发布](packaging.zh-CN.md)

@@ -12,6 +12,8 @@
 
 ## 工程文檔
 
+- [介面展示](gallery.md)
+
 - [架構說明](architecture.md)
 - [開發指南](development.md)
 - [打包與發佈](packaging.md)

@@ -89,6 +89,7 @@ jobs:
             release/OCRTranslator.exe
             release/README.md
             release/config.example.json
+            release/BUILD-INFO.json
 
       - name: Submit signing request to SignPath
         if: ${{ steps.signpath_gate.outputs.enabled == 'true' }}
@@ -119,7 +120,8 @@ jobs:
             'release-signed\OCRTranslator.exe',
             'release\README.md',
             'release\LICENSE',
-            'release\config.example.json'
+            'release\config.example.json',
+            'release\BUILD-INFO.json'
           ) -DestinationPath $zipPath -Force
 
       - name: Generate SHA256SUMS.txt

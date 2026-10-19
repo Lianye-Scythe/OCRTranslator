@@ -127,3 +127,15 @@ If you connect a third-party compatible backend whose stream endpoint, SSE chunk
 - keep the partial text that has already arrived and label the current state
 
 That also means some incompatible backends may receive a **second request** during fallback. If your backend is consistently unhappy with streaming, disable `Stream responses` in Advanced Settings.
+
+## 13. How do I customize prompt presets?
+
+Each preset has image and text prompts and supports `{target_language}`. The input text is appended automatically, so enter instructions only. Built-in presets cannot be deleted directly; copy one to create a removable custom preset. Models can still refuse, misread, or return unexpected content; prompts do not guarantee lossless translation.
+
+## 14. Why is temperature disabled, and how should I set reasoning effort?
+
+When Use model default temperature is checked in Advanced Settings, the numeric field is disabled and requests omit the temperature parameter. Uncheck it to use a custom value. Model-default reasoning likewise omits an override. Custom Gemini thinking settings use the 3+ format; supported options vary by model and an API may reject unsupported values. These settings do not guarantee better translations or lower latency.
+
+## 15. Are results formatted with Markdown?
+
+Markdown rendering is off by default and can be enabled in Advanced Settings. This controls display, not whether a model generates Markdown characters. Copying preserves the original response text.
