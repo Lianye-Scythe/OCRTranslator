@@ -15,7 +15,7 @@ The script will automatically:
 3. clean old `build/`, `dist/`, and `release/`
 4. read the current version from `app/app_metadata.py`
 5. produce `release\OCRTranslator.exe` through `packaging/windows/OCRTranslator.spec` + PyInstaller
-6. copy `README.md`, `LICENSE`, and `config.example.json`
+6. copy the standalone `packaging/windows/README.md`, `LICENSE`, and `config.example.json`, and generate `BUILD-INFO.json`
 7. automatically create `release\OCRTranslator-v<version>-windows-x64.zip`
 
 The repository now uses a split build model: `packaging/windows/OCRTranslator.spec` keeps the PyInstaller packaging definition, while `build_exe.bat` prepares the environment, generates the Windows version resource, and launches the packaging run. If you need to tweak datas, excluded modules, or onefile behavior, update the `.spec` first.
@@ -53,8 +53,7 @@ The repository now includes `.github/workflows/release-build.yml` for automated 
 
 - `workflow_dispatch`: manual packaging test runs
 - `push tags: v*`: automatic packaging when version tags are pushed
-- uploaded workflow artifacts contain only the versioned ZIP
-- GitHub Releases also attach only the versioned ZIP
+- workflow artifacts and GitHub Releases contain the versioned ZIP and `SHA256SUMS.txt`
 - when the tag is annotated, the Release body is intended to prefer the tag annotation text
 
 > GitHub Releases automatically provide `Source code (zip)` and `Source code (tar.gz)` for a tag, so the workflow does not need to upload those source archives manually, and it does not upload the standalone `.exe` either.
@@ -99,6 +98,14 @@ Prefer uploading the versioned archive first. The file name should include the p
 release\OCRTranslator-v<version>-windows-x64.zip
 release\SHA256SUMS.txt
 ```
+
+## Build inventory and release notes
+
+The ZIP includes a standalone guide from `packaging/windows/README.md` and `BUILD-INFO.json`, recording the app version, source commit when available, Python, platform, and installed package versions. Environment variables, keys, and package source URLs are not included.
+
+This inventory is **not a lockfile**. The requirements still use minimum-version ranges, so rebuilding the same commit may resolve different dependencies and does not guarantee a byte-identical executable. Compare inventories when reproducing problems; fully reproducible releases would additionally need a maintained Windows lock and build environment.
+
+Annotated tag notes become the Release body. Order them as user-visible improvements, fixes, upgrade instructions (including settings backup/migration), and download/trust information. Keep internal refactoring details in the changelog. Tell users to download the Windows ZIP, verify `SHA256SUMS.txt`, and state the artifact's actual signing status. A checksum is not a digital signature. Documentation changes do not rewrite or rebuild historical releases.
 
 ## Optional code signing
 

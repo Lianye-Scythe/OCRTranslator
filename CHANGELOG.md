@@ -7,6 +7,8 @@
 ## [Unreleased]
 
 ### Changed
+- 三語 README 改為下載與首次使用優先，更新主視窗截圖，並將更多介面示意移至展示頁；補上資料傳送、費用、限制與升級提醒。
+- Windows ZIP 改附獨立使用說明與實際建置版本清單 `BUILD-INFO.json`，不再依賴壓縮包外的相對圖片／文件連結；版本清單不是依賴鎖版。
 - Dependabot 僅白名單套件的 patch 更新可在測試與 Windows 未簽章打包通過後自動合併；主版本、Qt、打包與簽章相關更新保留人工審核。
 - 更新 SignPath Action 至 v3，沿用官方 Pipeline Connector 與既有參數。
 

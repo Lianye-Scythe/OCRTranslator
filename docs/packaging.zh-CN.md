@@ -15,7 +15,7 @@
 3. 清理旧的 `build/`、`dist/`、`release/`
 4. 从 `app/app_metadata.py` 读取当前版本号
 5. 通过 `packaging/windows/OCRTranslator.spec` + PyInstaller 输出 `release\OCRTranslator.exe`
-6. 复制 `README.md`、`LICENSE` 与 `config.example.json`
+6. 复制 ZIP 专用的 `packaging/windows/README.md`、`LICENSE` 与 `config.example.json`，并生成 `BUILD-INFO.json`
 7. 自动创建 `release\OCRTranslator-v<version>-windows-x64.zip`
 
 当前仓库采用“`packaging/windows/OCRTranslator.spec` 保存 PyInstaller 打包定义、`build_exe.bat` 负责准备环境 / 生成版本资源 / 启动打包”的分工方式。后续如果要调整 datas、exclude modules 或 onefile 行为，优先修改 `.spec` 即可。
@@ -53,8 +53,7 @@ build_exe.bat
 
 - `workflow_dispatch`：手动触发打包测试
 - `push tags: v*`：推送版本 tag 时自动打包
-- 上传的 workflow artifact 只包含版本化 ZIP
-- 创建 GitHub Release 时也只附上版本化 ZIP
+- workflow artifact 与 GitHub Release 附带版本化 ZIP 和 `SHA256SUMS.txt`
 - 如果 tag 是 annotated tag，Release 正文会优先使用 tag annotation 文案
 
 > GitHub Release 页面本身会自动附带 `Source code (zip)` 与 `Source code (tar.gz)`，因此 workflow 不需要另外上传这两个源码压缩包，也不会额外上传 `.exe`。
@@ -99,6 +98,14 @@ build_exe.bat
 release\OCRTranslator-v<version>-windows-x64.zip
 release\SHA256SUMS.txt
 ```
+
+## 构建版本清单与发布说明
+
+ZIP 附带来自 `packaging/windows/README.md` 的独立使用说明，以及记录应用版本、可获取时的 Git commit、Python、平台与已安装包版本的 `BUILD-INFO.json`，不包含环境变量、密钥或包来源 URL。
+
+该清单**不是 lockfile**。目前依赖仍使用最低版本范围，因此同一 commit 重新构建可能得到不同依赖，也不保证 exe 逐字节相同。复现问题时先对比清单；完整可重现发布还需维护 Windows 专用锁版与构建环境。
+
+annotated tag 的说明会成为 Release 正文，建议依“用户可见的新增／改善 → 修复 → 升级说明（含配置备份／迁移）→ 下载与信任信息”编写。内部重构细节留在更新日志；下载段落应明确选择 Windows ZIP、校验 `SHA256SUMS.txt` 并注明成品实际签名状态。校验值不等于数字签名，文档更新不会重写或重打包历史 Release。
 
 ## 可选代码签名
 

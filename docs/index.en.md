@@ -12,6 +12,8 @@ This page collects the main OCRTranslator documentation entry points.
 
 ## Engineering docs
 
+- [Interface gallery](gallery.md)
+
 - [Architecture](architecture.en.md)
 - [Development Guide](development.en.md)
 - [Packaging and Distribution](packaging.en.md)

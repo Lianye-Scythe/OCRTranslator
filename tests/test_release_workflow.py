@@ -19,6 +19,7 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertIn('python tools\\generate_sha256sums.py --output $checksumPath $zipPath', workflow)
         self.assertIn('${{ steps.checksum.outputs.path }}', workflow)
         self.assertIn("'release\\LICENSE'", workflow)
+        self.assertIn("'release\\BUILD-INFO.json'", workflow)
         self.assertIn('id: release_notes', workflow)
         self.assertIn("git tag -l --format='%(contents)' $tagName", workflow)
         self.assertIn('[System.IO.File]::WriteAllText', workflow)
@@ -31,6 +32,10 @@ class ReleaseWorkflowTests(unittest.TestCase):
     def test_build_script_copies_license_into_release_archive(self):
         script = Path('build_exe.bat').read_text(encoding='utf-8')
         self.assertIn('copy /y "LICENSE" "%RELEASE_DIR%\\LICENSE" >nul', script)
+        self.assertIn('copy /y "packaging\\windows\\README.md" "%RELEASE_DIR%\\README.md" >nul', script)
+        self.assertIn('tools\\generate_build_info.py --output "%RELEASE_DIR%\\BUILD-INFO.json"', script)
+        self.assertIn("'%RELEASE_DIR%\\BUILD-INFO.json'", script)
+        self.assertNotIn('copy /y "README.md" "%RELEASE_DIR%\\README.md"', script)
         self.assertIn("'%RELEASE_DIR%\\LICENSE'", script)
         self.assertIn('tools\\generate_sha256sums.py --output "%CHECKSUM_PATH%" "%ARCHIVE_PATH%"', script)
 
