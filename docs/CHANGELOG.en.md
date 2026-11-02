@@ -6,6 +6,8 @@ This file records important OCRTranslator changes.
 
 ## [Unreleased]
 
+## [1.0.15] - 2026-11-02
+
 ### Changed
 - Update image and text translation prompts, upgrading only unchanged previous built-in translation fields on load while preserving custom content.
 - Lazily load HTTP packages not needed at startup and preload them on a background worker before continuing UI prewarm, reducing the wait before first display while keeping Qt widget construction on the main thread.
@@ -17,7 +19,11 @@ This file records important OCRTranslator changes.
 
 ### Fixed
 - Make `Ctrl+C` prioritize selected text. Preserve the reading position during streaming, follow new content only when already at the bottom, and avoid jumping to the top when final formatting is applied.
-- Cancel the scheduled startup update check when its main window is destroyed, avoiding delayed access to a deleted window.
+- Cancel scheduled startup update checks and idle prewarm when their main window is destroyed, avoiding delayed access to a deleted window.
+
+### Test
+- All 420 tests pass on both Windows and WSL. All 8 live text/image, streaming/non-streaming requests and 2 streaming-cancellation checks pass across both API formats.
+- Verify remembered copy mode, selected-text keyboard copying, and current-result Markdown switching in the native Windows UI. Startup measurements use isolated settings and do not represent onefile EXE cold-start times.
 
 ## [1.0.14] - 2026-10-19
 
