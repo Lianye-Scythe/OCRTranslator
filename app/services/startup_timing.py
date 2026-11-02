@@ -34,7 +34,10 @@ class StartupTimingTracker:
         try:
             return callback()
         finally:
-            self._durations[name] = max(0.0, (self._clock() - started_at) * 1000.0)
+            self.record_duration(name, (self._clock() - started_at) * 1000.0)
+
+    def record_duration(self, name: str, milliseconds: float) -> None:
+        self._durations[name] = max(0.0, float(milliseconds))
 
     def elapsed_ms(self, name: str) -> float | None:
         return self._marks.get(name)

@@ -87,6 +87,19 @@ python -m unittest discover -v
 python -m compileall app tests launcher.pyw
 ```
 
+### Startup profiling
+
+```bash
+python tools/profile_startup.py --samples 5 --output build/startup-native.json
+python tools/profile_startup.py --offscreen --samples 5 --output build/startup-offscreen.json
+```
+
+Native mode includes the system tray and temporary test hotkeys. `--offscreen` disables both and uses Qt offscreen for WSL testing. Each sample uses a fresh process and isolated empty configuration, lock file, and IPC name. It does not read personal API keys, send API/update requests, or capture the desktop. Optionally add `--screenshot build/startup.png` to capture the last sample's main window.
+
+Reports include medians, raw samples, prewarm durations, and the longest event-loop polling gap during prewarm. `first_paint` starts before application entry imports and ends at the first main-window Paint event; other marks start at `run_app()` entry. Process creation and onefile EXE extraction are excluded. Fresh processes do not imply cold caches. Do not compare native Windows with WSL offscreen results directly or use them as fixed CI speed thresholds.
+
+Only cancellation control and update checking lazily import `requests`. Background HTTP preloading finishes before UI prewarm continues. Qt imports and widget construction stay on the main thread and must never be marked as background steps.
+
 ## Test coverage focus
 
 Current automated checks focus on:

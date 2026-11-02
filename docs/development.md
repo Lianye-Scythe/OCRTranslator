@@ -87,6 +87,19 @@ python -m unittest discover -v
 python -m compileall app tests launcher.pyw
 ```
 
+### 啟動效能量測
+
+```bash
+python tools/profile_startup.py --samples 5 --output build/startup-native.json
+python tools/profile_startup.py --offscreen --samples 5 --output build/startup-offscreen.json
+```
+
+原生模式包含系統匣及臨時測試熱鍵；`--offscreen` 關閉這兩項並使用 Qt 離屏模式，適合 WSL 測試。每筆樣本使用新程序與獨立的空白設定、鎖檔及 IPC 名稱，不讀取個人 API Key、不發送 API／更新請求，也不截取桌面。可加上 `--screenshot build/startup.png` 擷取最後一筆樣本的主視窗。
+
+報告包含中位數、原始樣本、預熱耗時及預熱期間的最大事件回應間隔。`first_paint` 從應用入口匯入前算到主視窗首次 Paint 事件；其他標記從 `run_app()` 進入時計算，不包含程序建立或單檔 exe 解壓。新程序不等於冷快取；Windows 原生與 WSL 離屏數據不能直接比較，也不應當作固定的 CI 速度門檻。
+
+目前只在取消控制與更新服務延遲匯入 `requests`。HTTP 背景預載完成後才繼續 UI 預熱；Qt 匯入與元件建立仍在主執行緒，不可標記為背景步驟。
+
 ## 測試重點
 
 目前測試涵蓋重點包含：

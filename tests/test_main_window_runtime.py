@@ -823,8 +823,9 @@ class MainWindowRuntimeTests(unittest.TestCase):
         window.schedule_idle_prewarm(delay_ms=456)
 
         mock_single_shot.assert_called_once()
-        delay, callback = mock_single_shot.call_args.args
+        delay, context, callback = mock_single_shot.call_args.args
         self.assertEqual(delay, 123)
+        self.assertIs(context, window)
         self.assertTrue(callable(callback))
         self.assertTrue(window._startup_prewarm_pending)
 
@@ -847,6 +848,82 @@ class MainWindowRuntimeTests(unittest.TestCase):
 
         window.schedule_idle_prewarm.assert_called_once()
         self.assertFalse(window._startup_prewarm_completed)
+
+    def _background_prewarm_window(self, callback=None):
+        window = MainWindow.__new__(MainWindow)
+        window.is_quitting = False
+        window._startup_prewarm_started = False
+        window._startup_prewarm_completed = False
+        window._startup_prewarm_pending = False
+        window._startup_prewarm_in_progress = False
+        window._startup_services_initialized = True
+        window.isVisible = lambda: True
+        window.capture_workflow_active = False
+        window.background_busy = lambda: False
+        window.log_debug = Mock()
+        window.schedule_idle_prewarm = Mock()
+        window.background_task_runner = Mock()
+        window.startup_timing = Mock()
+        window._last_user_interaction_at = time.perf_counter() - 10
+        window._startup_prewarm_steps = lambda: [
+            {"name": "http", "callback": callback or Mock(), "background": True, "min_idle_ms": 0, "next_delay_ms": 0},
+            {"name": "qt", "callback": Mock(), "min_idle_ms": 0, "next_delay_ms": 0},
+        ]
+        return window
+
+    def test_background_prewarm_waits_for_worker_before_scheduling_qt_step(self):
+        callback = Mock()
+        window = self._background_prewarm_window(callback)
+        window._run_idle_prewarm_step()
+        window._run_idle_prewarm_step()
+        window.background_task_runner.run_worker.assert_called_once()
+        callback.assert_not_called()
+        window.schedule_idle_prewarm.assert_not_called()
+        self.assertTrue(window._startup_prewarm_in_progress)
+
+        worker, finished = window.background_task_runner.run_worker.call_args.args
+        result = worker()
+        callback.assert_called_once_with()
+        finished(result)
+
+        self.assertFalse(window._startup_prewarm_in_progress)
+        window.schedule_idle_prewarm.assert_called_once_with(delay_ms=0)
+        window.startup_timing.record_duration.assert_called_once_with("prewarm.http", result[0])
+        window._startup_prewarm_queue[0]["callback"].assert_not_called()
+
+    def test_background_prewarm_failure_logs_and_continues(self):
+        window = self._background_prewarm_window(Mock(side_effect=RuntimeError("import failed")))
+        window._run_idle_prewarm_step()
+        worker, finished = window.background_task_runner.run_worker.call_args.args
+        finished(worker())
+        self.assertFalse(window._startup_prewarm_in_progress)
+        window.log_debug.assert_called_once_with("Startup prewarm skipped for http: import failed")
+        window.schedule_idle_prewarm.assert_called_once_with(delay_ms=0)
+
+    def test_background_prewarm_does_not_resume_after_shutdown(self):
+        window = self._background_prewarm_window()
+        window._run_idle_prewarm_step()
+        worker, finished = window.background_task_runner.run_worker.call_args.args
+        window.is_quitting = True
+        finished(worker())
+        self.assertFalse(window._startup_prewarm_in_progress)
+        window.startup_timing.record_duration.assert_not_called()
+        window.schedule_idle_prewarm.assert_not_called()
+
+    def test_background_prewarm_recovers_when_worker_cannot_start(self):
+        window = self._background_prewarm_window()
+        window.background_task_runner.run_worker.side_effect = RuntimeError("thread failed")
+        window._run_idle_prewarm_step()
+        self.assertFalse(window._startup_prewarm_in_progress)
+        window.schedule_idle_prewarm.assert_called_once_with(delay_ms=0)
+        window.log_debug.assert_called_once_with("Startup prewarm skipped for http: thread failed")
+
+    @patch("app.ui.main_window.QTimer.singleShot")
+    def test_schedule_idle_prewarm_does_not_duplicate_an_active_worker(self, single_shot):
+        window = self._background_prewarm_window()
+        window._startup_prewarm_in_progress = True
+        MainWindow.schedule_idle_prewarm(window)
+        single_shot.assert_not_called()
 
     def test_idle_prewarm_runs_steps_incrementally_without_blocking(self):
         window = MainWindow.__new__(MainWindow)

@@ -15,6 +15,13 @@ class _FakeClock:
 
 
 class StartupTimingTrackerTests(unittest.TestCase):
+    def test_record_worker_duration_uses_the_shared_duration_report(self):
+        tracker = StartupTimingTracker(verbose=False)
+        tracker.record_duration("prewarm.http_backend", 12.5)
+        self.assertEqual(tracker.durations_with_prefix("prewarm."), [("prewarm.http_backend", 12.5)])
+        tracker.record_duration("prewarm.http_backend", -1)
+        self.assertEqual(tracker.durations_with_prefix("prewarm."), [("prewarm.http_backend", 0.0)])
+
     def test_describe_segments_formats_known_marks(self):
         clock = _FakeClock(10.0, 10.01, 10.03)
         tracker = StartupTimingTracker(origin_name="start", clock=clock, verbose=False)

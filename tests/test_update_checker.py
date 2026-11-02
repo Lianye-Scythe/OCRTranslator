@@ -25,7 +25,8 @@ class UpdateCheckerTests(unittest.TestCase):
         self.assertGreater(compare_versions("v1.2.4", "1.2.3"), 0)
         self.assertEqual(compare_versions("1.2", "1.2.0"), 0)
 
-    @patch("app.services.update_checker.requests.get")
+    # Patch the concrete module rather than a cached lazy-import proxy.
+    @patch.object(requests, "get")
     def test_check_latest_release_returns_update_available_when_tag_is_newer(self, mock_get):
         mock_get.return_value = _FakeResponse(
             payload={
@@ -41,7 +42,7 @@ class UpdateCheckerTests(unittest.TestCase):
         self.assertEqual(result.latest_version, "1.2.0")
         self.assertTrue(result.has_update)
 
-    @patch("app.services.update_checker.requests.get")
+    @patch.object(requests, "get")
     def test_check_latest_release_returns_up_to_date_when_version_matches(self, mock_get):
         mock_get.return_value = _FakeResponse(
             payload={
@@ -56,7 +57,7 @@ class UpdateCheckerTests(unittest.TestCase):
         self.assertEqual(result.kind, "up_to_date")
         self.assertTrue(result.is_up_to_date)
 
-    @patch("app.services.update_checker.requests.get")
+    @patch.object(requests, "get")
     def test_check_latest_release_returns_error_on_request_failure(self, mock_get):
         mock_get.side_effect = requests.RequestException("network down")
         service = UpdateCheckService()
@@ -67,7 +68,7 @@ class UpdateCheckerTests(unittest.TestCase):
         self.assertTrue(result.is_error)
         self.assertIn("network down", result.error)
 
-    @patch("app.services.update_checker.requests.get")
+    @patch.object(requests, "get")
     def test_check_latest_release_returns_error_when_github_status_is_not_ok(self, mock_get):
         mock_get.return_value = _FakeResponse(status_code=404, payload={"message": "Not Found"})
         service = UpdateCheckService()

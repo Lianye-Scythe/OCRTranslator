@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import re
 
-import requests
+lazy import requests
 
 from ..app_metadata import APP_NAME, APP_VERSION, REPOSITORY_NAME, REPOSITORY_URL
 

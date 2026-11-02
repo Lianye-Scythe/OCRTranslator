@@ -7,6 +7,8 @@ This file records important OCRTranslator changes.
 ## [Unreleased]
 
 ### Changed
+- Lazily load HTTP packages not needed at startup and preload them on a background worker before continuing UI prewarm, reducing the wait before first display while keeping Qt widget construction on the main thread.
+- Add an isolated startup profiler for first paint, startup phases, prewarm, and event-loop polling gaps, supporting separate native Windows and offscreen WSL measurements.
 - Remember the overlay's original/plain-text copy mode for the main button and `Ctrl+C` without a selection, independently of the display mode.
 - Update certifi to 2026.10.23, pyinstaller-hooks-contrib to 2026.9, setuptools to 84.2.1, and development environments to Python 3.15.2 security patches. Have CI check for the latest 3.15 patch and Windows launchers validate Python and synchronize pinned dependencies.
 - Add an overlay copy menu for original or plain text and a Markdown view toggle for the current result, without changing the global default.
