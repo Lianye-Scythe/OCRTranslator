@@ -2,7 +2,7 @@
 # Baseline: successful Windows CI build, with Linux-only pynput dependencies.
 # This constrains versions; it does not install unused packages or pin artifacts.
 altgraph==0.17.5
-certifi==2026.10.18
+certifi==2026.10.23
 charset-normalizer==3.5.2
 evdev==2.0.0; sys_platform == "linux"
 idna==3.20
@@ -10,7 +10,7 @@ packaging==26.3
 pefile==2024.8.26; sys_platform == "win32"
 Pillow==13.0.0
 PyInstaller==6.22.3
-pyinstaller-hooks-contrib==2026.8
+pyinstaller-hooks-contrib==2026.9
 pynput==1.8.2
 PySide6==6.12.0
 PySide6_Addons==6.12.0
@@ -20,7 +20,7 @@ PySide6_WebEngine==6.12.0.140
 python-xlib==0.33; sys_platform == "linux"
 pywin32-ctypes==0.2.3; sys_platform == "win32"
 requests==2.34.2
-setuptools==84.0.0
+setuptools==84.2.1
 shiboken6==6.12.0
 six==1.17.0
 urllib3==2.8.0

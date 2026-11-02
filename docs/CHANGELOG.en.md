@@ -7,6 +7,8 @@ This file records important OCRTranslator changes.
 ## [Unreleased]
 
 ### Changed
+- Remember the overlay's original/plain-text copy mode for the main button and `Ctrl+C` without a selection, independently of the display mode.
+- Update certifi to 2026.10.23, pyinstaller-hooks-contrib to 2026.9, setuptools to 84.2.1, and development environments to Python 3.15.2 security patches. Have CI check for the latest 3.15 patch and Windows launchers validate Python and synchronize pinned dependencies.
 - Add an overlay copy menu for original or plain text and a Markdown view toggle for the current result, without changing the global default.
 - Share Markdown styling between display and size measurement; refine headings, code, tables, and light/dark link colors, and wrap long code lines inside the overlay.
 

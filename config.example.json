@@ -11,6 +11,7 @@
   "toast_duration_seconds": 1.5,
   "stream_responses": true,
   "render_markdown": false,
+  "overlay_copy_mode": "original",
   "debug_logging_enabled": false,
   "check_updates_on_startup": false,
   "ui_language": "zh-TW",

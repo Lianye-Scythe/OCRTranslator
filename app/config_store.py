@@ -271,6 +271,7 @@ def _migrate_legacy_config(data: dict) -> AppConfig:
         toast_duration_seconds=_coerce_float(source.get("toast_duration_seconds"), 1.5, min_value=0, max_value=10),
         stream_responses=_coerce_bool(source.get("stream_responses", True), True),
         render_markdown=_coerce_bool(source.get("render_markdown", False), False),
+        overlay_copy_mode="plain" if source.get("overlay_copy_mode") == "plain" else "original",
         debug_logging_enabled=_coerce_bool(source.get("debug_logging_enabled", False), False),
         check_updates_on_startup=_coerce_bool(source.get("check_updates_on_startup", False), False),
         ui_language=ui_language,

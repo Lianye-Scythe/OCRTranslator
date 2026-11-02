@@ -1,7 +1,7 @@
 import math
 
 from PySide6.QtCore import QEvent, QPoint, QPointF, QRect, QRectF, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QCursor, QFont, QFontMetrics, QGuiApplication, QIcon, QIntValidator, QKeySequence, QMouseEvent, QPainter, QPainterPath, QPen, QPixmap, QShortcut, QTextCursor, QTextDocument, QTransform
+from PySide6.QtGui import QActionGroup, QColor, QCursor, QFont, QFontMetrics, QGuiApplication, QIcon, QIntValidator, QKeySequence, QMouseEvent, QPainter, QPainterPath, QPen, QPixmap, QShortcut, QTextCursor, QTextDocument, QTransform
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
@@ -217,13 +217,19 @@ class TranslationOverlay(QWidget):
         self.copy_button.setObjectName("overlayActionButton")
         self.copy_button.setMinimumWidth(92)
         self.copy_button.setFixedHeight(32)
-        self.copy_button.clicked.connect(self.copy_text)
+        self.copy_button.clicked.connect(self.copy_with_preference)
         self.copy_button.setPopupMode(QToolButton.MenuButtonPopup)
         self.copy_menu = QMenu(self.copy_button)
+        self.copy_mode_section = self.copy_menu.addAction("")
+        self.copy_mode_section.setEnabled(False)
         self.copy_original_action = self.copy_menu.addAction("")
-        self.copy_original_action.triggered.connect(self.copy_text)
+        self.copy_original_action.triggered.connect(lambda: self.set_copy_mode("original"))
         self.copy_plain_action = self.copy_menu.addAction("")
-        self.copy_plain_action.triggered.connect(self.copy_plain_text)
+        self.copy_plain_action.triggered.connect(lambda: self.set_copy_mode("plain"))
+        self.copy_mode_group = QActionGroup(self.copy_menu)
+        for action in (self.copy_original_action, self.copy_plain_action):
+            action.setCheckable(True)
+            self.copy_mode_group.addAction(action)
         self.copy_menu.addSeparator()
         self.markdown_view_action = self.copy_menu.addAction("")
         self.markdown_view_action.setCheckable(True)
@@ -587,6 +593,7 @@ class TranslationOverlay(QWidget):
     def refresh_language(self):
         self.title_label.setText(self._title_text_for_state())
         self.copy_button.setText(self.app_window.tr("copy_response"))
+        self._refresh_copy_menu()
         self.pin_button.setToolTip(self.app_window.tr("toggle_overlay_pin"))
         self.opacity_down_button.setToolTip(self.app_window.tr("decrease_overlay_opacity"))
         self.opacity_up_button.setToolTip(self.app_window.tr("increase_overlay_opacity"))
@@ -888,7 +895,26 @@ class TranslationOverlay(QWidget):
             self.body.copy()
             self.app_window.set_status("overlay_copied")
         else:
+            self.copy_with_preference()
+
+    def copy_with_preference(self):
+        if getattr(self.app_window.config, "overlay_copy_mode", "original") == "plain":
+            self.copy_plain_text()
+        else:
             self.copy_text()
+
+    def set_copy_mode(self, mode: str):
+        if mode not in {"original", "plain"}:
+            return
+        previous = self.app_window.config.overlay_copy_mode
+        if previous != mode:
+            self.app_window.config.overlay_copy_mode = mode
+            if self.app_window.persist_runtime_overlay_state() is False:
+                self.app_window.config.overlay_copy_mode = previous
+                self._refresh_copy_menu()
+                return
+        self._refresh_copy_menu()
+        self.copy_with_preference()
 
     def copy_plain_text(self):
         source = self._body_source_text if self.has_partial_result() else self.last_text
@@ -898,12 +924,15 @@ class TranslationOverlay(QWidget):
             self.app_window.set_status("overlay_copied")
 
     def _refresh_copy_menu(self):
+        self.copy_mode_section.setText(self.app_window.tr("overlay_copy_mode"))
         self.copy_original_action.setText(self.app_window.tr("copy_original_response"))
         self.copy_plain_action.setText(self.app_window.tr("copy_plain_response"))
+        plain = getattr(self.app_window.config, "overlay_copy_mode", "original") == "plain"
+        self.copy_original_action.setChecked(not plain)
+        self.copy_plain_action.setChecked(plain)
+        self.copy_button.setToolTip(self.app_window.tr("copy_plain_response" if plain else "copy_original_response"))
         self.markdown_view_action.setText(self.app_window.tr("overlay_markdown_view"))
         has_text = bool(self._body_source_text.strip())
-        self.copy_original_action.setEnabled(has_text)
-        self.copy_plain_action.setEnabled(has_text)
         self.markdown_view_action.setEnabled(has_text and not self.has_partial_result())
         self.markdown_view_action.setChecked(self._body_renders_markdown)
 

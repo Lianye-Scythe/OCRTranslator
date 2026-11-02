@@ -55,6 +55,7 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: "3.15"
+          check-latest: true
           cache: "pip"
           cache-dependency-path: |
             requirements.txt
@@ -103,6 +104,7 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: "3.15"
+          check-latest: true
           cache: "pip"
           cache-dependency-path: |
             requirements.txt

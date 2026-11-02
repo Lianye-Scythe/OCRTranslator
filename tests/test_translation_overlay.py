@@ -301,13 +301,81 @@ class TranslationOverlayTests(unittest.TestCase):
     def test_ctrl_c_keeps_native_copy_behavior_when_opacity_editor_is_focused(self):
         self.overlay.show_text("Original result", 0, 0, 620, 400)
         self.overlay.activateWindow()
+        self.assertTrue(QTest.qWaitForWindowActive(self.overlay))
         self.overlay.opacity_value_label.start_editing()
         self.app.processEvents()
         expected = self.overlay.opacity_value_label.selectedText()
+        self.assertEqual(expected, "35")
 
         QTest.keyClick(self.overlay.opacity_value_label, Qt.Key_C, Qt.ControlModifier)
 
         self.assertEqual(self.app.clipboard().text(), expected)
+
+    def test_copy_mode_is_saved_and_used_by_button_and_ctrl_c(self):
+        self.overlay.show_text("**Hello**\n\nWorld", 0, 0, 620, 400)
+        self.overlay.copy_plain_action.trigger()
+        self.assertEqual(self.window.config.overlay_copy_mode, "plain")
+        self.assertEqual(self.window.runtime_overlay_save_count, 1)
+        self.assertTrue(self.overlay.copy_plain_action.isChecked())
+        self.assertFalse(self.overlay.copy_original_action.isChecked())
+        self.assertEqual(self.window.runtime_pref_change_count, 0)
+
+        self.app.clipboard().setText("reset")
+        self.overlay.copy_button.click()
+        self.assertEqual(self.app.clipboard().text(), "Hello\nWorld")
+        self.overlay.activateWindow()
+        self.assertTrue(QTest.qWaitForWindowActive(self.overlay))
+        self.overlay.body.setFocus()
+        self.app.processEvents()
+        self.app.clipboard().setText("reset")
+        QTest.keyClick(self.overlay.body, Qt.Key_C, Qt.ControlModifier)
+        self.assertEqual(self.app.clipboard().text(), "Hello\nWorld")
+
+        self.overlay.copy_original_action.trigger()
+        self.assertEqual(self.window.config.overlay_copy_mode, "original")
+        self.assertEqual(self.window.runtime_overlay_save_count, 2)
+        self.assertTrue(self.overlay.copy_original_action.isChecked())
+        self.assertEqual(self.app.clipboard().text(), "**Hello**\n\nWorld")
+
+    def test_remembered_copy_mode_is_independent_of_markdown_view_and_selection(self):
+        self.window.config.overlay_copy_mode = "plain"
+        self.overlay.refresh_language()
+        self.overlay.show_text("**Hello**\n\nWorld", 0, 0, 620, 400)
+        self.assertTrue(self.overlay.copy_plain_action.isChecked())
+        self.overlay.set_markdown_view(True)
+        self.overlay.copy_button.click()
+        self.assertEqual(self.app.clipboard().text(), "Hello\nWorld")
+        self.overlay.set_markdown_view(False)
+        cursor = self.overlay.body.textCursor()
+        cursor.setPosition(0)
+        cursor.setPosition(9, QTextCursor.KeepAnchor)
+        self.overlay.body.setTextCursor(cursor)
+        self.overlay.copy_selection_or_text()
+        self.assertEqual(self.app.clipboard().text(), "**Hello**")
+        self.assertEqual(self.window.config.overlay_copy_mode, "plain")
+
+    def test_copy_mode_save_failure_restores_previous_mode_and_clipboard(self):
+        self.overlay.show_text("**Hello**", 0, 0, 620, 400)
+        self.app.clipboard().setText("unchanged")
+        with patch.object(self.window, "persist_runtime_overlay_state", return_value=False):
+            self.overlay.copy_plain_action.trigger()
+        self.assertEqual(self.window.config.overlay_copy_mode, "original")
+        self.assertTrue(self.overlay.copy_original_action.isChecked())
+        self.assertEqual(self.app.clipboard().text(), "unchanged")
+
+    def test_plain_copy_mode_uses_current_partial_result(self):
+        self.window.config.overlay_copy_mode = "plain"
+        self.overlay.last_text = "old result"
+        self.overlay.show_text("**partial**", 0, 0, 620, 400, remember_state=False)
+        self.overlay.set_partial_result_state("streaming")
+        self.overlay.copy_button.click()
+        self.assertEqual(self.app.clipboard().text(), "partial")
+
+    def test_selecting_current_copy_mode_does_not_write_config_again(self):
+        self.overlay.show_text("**Hello**", 0, 0, 620, 400)
+        self.overlay.copy_original_action.trigger()
+        self.assertEqual(self.window.runtime_overlay_save_count, 0)
+        self.assertEqual(self.app.clipboard().text(), "**Hello**")
 
     def test_markdown_view_toggle_is_local_to_the_current_result(self):
         source = "**Hello**"

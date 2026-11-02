@@ -17,7 +17,7 @@ py -3.15 -m venv "%VENV_DIR%"
 if errorlevel 1 goto :venv_failed
 
 :check_python
-"%PYTHON_EXE%" -c "import sys; sys.exit(0 if sys.platform == 'win32' and sys.version_info[:2] == (3, 15) else 1)"
+"%PYTHON_EXE%" -c "import sys; sys.exit(0 if sys.platform == 'win32' and (3, 15, 2) <= sys.version_info[:3] < (3, 16) else 1)"
 if errorlevel 1 goto :venv_failed
 
 echo [OCRTranslator] Checking Windows dependencies...
@@ -51,7 +51,8 @@ goto :failed
 
 :venv_failed
 echo [ERROR] Cannot create or use the Windows Python 3.15 environment.
-echo Install Python 3.15 with the Windows Python launcher, then try again.
+echo Install Python 3.15.2 or a newer 3.15 patch with the Windows Python launcher.
+echo Then run: py -3.15 -m venv --upgrade "%VENV_DIR%"
 echo Environment: "%VENV_DIR%"
 goto :failed
 

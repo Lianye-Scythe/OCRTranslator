@@ -6,6 +6,10 @@
 
 Development, CI, and Windows packaging use Python 3.15. Older Python versions are not maintained. Run commands from the repository root; Windows and WSL virtual environments are not interchangeable.
 
+The current security baseline is Python 3.15.2; keep using the latest stable 3.15 patch. The `3.15` in `.python-version` selects a version series but does not update existing environments. CI uses `check-latest` to avoid an older cached patch.
+
+After updating Windows Python, run `py -3.15 -m venv --upgrade .venv` for that environment, or `py -3.15 -m venv --upgrade "$env:LOCALAPPDATA\OCRTranslator\venv-win315"` in PowerShell for `start_wsl.bat`. For uv-managed Python in WSL, run `uv python upgrade 3.15` and check `.venv/bin/python --version`. If it still points to the old patch, run the updated `python3.15 -m venv --upgrade .venv`. Finally, upgrade pip in the environment and reinstall `requirements.txt`, or `requirements-dev.txt` when packaging tools are needed.
+
 ### Windows PowerShell
 
 ```powershell

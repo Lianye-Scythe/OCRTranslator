@@ -6,6 +6,10 @@
 
 开发环境、CI 与 Windows 打包使用 Python 3.15，不再维护旧版 Python 的兼容性。请在项目根目录执行命令；Windows 与 WSL 的虚拟环境不能共用。
 
+目前最低安全基准为 Python 3.15.2，建议持续使用最新 3.15 稳定修补版。`.python-version` 的 `3.15` 只指定版本系列，不会自动更新现有环境；CI 使用 `check-latest` 避免沿用较旧的缓存版本。
+
+更新 Windows Python 后，对相应环境执行 `py -3.15 -m venv --upgrade .venv`；`start_wsl.bat` 的环境则使用 `py -3.15 -m venv --upgrade "$env:LOCALAPPDATA\OCRTranslator\venv-win315"`（PowerShell）。WSL 若使用 uv 管理 Python，执行 `uv python upgrade 3.15`，再确认 `.venv/bin/python --version`；如果仍连接旧版，使用更新后的 `python3.15 -m venv --upgrade .venv`。最后更新环境内 pip 并重新安装 `requirements.txt`，需要打包时改装 `requirements-dev.txt`。
+
 ### Windows PowerShell
 
 ```powershell
