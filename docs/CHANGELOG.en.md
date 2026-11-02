@@ -7,6 +7,7 @@ This file records important OCRTranslator changes.
 ## [Unreleased]
 
 ### Changed
+- Update image and text translation prompts, upgrading only unchanged previous built-in translation fields on load while preserving custom content.
 - Lazily load HTTP packages not needed at startup and preload them on a background worker before continuing UI prewarm, reducing the wait before first display while keeping Qt widget construction on the main thread.
 - Add an isolated startup profiler for first paint, startup phases, prewarm, and event-loop polling gaps, supporting separate native Windows and offscreen WSL measurements.
 - Remember the overlay's original/plain-text copy mode for the main button and `Ctrl+C` without a selection, independently of the display mode.

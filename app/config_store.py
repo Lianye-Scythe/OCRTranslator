@@ -18,7 +18,12 @@ from .app_defaults import (
     default_target_language_for_ui_language,
     normalize_theme_mode,
 )
-from .default_prompts import canonical_prompt_preset_name, canonical_prompt_preset_name_for_builtin
+from .default_prompts import (
+    PREVIOUS_TRANSLATION_IMAGE_PROMPT,
+    PREVIOUS_TRANSLATION_TEXT_PROMPT,
+    canonical_prompt_preset_name,
+    canonical_prompt_preset_name_for_builtin,
+)
 from .i18n import detect_system_ui_language, normalize_ui_language
 from .models import ApiProfile, AppConfig, PromptPreset, default_prompt_presets
 from .profile_utils import (
@@ -198,6 +203,13 @@ def _dict_to_prompt_preset(data: dict) -> PromptPreset:
     default_preset = default_map.get(builtin_id, _default_prompt_preset())
     defaults = asdict(default_preset)
     merged = {**defaults, **source}
+    if builtin_id == "translate":
+        for key, previous in (
+            ("image_prompt", PREVIOUS_TRANSLATION_IMAGE_PROMPT),
+            ("text_prompt", PREVIOUS_TRANSLATION_TEXT_PROMPT),
+        ):
+            if _coerce_text(merged.get(key), "").replace("\r\n", "\n") == previous:
+                merged[key] = defaults[key]
     return PromptPreset(
         name=canonical_prompt_preset_name_for_builtin(builtin_id, _coerce_text(merged.get("name"), defaults["name"])),
         builtin_id=str(merged.get("builtin_id", builtin_id or defaults.get("builtin_id", ""))).strip(),
