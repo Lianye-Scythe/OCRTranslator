@@ -1,5 +1,7 @@
+import math
+
 from PySide6.QtCore import QEvent, QPoint, QPointF, QRect, QRectF, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QCursor, QFont, QFontMetrics, QGuiApplication, QIcon, QIntValidator, QKeySequence, QMouseEvent, QPainter, QPainterPath, QPen, QPixmap, QShortcut, QTextCursor, QTextDocument, QTransform
+from PySide6.QtGui import QActionGroup, QColor, QCursor, QFont, QFontMetrics, QGuiApplication, QIcon, QIntValidator, QKeySequence, QMouseEvent, QPainter, QPainterPath, QPen, QPixmap, QShortcut, QTextCursor, QTextDocument, QTransform
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
@@ -7,8 +9,10 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMenu,
     QPushButton,
     QTextEdit,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -16,6 +20,7 @@ from PySide6.QtWidgets import (
 from .focus_utils import clear_focus_if_alive, install_mouse_click_focus_clear_many
 from .style_utils import load_style_sheet
 from .overlay_positioning import clamp_rect_to_visible_screen
+from .overlay_markdown import style_markdown_document
 from .theme_tokens import qcolor
 from ..platform.windows.window_topmost import ensure_window_topmost
 
@@ -123,6 +128,8 @@ class TranslationOverlay(QWidget):
         self.last_text = ""
         self._body_source_text = ""
         self._body_renders_markdown = False
+        self._body_style_key = None
+        self._markdown_view_override = None
         self._is_minimized = False
         self._pre_minimized_geometry = None
         self.last_preset_name = ""
@@ -206,11 +213,29 @@ class TranslationOverlay(QWidget):
         self.opacity_up_button.setFixedSize(32, 32)
         self.opacity_up_button.clicked.connect(lambda: self.adjust_opacity(5))
 
-        self.copy_button = QPushButton()
+        self.copy_button = QToolButton()
         self.copy_button.setObjectName("overlayActionButton")
         self.copy_button.setMinimumWidth(92)
         self.copy_button.setFixedHeight(32)
-        self.copy_button.clicked.connect(self.copy_text)
+        self.copy_button.clicked.connect(self.copy_with_preference)
+        self.copy_button.setPopupMode(QToolButton.MenuButtonPopup)
+        self.copy_menu = QMenu(self.copy_button)
+        self.copy_mode_section = self.copy_menu.addAction("")
+        self.copy_mode_section.setEnabled(False)
+        self.copy_original_action = self.copy_menu.addAction("")
+        self.copy_original_action.triggered.connect(lambda: self.set_copy_mode("original"))
+        self.copy_plain_action = self.copy_menu.addAction("")
+        self.copy_plain_action.triggered.connect(lambda: self.set_copy_mode("plain"))
+        self.copy_mode_group = QActionGroup(self.copy_menu)
+        for action in (self.copy_original_action, self.copy_plain_action):
+            action.setCheckable(True)
+            self.copy_mode_group.addAction(action)
+        self.copy_menu.addSeparator()
+        self.markdown_view_action = self.copy_menu.addAction("")
+        self.markdown_view_action.setCheckable(True)
+        self.markdown_view_action.triggered.connect(self.set_markdown_view)
+        self.copy_menu.aboutToShow.connect(self._refresh_copy_menu)
+        self.copy_button.setMenu(self.copy_menu)
 
         self.minimize_button = QPushButton("▴")
         self.minimize_button.setObjectName("overlayActionButton")
@@ -279,7 +304,7 @@ class TranslationOverlay(QWidget):
             QShortcut(QKeySequence("Ctrl+W"), self),
         ]
         self._shortcuts[0].activated.connect(self.hide)
-        self._shortcuts[1].activated.connect(self.copy_text)
+        self._shortcuts[1].activated.connect(self.copy_selection_or_text)
         self._shortcuts[2].activated.connect(self.hide)
         self.refresh_language()
         self.apply_surface_state()
@@ -386,6 +411,10 @@ class TranslationOverlay(QWidget):
         theme_name = self.app_window.effective_theme_name()
         base_style = load_style_sheet("translation_overlay.qss", theme_name=theme_name)
         self.setStyleSheet(f"{base_style}\n{self._build_dynamic_style_sheet(theme_name)}")
+        if self._body_renders_markdown and self._body_style_key != self._content_style_key():
+            position = self._reading_position()
+            self._set_body_content(self._body_source_text, render_markdown=True)
+            self._restore_reading_position(position, reflow=True)
 
     def _build_pin_icon(self, checked: bool) -> QIcon:
         color_token = "overlay_pin_checked_fg" if checked else "overlay_pin_hover_fg" if self.pin_button.underMouse() else "overlay_pin_fg"
@@ -564,6 +593,7 @@ class TranslationOverlay(QWidget):
     def refresh_language(self):
         self.title_label.setText(self._title_text_for_state())
         self.copy_button.setText(self.app_window.tr("copy_response"))
+        self._refresh_copy_menu()
         self.pin_button.setToolTip(self.app_window.tr("toggle_overlay_pin"))
         self.opacity_down_button.setToolTip(self.app_window.tr("decrease_overlay_opacity"))
         self.opacity_up_button.setToolTip(self.app_window.tr("increase_overlay_opacity"))
@@ -608,10 +638,12 @@ class TranslationOverlay(QWidget):
     def _build_content_document(self, text: str, *, render_markdown: bool) -> QTextDocument:
         document = QTextDocument()
         document.setDefaultFont(self.body.font())
+        document.setDocumentMargin(self.body.document().documentMargin())
         normalized_text = self._normalized_text(text)
         set_markdown = getattr(document, "setMarkdown", None)
         if render_markdown and callable(set_markdown):
             set_markdown(normalized_text)
+            style_markdown_document(document, theme_name=self.app_window.effective_theme_name())
         else:
             document.setPlainText(normalized_text)
         return document
@@ -625,41 +657,80 @@ class TranslationOverlay(QWidget):
         used_markdown = bool(render_markdown and callable(set_markdown))
         if used_markdown:
             set_markdown(normalized_text)
+            style_markdown_document(self.body.document(), theme_name=self.app_window.effective_theme_name())
         else:
             self.body.setPlainText(normalized_text)
         self._body_source_text = normalized_text
         self._body_renders_markdown = used_markdown
+        self._body_style_key = self._content_style_key()
+
+    def _content_style_key(self):
+        return self.app_window.effective_theme_name(), self.body.font().toString()
+
+    def _markdown_enabled(self, text: str) -> bool:
+        if self._markdown_view_override is not None and self._markdown_view_override[0] == text:
+            return self._markdown_view_override[1]
+        return bool(getattr(self.app_window.config, "render_markdown", False))
+
+    def _reading_position(self):
+        vertical = self.body.verticalScrollBar()
+        horizontal = self.body.horizontalScrollBar()
+        return (
+            vertical.value(),
+            vertical.maximum(),
+            vertical.maximum() - vertical.value() <= 2,
+            horizontal.value(),
+        )
+
+    def _restore_reading_position(self, position, *, reflow: bool = False):
+        self.body.document().documentLayout().documentSize()
+        value, maximum, at_bottom, horizontal = position
+        scrollbar = self.body.verticalScrollBar()
+        if at_bottom:
+            value = scrollbar.maximum()
+        elif reflow and maximum:
+            value = round(value / maximum * scrollbar.maximum())
+        scrollbar.setValue(value)
+        self.body.horizontalScrollBar().setValue(horizontal)
 
     def _body_matches_source(self, text: str, *, render_markdown: bool) -> bool:
         normalized_text = self._normalized_text(text)
         if self._body_source_text == normalized_text and self._body_renders_markdown == bool(render_markdown):
-            return True
+            return not render_markdown or self._body_style_key == self._content_style_key()
         if not render_markdown:
             return self.body.toPlainText() == normalized_text
         return False
 
     def calculate_size(self, text: str, *, base_width: int | None = None, preset_name: str | None = None, partial_state: str | None = None):
-        render_markdown = bool(getattr(self.app_window.config, "render_markdown", False)) and not self._has_partial_state(partial_state)
-        plain_text = self._content_plain_text(text, render_markdown=render_markdown)
-        lines = plain_text.splitlines() or [plain_text]
-        metrics = QFontMetrics(self.body.font())
-        longest_width = max((metrics.horizontalAdvance(line or " ") for line in lines), default=240)
-        line_spacing = metrics.lineSpacing()
+        render_markdown = self._markdown_enabled(text) and not self._has_partial_state(partial_state)
+        document = self._build_content_document(text, render_markdown=render_markdown)
         configured_width = max(self.MIN_WIDTH, int(base_width if base_width is not None else (self.app_window.current_overlay_width() or 440)))
         configured_height = max(self.MIN_HEIGHT, int(self.app_window.current_overlay_height() or 520))
         title_text = self._title_text_for_state(preset_name=preset_name, partial_state=partial_state)
         header_width = self._measure_header_width(title_text)
-        width = min(860, max(configured_width, longest_width + 136, header_width))
-        height = min(900, max(configured_height, len(lines) * line_spacing + 132))
+        horizontal_insets, vertical_insets = self._content_insets()
+        width = min(860, max(configured_width, math.ceil(document.idealWidth()) + horizontal_insets, header_width))
+        document.setTextWidth(max(1, width - horizontal_insets))
+        height = min(900, max(configured_height, math.ceil(document.size().height()) + vertical_insets))
         return width, height
 
+    def _content_insets(self) -> tuple[int, int]:
+        margins = [self.layout().contentsMargins(), self.card.contentsMargins(),
+                   self.card.layout().contentsMargins(), self.body.contentsMargins()]
+        horizontal = sum(m.left() + m.right() for m in margins)
+        vertical = sum(m.top() + m.bottom() for m in margins)
+        header_height = max(self.title_label.sizeHint().height(), self.ACTION_BUTTON_SIZE) + self.HEADER_MARGINS[1] + self.HEADER_MARGINS[3]
+        if self.body.verticalScrollBar().isVisible():
+            horizontal += self.body.verticalScrollBar().width()
+        if self.body.horizontalScrollBar().isVisible():
+            vertical += self.body.horizontalScrollBar().height()
+        return horizontal, vertical + header_height
+
     def measure_content_height(self, text: str, width: int, *, render_markdown: bool = True) -> int:
-        doc = self._build_content_document(text, render_markdown=render_markdown and bool(getattr(self.app_window.config, "render_markdown", False)))
-        text_width = max(220, width - 42)
-        doc.setTextWidth(text_width)
-        header_height = 58
-        body_padding = 48
-        return int(doc.size().height()) + header_height + body_padding
+        doc = self._build_content_document(text, render_markdown=render_markdown and self._markdown_enabled(text))
+        horizontal_insets, vertical_insets = self._content_insets()
+        doc.setTextWidth(max(1, width - horizontal_insets))
+        return math.ceil(doc.size().height()) + vertical_insets
 
     def _header_only_height(self) -> int:
         header_layout = self.header.layout()
@@ -802,6 +873,8 @@ class TranslationOverlay(QWidget):
             persist()
 
     def remember_context(self, bbox, text: str, *, anchor_point=None, preset_name: str = ""):
+        if self._markdown_view_override is not None and self._markdown_view_override[0] != text:
+            self._markdown_view_override = None
         self.last_bbox = bbox
         self.last_anchor_point = anchor_point
         self.last_text = text
@@ -813,6 +886,63 @@ class TranslationOverlay(QWidget):
             return
         QApplication.clipboard().setText(text)
         self.app_window.set_status("overlay_copied")
+
+    def copy_selection_or_text(self):
+        focused = QApplication.focusWidget()
+        if isinstance(focused, QLineEdit):
+            focused.copy()
+        elif self.body.textCursor().hasSelection():
+            self.body.copy()
+            self.app_window.set_status("overlay_copied")
+        else:
+            self.copy_with_preference()
+
+    def copy_with_preference(self):
+        if getattr(self.app_window.config, "overlay_copy_mode", "original") == "plain":
+            self.copy_plain_text()
+        else:
+            self.copy_text()
+
+    def set_copy_mode(self, mode: str):
+        if mode not in {"original", "plain"}:
+            return
+        previous = self.app_window.config.overlay_copy_mode
+        if previous != mode:
+            self.app_window.config.overlay_copy_mode = mode
+            if self.app_window.persist_runtime_overlay_state() is False:
+                self.app_window.config.overlay_copy_mode = previous
+                self._refresh_copy_menu()
+                return
+        self._refresh_copy_menu()
+        self.copy_with_preference()
+
+    def copy_plain_text(self):
+        source = self._body_source_text if self.has_partial_result() else self.last_text
+        text = self._content_plain_text(source, render_markdown=True)
+        if text.strip():
+            QApplication.clipboard().setText(text)
+            self.app_window.set_status("overlay_copied")
+
+    def _refresh_copy_menu(self):
+        self.copy_mode_section.setText(self.app_window.tr("overlay_copy_mode"))
+        self.copy_original_action.setText(self.app_window.tr("copy_original_response"))
+        self.copy_plain_action.setText(self.app_window.tr("copy_plain_response"))
+        plain = getattr(self.app_window.config, "overlay_copy_mode", "original") == "plain"
+        self.copy_original_action.setChecked(not plain)
+        self.copy_plain_action.setChecked(plain)
+        self.copy_button.setToolTip(self.app_window.tr("copy_plain_response" if plain else "copy_original_response"))
+        self.markdown_view_action.setText(self.app_window.tr("overlay_markdown_view"))
+        has_text = bool(self._body_source_text.strip())
+        self.markdown_view_action.setEnabled(has_text and not self.has_partial_result())
+        self.markdown_view_action.setChecked(self._body_renders_markdown)
+
+    def set_markdown_view(self, enabled: bool):
+        if self.has_partial_result() or not self.last_text.strip():
+            return
+        position = self._reading_position()
+        self._markdown_view_override = self.last_text, bool(enabled)
+        self._set_body_content(self.last_text, render_markdown=bool(enabled))
+        self._restore_reading_position(position, reflow=True)
 
     def toggle_pin(self, checked: bool):
         self.app_window.config.overlay_pinned = bool(checked)
@@ -840,7 +970,13 @@ class TranslationOverlay(QWidget):
 
     def show_text(self, text: str, x: int, y: int, width: int, height: int, *, keep_manual_position: bool = False, remember_state: bool = True):
         normalized_text = self._normalized_text(text)
-        render_markdown = bool(remember_state) and bool(getattr(self.app_window.config, "render_markdown", False))
+        continuing = bool(self._body_source_text) and (
+            normalized_text == self._body_source_text
+            or (self.has_partial_result() and normalized_text.startswith(self._body_source_text))
+        )
+        position = self._reading_position() if continuing else None
+        render_markdown = bool(remember_state) and self._markdown_enabled(normalized_text)
+        reflow = render_markdown != self._body_renders_markdown or self.width() != int(width) or self._body_style_key != self._content_style_key()
         if remember_state and self._is_minimized:
             self._set_minimized(False, restore_geometry=False, emit_status=False)
         if remember_state:
@@ -872,6 +1008,8 @@ class TranslationOverlay(QWidget):
                 self._set_body_content(normalized_text, render_markdown=render_markdown)
         if remember_state:
             self.last_text = normalized_text
+        if position is not None:
+            self._restore_reading_position(position, reflow=reflow)
         self.manual_positioned = bool(keep_manual_position)
         should_raise_overlay = remember_state or not self.isVisible()
         if should_raise_overlay:
@@ -887,7 +1025,7 @@ class TranslationOverlay(QWidget):
         self.refresh_language()
         self.setGeometry(clamp_rect_to_visible_screen(self.last_geometry))
         self._remember_runtime_geometry()
-        self._set_body_content(self.last_text, render_markdown=bool(getattr(self.app_window.config, "render_markdown", False)))
+        self._set_body_content(self.last_text, render_markdown=self._markdown_enabled(self.last_text))
         self._show_as_topmost()
         self._sync_topbar_hover_state(QCursor.pos())
 

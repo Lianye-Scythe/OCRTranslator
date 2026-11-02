@@ -6,6 +6,25 @@ This file records important OCRTranslator changes.
 
 ## [Unreleased]
 
+## [1.0.15] - 2026-11-02
+
+### Changed
+- Update image and text translation prompts, upgrading only unchanged previous built-in translation fields on load while preserving custom content.
+- Lazily load HTTP packages not needed at startup and preload them on a background worker before continuing UI prewarm, reducing the wait before first display while keeping Qt widget construction on the main thread.
+- Add an isolated startup profiler for first paint, startup phases, prewarm, and event-loop polling gaps, supporting separate native Windows and offscreen WSL measurements.
+- Remember the overlay's original/plain-text copy mode for the main button and `Ctrl+C` without a selection, independently of the display mode.
+- Update certifi to 2026.10.23, pyinstaller-hooks-contrib to 2026.9, setuptools to 84.2.1, and development environments to Python 3.15.2 security patches. Have CI check for the latest 3.15 patch and Windows launchers validate Python and synchronize pinned dependencies.
+- Add an overlay copy menu for original or plain text and a Markdown view toggle for the current result, without changing the global default.
+- Share Markdown styling between display and size measurement; refine headings, code, tables, and light/dark link colors, and wrap long code lines inside the overlay.
+
+### Fixed
+- Make `Ctrl+C` prioritize selected text. Preserve the reading position during streaming, follow new content only when already at the bottom, and avoid jumping to the top when final formatting is applied.
+- Cancel scheduled startup update checks and idle prewarm when their main window is destroyed, avoiding delayed access to a deleted window.
+
+### Test
+- All 420 tests pass on both Windows and WSL. All 8 live text/image, streaming/non-streaming requests and 2 streaming-cancellation checks pass across both API formats.
+- Verify remembered copy mode, selected-text keyboard copying, and current-result Markdown switching in the native Windows UI. Startup measurements use isolated settings and do not represent onefile EXE cold-start times.
+
 ## [1.0.14] - 2026-10-19
 
 ### Changed

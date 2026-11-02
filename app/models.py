@@ -54,6 +54,7 @@ class AppConfig:
     toast_duration_seconds: float = 1.5
     stream_responses: bool = True
     render_markdown: bool = False
+    overlay_copy_mode: str = "original"
     debug_logging_enabled: bool = False
     check_updates_on_startup: bool = False
     ui_language: str = DEFAULT_UI_LANGUAGE

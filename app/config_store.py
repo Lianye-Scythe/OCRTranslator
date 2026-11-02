@@ -18,7 +18,12 @@ from .app_defaults import (
     default_target_language_for_ui_language,
     normalize_theme_mode,
 )
-from .default_prompts import canonical_prompt_preset_name, canonical_prompt_preset_name_for_builtin
+from .default_prompts import (
+    PREVIOUS_TRANSLATION_IMAGE_PROMPT,
+    PREVIOUS_TRANSLATION_TEXT_PROMPT,
+    canonical_prompt_preset_name,
+    canonical_prompt_preset_name_for_builtin,
+)
 from .i18n import detect_system_ui_language, normalize_ui_language
 from .models import ApiProfile, AppConfig, PromptPreset, default_prompt_presets
 from .profile_utils import (
@@ -198,6 +203,13 @@ def _dict_to_prompt_preset(data: dict) -> PromptPreset:
     default_preset = default_map.get(builtin_id, _default_prompt_preset())
     defaults = asdict(default_preset)
     merged = {**defaults, **source}
+    if builtin_id == "translate":
+        for key, previous in (
+            ("image_prompt", PREVIOUS_TRANSLATION_IMAGE_PROMPT),
+            ("text_prompt", PREVIOUS_TRANSLATION_TEXT_PROMPT),
+        ):
+            if _coerce_text(merged.get(key), "").replace("\r\n", "\n") == previous:
+                merged[key] = defaults[key]
     return PromptPreset(
         name=canonical_prompt_preset_name_for_builtin(builtin_id, _coerce_text(merged.get("name"), defaults["name"])),
         builtin_id=str(merged.get("builtin_id", builtin_id or defaults.get("builtin_id", ""))).strip(),
@@ -271,6 +283,7 @@ def _migrate_legacy_config(data: dict) -> AppConfig:
         toast_duration_seconds=_coerce_float(source.get("toast_duration_seconds"), 1.5, min_value=0, max_value=10),
         stream_responses=_coerce_bool(source.get("stream_responses", True), True),
         render_markdown=_coerce_bool(source.get("render_markdown", False), False),
+        overlay_copy_mode="plain" if source.get("overlay_copy_mode") == "plain" else "original",
         debug_logging_enabled=_coerce_bool(source.get("debug_logging_enabled", False), False),
         check_updates_on_startup=_coerce_bool(source.get("check_updates_on_startup", False), False),
         ui_language=ui_language,

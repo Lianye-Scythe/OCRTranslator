@@ -1,7 +1,7 @@
 from collections.abc import Callable
 import threading
 
-import requests
+lazy import requests
 
 
 class RequestCancelledError(RuntimeError):

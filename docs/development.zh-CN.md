@@ -6,6 +6,10 @@
 
 开发环境、CI 与 Windows 打包使用 Python 3.15，不再维护旧版 Python 的兼容性。请在项目根目录执行命令；Windows 与 WSL 的虚拟环境不能共用。
 
+目前最低安全基准为 Python 3.15.2，建议持续使用最新 3.15 稳定修补版。`.python-version` 的 `3.15` 只指定版本系列，不会自动更新现有环境；CI 使用 `check-latest` 避免沿用较旧的缓存版本。
+
+更新 Windows Python 后，对相应环境执行 `py -3.15 -m venv --upgrade .venv`；`start_wsl.bat` 的环境则使用 `py -3.15 -m venv --upgrade "$env:LOCALAPPDATA\OCRTranslator\venv-win315"`（PowerShell）。WSL 若使用 uv 管理 Python，执行 `uv python upgrade 3.15`，再确认 `.venv/bin/python --version`；如果仍连接旧版，使用更新后的 `python3.15 -m venv --upgrade .venv`。最后更新环境内 pip 并重新安装 `requirements.txt`，需要打包时改装 `requirements-dev.txt`。
+
 ### Windows PowerShell
 
 ```powershell
@@ -82,6 +86,19 @@ python -m unittest discover -v
 ```bash
 python -m compileall app tests launcher.pyw
 ```
+
+### 启动性能测量
+
+```bash
+python tools/profile_startup.py --samples 5 --output build/startup-native.json
+python tools/profile_startup.py --offscreen --samples 5 --output build/startup-offscreen.json
+```
+
+原生模式包含系统托盘及临时测试热键；`--offscreen` 关闭这两项并使用 Qt 离屏模式，适合 WSL 测试。每个样本使用新进程与独立的空白配置、锁文件及 IPC 名称，不读取个人 API Key、不发送 API／更新请求，也不截取桌面。可添加 `--screenshot build/startup.png` 截取最后一个样本的主窗口。
+
+报告包含中位数、原始样本、预热耗时及预热期间的最大事件响应间隔。`first_paint` 从应用入口导入前算到主窗口首次 Paint 事件；其他标记从进入 `run_app()` 时计算，不包含进程创建或单文件 exe 解压。新进程不等于冷缓存；Windows 原生与 WSL 离屏数据不能直接比较，也不应作为固定的 CI 速度门槛。
+
+目前只在取消控制与更新服务延迟导入 `requests`。HTTP 后台预加载完成后才继续 UI 预热；Qt 导入与组件创建仍在主线程，不可标记为后台步骤。
 
 ## 测试重点
 

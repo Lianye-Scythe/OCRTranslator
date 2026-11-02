@@ -7,6 +7,18 @@ from app.config_store import _config_to_dict, _migrate_legacy_config, load_confi
 
 
 class ConfigStoreMigrationTests(unittest.TestCase):
+    def test_copy_mode_defaults_and_round_trips_through_config_file(self):
+        self.assertEqual(_migrate_legacy_config({}).overlay_copy_mode, "original")
+        for invalid in (None, "unknown", 42, [], {}):
+            with self.subTest(invalid=invalid):
+                self.assertEqual(_migrate_legacy_config({"overlay_copy_mode": invalid}).overlay_copy_mode, "original")
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "config.json"
+            config = _migrate_legacy_config({"overlay_copy_mode": "plain"})
+            save_config(config, path=path)
+            with patch("app.config_store.CONFIG_PATH", path):
+                self.assertEqual(load_config().overlay_copy_mode, "plain")
+
     def test_new_generation_settings_default_and_round_trip(self):
         config = _migrate_legacy_config({})
         self.assertFalse(config.render_markdown)

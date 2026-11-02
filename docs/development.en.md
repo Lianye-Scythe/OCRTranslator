@@ -6,6 +6,10 @@
 
 Development, CI, and Windows packaging use Python 3.15. Older Python versions are not maintained. Run commands from the repository root; Windows and WSL virtual environments are not interchangeable.
 
+The current security baseline is Python 3.15.2; keep using the latest stable 3.15 patch. The `3.15` in `.python-version` selects a version series but does not update existing environments. CI uses `check-latest` to avoid an older cached patch.
+
+After updating Windows Python, run `py -3.15 -m venv --upgrade .venv` for that environment, or `py -3.15 -m venv --upgrade "$env:LOCALAPPDATA\OCRTranslator\venv-win315"` in PowerShell for `start_wsl.bat`. For uv-managed Python in WSL, run `uv python upgrade 3.15` and check `.venv/bin/python --version`. If it still points to the old patch, run the updated `python3.15 -m venv --upgrade .venv`. Finally, upgrade pip in the environment and reinstall `requirements.txt`, or `requirements-dev.txt` when packaging tools are needed.
+
 ### Windows PowerShell
 
 ```powershell
@@ -82,6 +86,19 @@ python -m unittest discover -v
 ```bash
 python -m compileall app tests launcher.pyw
 ```
+
+### Startup profiling
+
+```bash
+python tools/profile_startup.py --samples 5 --output build/startup-native.json
+python tools/profile_startup.py --offscreen --samples 5 --output build/startup-offscreen.json
+```
+
+Native mode includes the system tray and temporary test hotkeys. `--offscreen` disables both and uses Qt offscreen for WSL testing. Each sample uses a fresh process and isolated empty configuration, lock file, and IPC name. It does not read personal API keys, send API/update requests, or capture the desktop. Optionally add `--screenshot build/startup.png` to capture the last sample's main window.
+
+Reports include medians, raw samples, prewarm durations, and the longest event-loop polling gap during prewarm. `first_paint` starts before application entry imports and ends at the first main-window Paint event; other marks start at `run_app()` entry. Process creation and onefile EXE extraction are excluded. Fresh processes do not imply cold caches. Do not compare native Windows with WSL offscreen results directly or use them as fixed CI speed thresholds.
+
+Only cancellation control and update checking lazily import `requests`. Background HTTP preloading finishes before UI prewarm continues. Qt imports and widget construction stay on the main thread and must never be marked as background steps.
 
 ## Test coverage focus
 

@@ -165,6 +165,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self._startup_prewarm_started = False
         self._startup_prewarm_completed = False
         self._startup_prewarm_pending = False
+        self._startup_prewarm_in_progress = False
         self._startup_services_initialized = False
         self.set_unsaved_changes(False)
         self.startup_timing.mark("mainwindow_init_complete")
@@ -439,6 +440,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
 
     def _startup_prewarm_steps(self):
         return [
+            {"name": "http_backend", "callback": self._preload_http_backend, "background": True, "min_idle_ms": 320, "next_delay_ms": 0, "allow_hidden": True},
             {"name": "api_client", "callback": self.get_api_client, "min_idle_ms": 320, "next_delay_ms": 120, "allow_hidden": True},
             {"name": "screen_capture_service", "callback": self.get_screen_capture_service, "min_idle_ms": 520, "next_delay_ms": 140, "allow_hidden": True},
             {"name": "request_support_classes", "callback": self.request_workflow.preload_support_classes, "min_idle_ms": 760, "next_delay_ms": 140, "allow_hidden": True},
@@ -448,8 +450,13 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             {"name": "overlay_presenter", "callback": lambda: self.get_overlay_presenter(create=True), "min_idle_ms": 1460, "next_delay_ms": 0, "allow_hidden": False},
         ]
 
+    @staticmethod
+    def _preload_http_backend():
+        # This step runs on a worker; Qt imports and widgets stay on the UI thread.
+        import requests
+
     def schedule_idle_prewarm(self, delay_ms: int = 180):
-        if getattr(self, "_startup_prewarm_completed", False) or getattr(self, "_startup_prewarm_pending", False):
+        if getattr(self, "_startup_prewarm_completed", False) or getattr(self, "_startup_prewarm_pending", False) or getattr(self, "_startup_prewarm_in_progress", False):
             return
         if not getattr(self, "_startup_services_initialized", False):
             return
@@ -459,7 +466,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
             self._startup_prewarm_pending = False
             self._run_idle_prewarm_step()
 
-        QTimer.singleShot(max(0, int(delay_ms)), run)
+        QTimer.singleShot(max(0, int(delay_ms)), self, run)
 
     def _idle_prewarm_wait_delay(self, required_idle_ms: int, current_idle_ms: float) -> int:
         remaining = max(0.0, float(required_idle_ms) - float(current_idle_ms))
@@ -504,7 +511,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         self._startup_prewarm_summary_logged = True
 
     def _run_idle_prewarm_step(self):
-        if getattr(self, "is_quitting", False) or getattr(self, "_startup_prewarm_completed", False):
+        if getattr(self, "is_quitting", False) or getattr(self, "_startup_prewarm_completed", False) or getattr(self, "_startup_prewarm_in_progress", False):
             return
         if self.capture_workflow_active or self.background_busy():
             self.schedule_idle_prewarm(delay_ms=360)
@@ -534,13 +541,45 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
         queue.pop(0)
         name = step["name"]
         callback = step["callback"]
+        if step.get("background", False):
+            self._startup_prewarm_in_progress = True
+
+            def prepare():
+                started = time.perf_counter()
+                error = None
+                try:
+                    callback()
+                except Exception as exc:  # noqa: BLE001
+                    error = str(exc)
+                return (time.perf_counter() - started) * 1000, error
+
+            def prepared(result):
+                self._startup_prewarm_in_progress = False
+                if self.is_quitting:
+                    return
+                duration_ms, error = result
+                self.startup_timing.record_duration(f"prewarm.{name}", duration_ms)
+                if error is not None:
+                    self.log_debug(f"Startup prewarm skipped for {name}: {error}")
+                self._finish_idle_prewarm_step(int(step.get("next_delay_ms", 90) or 0))
+
+            try:
+                self.background_task_runner.run_worker(prepare, prepared)
+            except Exception as exc:  # noqa: BLE001
+                prepared((0.0, str(exc)))
+            return
         try:
             self.startup_timing.measure(f"prewarm.{name}", callback)
         except Exception as exc:  # noqa: BLE001
             self.log_debug(f"Startup prewarm skipped for {name}: {exc}")
 
-        if queue:
-            self.schedule_idle_prewarm(delay_ms=int(step.get("next_delay_ms", 90) or 90))
+        self._finish_idle_prewarm_step(int(step.get("next_delay_ms", 90) or 0))
+
+    def _finish_idle_prewarm_step(self, next_delay_ms: int):
+        if getattr(self, "is_quitting", False):
+            return
+        if self._startup_prewarm_queue:
+            self.schedule_idle_prewarm(delay_ms=next_delay_ms)
             return
         self._startup_prewarm_completed = True
         self.startup_timing.mark("startup_prewarm_completed")
@@ -825,7 +864,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
                 return
             self.start_update_check(manual=False)
 
-        QTimer.singleShot(max(0, int(delay_ms)), run)
+        QTimer.singleShot(max(0, int(delay_ms)), self, run)
 
     def start_update_check(self, *, manual: bool) -> bool:
         if self.update_check_in_progress:

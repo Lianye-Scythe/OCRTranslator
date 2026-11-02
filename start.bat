@@ -11,19 +11,18 @@ echo [OCRTranslator] Checking runtime environment...
 
 if not exist "%PYTHON_EXE%" (
     echo [OCRTranslator] Virtual environment not found. Creating .venv ...
-    where python >nul 2>nul
+    where py >nul 2>nul
     if errorlevel 1 goto :no_python
-    python -m venv "%VENV_DIR%"
+    py -3.15 -m venv "%VENV_DIR%"
     if errorlevel 1 goto :venv_failed
 )
 
+"%PYTHON_EXE%" -c "import sys; sys.exit(0 if sys.platform == 'win32' and (3, 15, 2) <= sys.version_info[:3] < (3, 16) else 1)"
+if errorlevel 1 goto :python_outdated
+
 echo [OCRTranslator] Checking required packages...
-"%PYTHON_EXE%" -c "import requests, PIL, pynput, PySide6" >nul 2>nul
-if errorlevel 1 (
-    echo [OCRTranslator] Installing packages from requirements.txt ...
-    "%PYTHON_EXE%" -m pip install -r requirements.txt
-    if errorlevel 1 goto :install_failed
-)
+"%PYTHON_EXE%" -m pip install --disable-pip-version-check -r requirements.txt
+if errorlevel 1 goto :install_failed
 
 if not exist "%PYTHONW_EXE%" goto :venv_failed
 if not exist "%LAUNCHER%" goto :launcher_missing
@@ -34,8 +33,14 @@ exit /b 0
 
 :no_python
 echo.
-echo [ERROR] Python was not found on PATH.
-echo Please install the latest stable Python 3.15 patch and enable "Add Python to PATH", then run this file again.
+echo [ERROR] The Windows Python launcher was not found.
+echo Please install the latest stable Python 3.15 patch and the Python launcher, then run this file again.
+pause
+exit /b 1
+
+:python_outdated
+echo [ERROR] Windows Python 3.15.2 or a newer 3.15 patch is required.
+echo Update Python, then run: py -3.15 -m venv --upgrade "%VENV_DIR%"
 pause
 exit /b 1
 
