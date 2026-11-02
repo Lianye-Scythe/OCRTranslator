@@ -6,6 +6,14 @@ This file records important OCRTranslator changes.
 
 ## [Unreleased]
 
+### Changed
+- Add an overlay copy menu for original or plain text and a Markdown view toggle for the current result, without changing the global default.
+- Share Markdown styling between display and size measurement; refine headings, code, tables, and light/dark link colors, and wrap long code lines inside the overlay.
+
+### Fixed
+- Make `Ctrl+C` prioritize selected text. Preserve the reading position during streaming, follow new content only when already at the bottom, and avoid jumping to the top when final formatting is applied.
+- Cancel the scheduled startup update check when its main window is destroyed, avoiding delayed access to a deleted window.
+
 ## [1.0.14] - 2026-10-19
 
 ### Changed

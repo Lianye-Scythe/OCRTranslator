@@ -1,10 +1,14 @@
 import unittest
 from unittest.mock import call, patch
 
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QFont, QTextCursor, QTextFormat
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
 from app.models import AppConfig
 from app.ui.translation_overlay import TranslationOverlay
+from app.ui.theme_tokens import qcolor
 
 
 class _FakeAppWindow:
@@ -66,6 +70,11 @@ class TranslationOverlayTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
+        cls.clipboard_backup = cls.app.clipboard().text()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.app.clipboard().setText(cls.clipboard_backup)
 
     def setUp(self):
         self.window = _FakeAppWindow()
@@ -261,6 +270,145 @@ class TranslationOverlayTests(unittest.TestCase):
 
         self.assertEqual(QApplication.clipboard().text(), "**bold**")
         self.assertEqual(self.window.status_calls[-1], ("overlay_copied", {}))
+
+    def test_ctrl_c_copies_selected_text_instead_of_the_entire_markdown_source(self):
+        self.window.config.render_markdown = True
+        self.overlay.show_text("**Hello**\n\nWorld", 0, 0, 620, 400)
+        cursor = self.overlay.body.textCursor()
+        cursor.setPosition(0)
+        cursor.setPosition(5, QTextCursor.KeepAnchor)
+        self.overlay.body.setTextCursor(cursor)
+        self.overlay.activateWindow()
+        self.overlay.body.setFocus()
+        self.app.processEvents()
+
+        QTest.keyClick(self.overlay.body, Qt.Key_C, Qt.ControlModifier)
+
+        self.assertEqual(self.app.clipboard().text(), "Hello")
+        self.overlay.copy_button.click()
+        self.assertEqual(self.app.clipboard().text(), "**Hello**\n\nWorld")
+
+    def test_plain_text_copy_does_not_change_original_content_or_display_mode(self):
+        source = "**Hello**\n\nWorld"
+        self.overlay.show_text(source, 0, 0, 620, 400)
+        self.overlay.copy_plain_action.trigger()
+
+        self.assertEqual(self.app.clipboard().text(), "Hello\nWorld")
+        self.assertEqual(self.overlay.body.toPlainText(), source)
+        self.assertEqual(self.overlay.last_text, source)
+        self.assertFalse(self.window.config.render_markdown)
+
+    def test_ctrl_c_keeps_native_copy_behavior_when_opacity_editor_is_focused(self):
+        self.overlay.show_text("Original result", 0, 0, 620, 400)
+        self.overlay.activateWindow()
+        self.overlay.opacity_value_label.start_editing()
+        self.app.processEvents()
+        expected = self.overlay.opacity_value_label.selectedText()
+
+        QTest.keyClick(self.overlay.opacity_value_label, Qt.Key_C, Qt.ControlModifier)
+
+        self.assertEqual(self.app.clipboard().text(), expected)
+
+    def test_markdown_view_toggle_is_local_to_the_current_result(self):
+        source = "**Hello**"
+        self.overlay.show_text(source, 0, 0, 620, 400)
+        self.overlay.set_markdown_view(True)
+
+        self.assertEqual(self.overlay.body.toPlainText(), "Hello")
+        self.assertEqual(self.overlay.last_text, source)
+        self.assertFalse(self.window.config.render_markdown)
+        self.overlay.restore_last_overlay()
+        self.assertEqual(self.overlay.body.toPlainText(), "Hello")
+        self.overlay.remember_context(None, "**Next result**")
+        self.overlay.show_text("**Next result**", 0, 0, 620, 400)
+        self.assertEqual(self.overlay.body.toPlainText(), "**Next result**")
+
+    def test_view_toggle_is_disabled_during_streaming(self):
+        self.overlay.set_partial_result_state("streaming", preset_name="Translate")
+        self.overlay.show_text("**Hello", 0, 0, 620, 400, remember_state=False)
+        self.overlay._refresh_copy_menu()
+
+        self.assertFalse(self.overlay.markdown_view_action.isEnabled())
+        self.overlay.set_markdown_view(True)
+        self.assertEqual(self.overlay.body.toPlainText(), "**Hello")
+
+    def test_stream_completion_keeps_relative_reading_position(self):
+        self.window.config.render_markdown = True
+        source = "\n\n".join(f"**Paragraph {i}**: readable content." for i in range(100))
+        self.overlay.set_partial_result_state("streaming", preset_name="Translate")
+        self.overlay.show_text(source, 0, 0, 620, 400, remember_state=False)
+        self.app.processEvents()
+        scrollbar = self.overlay.body.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum() // 2)
+        before = scrollbar.value() / scrollbar.maximum()
+
+        self.overlay.show_text(source, 0, 0, 620, 400)
+        self.app.processEvents()
+
+        self.assertGreater(scrollbar.value(), 0)
+        self.assertAlmostEqual(scrollbar.value() / scrollbar.maximum(), before, delta=0.01)
+
+    def test_partial_updates_keep_reading_position_and_only_follow_the_bottom(self):
+        source = "\n".join(f"Line {i}" for i in range(100))
+        self.overlay.set_partial_result_state("streaming", preset_name="Translate")
+        self.overlay.show_text(source, 0, 0, 620, 400, remember_state=False)
+        self.app.processEvents()
+        scrollbar = self.overlay.body.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum() // 2)
+        before = scrollbar.value()
+        source += "\n" + "\n".join(f"More {i}" for i in range(100))
+
+        self.overlay.show_text(source, 0, 0, 620, 400, remember_state=False)
+        self.app.processEvents()
+        self.assertEqual(scrollbar.value(), before)
+
+        scrollbar.setValue(scrollbar.maximum())
+        self.overlay.show_text(source + "\nLast line", 0, 0, 620, 400, remember_state=False)
+        self.app.processEvents()
+        self.assertEqual(scrollbar.value(), scrollbar.maximum())
+
+    def test_markdown_styles_and_measurement_match_the_display_document(self):
+        source = "# Heading\n\n```python\n" + "long_identifier_" * 60 + "\n```\n\n[Docs](https://example.com)"
+        self.window.config.render_markdown = True
+        self.overlay.show_text(source, 0, 0, 700, 700)
+        self.app.processEvents()
+        document = self.overlay.body.document()
+        self.assertEqual(document.find("Docs").charFormat().foreground().color(), qcolor("primary", theme_name="light"))
+        code = document.find("long_identifier_").block().blockFormat()
+        self.assertFalse(code.nonBreakableLines())
+        self.assertEqual(code.background().color(), qcolor("surface_panel", theme_name="light"))
+        self.assertEqual(self.overlay.body.horizontalScrollBar().maximum(), 0)
+        horizontal, vertical = self.overlay._content_insets()
+        measured = self.overlay._build_content_document(source, render_markdown=True)
+        measured.setTextWidth(self.overlay.width() - horizontal)
+        self.assertAlmostEqual(measured.size().height(), document.size().height(), delta=2)
+        self.assertAlmostEqual(self.overlay.measure_content_height(source, self.overlay.width()), document.size().height() + vertical, delta=2)
+
+    def test_changing_theme_updates_markdown_link_and_code_colors(self):
+        self.window.config.render_markdown = True
+        self.overlay.show_text("[Docs](https://example.com)\n\n```\ncode\n```", 0, 0, 620, 400)
+        self.window.effective_theme_name = lambda: "dark"
+        self.overlay.apply_styles()
+
+        document = self.overlay.body.document()
+        self.assertEqual(document.find("Docs").charFormat().foreground().color(), qcolor("primary", theme_name="dark"))
+        self.assertEqual(document.find("code").blockFormat().background().color(), qcolor("surface_panel", theme_name="dark"))
+
+    def test_markdown_headings_are_compact_and_table_headers_have_consistent_format(self):
+        self.window.config.render_markdown = True
+        self.overlay.show_text("# Heading\n\n| Item | Meaning |\n|---|---|\n| Apple | Fruit |", 0, 0, 620, 500)
+        document = self.overlay.body.document()
+        heading = document.find("Heading").charFormat()
+        self.assertFalse(heading.hasProperty(QTextFormat.FontSizeAdjustment))
+        self.assertAlmostEqual(heading.fontPointSize(), document.defaultFont().pointSizeF() * 1.35)
+        first = document.find("Item")
+        second = document.find("Meaning")
+        self.assertEqual(first.charFormat().fontWeight(), QFont.Bold)
+        self.assertEqual(second.charFormat().fontWeight(), QFont.Bold)
+        self.assertEqual(first.blockFormat().topMargin(), second.blockFormat().topMargin())
+        self.assertEqual(first.blockFormat().bottomMargin(), second.blockFormat().bottomMargin())
+        table = first.currentTable()
+        self.assertEqual(table.cellAt(0, 0).firstCursorPosition().block().text(), "Item")
 
     def test_prime_first_show_warms_native_window_once_without_leaving_overlay_visible(self):
         self.overlay.hide()

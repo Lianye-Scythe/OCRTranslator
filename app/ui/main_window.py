@@ -825,7 +825,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
                 return
             self.start_update_check(manual=False)
 
-        QTimer.singleShot(max(0, int(delay_ms)), run)
+        QTimer.singleShot(max(0, int(delay_ms)), self, run)
 
     def start_update_check(self, *, manual: bool) -> bool:
         if self.update_check_in_progress:

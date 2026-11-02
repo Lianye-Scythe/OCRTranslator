@@ -56,6 +56,42 @@
     padding:0;
 }
 
+QToolButton#overlayActionButton {
+    padding-right:20px;
+}
+
+QToolButton#overlayActionButton::menu-button {
+    width:18px;
+    border:none;
+    border-left:1px solid {{overlay_header_border}};
+}
+
+QMenu {
+    background:{{menu_bg}};
+    color:{{menu_fg}};
+    border:1px solid {{menu_border}};
+    padding:6px;
+}
+
+QMenu::item {
+    padding:8px 14px;
+}
+
+QMenu::item:selected {
+    background:{{menu_hover_bg}};
+    color:{{menu_hover_fg}};
+}
+
+QMenu::item:disabled {
+    color:{{menu_disabled_fg}};
+}
+
+QMenu::separator {
+    height:1px;
+    margin:6px;
+    background:{{menu_separator}};
+}
+
 #overlayCloseButton {
     font-size:18px;
     font-weight:500;
@@ -125,6 +161,27 @@ QScrollBar::sub-page:vertical {
     background:none;
     border:none;
     height:0;
+}
+
+QScrollBar:horizontal {
+    height:10px;
+    margin:2px;
+    background:transparent;
+}
+
+QScrollBar::handle:horizontal {
+    background:{{scrollbar_handle}};
+    border-radius:5px;
+    min-width:28px;
+}
+
+QScrollBar::add-line:horizontal,
+QScrollBar::sub-line:horizontal,
+QScrollBar::add-page:horizontal,
+QScrollBar::sub-page:horizontal {
+    background:none;
+    border:none;
+    width:0;
 }
 
 #overlayResizeGrip {

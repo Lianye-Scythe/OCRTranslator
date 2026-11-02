@@ -560,6 +560,7 @@ class MainWindowRuntimeTests(unittest.TestCase):
         window.update_action_states = Mock()
         window.log_tr = Mock()
         window.schedule_idle_prewarm = Mock()
+        window.schedule_startup_update_check = Mock()
         window._log_startup_summary_if_ready = Mock()
 
         window.complete_startup_services()
@@ -570,6 +571,7 @@ class MainWindowRuntimeTests(unittest.TestCase):
         window.update_action_states.assert_called_once_with()
         window.log_tr.assert_called_once_with("log_application_started")
         window.schedule_idle_prewarm.assert_called_once_with()
+        window.schedule_startup_update_check.assert_called_once_with()
 
     def test_minimize_to_tray_can_finish_startup_services_before_reporting_unavailable(self):
         window = MainWindow.__new__(MainWindow)
@@ -709,8 +711,9 @@ class MainWindowRuntimeTests(unittest.TestCase):
         window.schedule_startup_update_check(delay_ms=9999)
 
         mock_single_shot.assert_called_once()
-        delay, callback = mock_single_shot.call_args.args
+        delay, context, callback = mock_single_shot.call_args.args
         self.assertEqual(delay, 3456)
+        self.assertIs(context, window)
         callback()
         window.start_update_check.assert_called_once_with(manual=False)
 
@@ -726,8 +729,9 @@ class MainWindowRuntimeTests(unittest.TestCase):
 
         window.schedule_startup_update_check(delay_ms=3456)
 
-        delay, callback = mock_single_shot.call_args.args
+        delay, context, callback = mock_single_shot.call_args.args
         self.assertEqual(delay, 3456)
+        self.assertIs(context, window)
         callback()
         window.start_update_check.assert_not_called()
 
