@@ -6,6 +6,20 @@ This file records important OCRTranslator changes.
 
 ## [Unreleased]
 
+## [1.0.16] - 2026-11-07
+
+### Changed
+- Inherit system fonts for the interface, runtime log and toast messages to avoid unnecessary CJK font fallback; draw overlay minus and collapse controls as vector icons.
+- Prefer installed Noto Sans TC for new overlay settings, with an installed CJK fallback; preserve existing font preferences and preview changes immediately without bundling font files.
+- Use the monospace font only for code characters it supports, using the overlay font otherwise, and finish Markdown styling before layout; preserve reading position across font changes and stream completion.
+
+### Fixed
+- Default to Qt's GDI font database on Windows to reduce large allocations when emoji, symbols, or the manual-input language list first trigger font fallback; preserve fallback, color emoji, and explicit Qt platform settings.
+
+### Test
+- All 430 tests pass with the native Windows GDI backend; validate emoji, symbols, multilingual streaming, Markdown, font switching, ten captures, and packaged startup.
+- Local controlled flows use about 84–89 MiB Private Bytes, with a sampled capture peak of about 140 MiB; usage varies with content and environment.
+
 ## [1.0.15] - 2026-11-02
 
 ### Changed

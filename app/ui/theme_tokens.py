@@ -149,12 +149,6 @@ _THEME_SCHEMES = {
 
 _ACTIVE_THEME_NAME = "dark"
 
-BASE_STYLE_TOKENS = {
-    "font_ui": "'Segoe UI Variable Text','Segoe UI','Microsoft JhengHei UI'",
-    "font_code": "'Cascadia Code','Consolas'",
-}
-
-
 def system_theme_name(*, default: str = "dark") -> str:
     app = QGuiApplication.instance()
     if app is None:
@@ -359,7 +353,4 @@ def qcolor(name: str, *, alpha: int | None = None, theme_name: str | None = None
 
 
 def style_tokens(theme_name: str | None = None) -> dict[str, str]:
-    return {
-        **BASE_STYLE_TOKENS,
-        **theme_colors(theme_name),
-    }
+    return theme_colors(theme_name)

@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QMessageBox
 from ..config_store import load_config, save_config
 from ..app_defaults import DEFAULT_THEME_MODE, PROVIDER_LABELS, normalize_theme_mode
 from .focus_utils import clear_focus_if_alive
+from .font_utils import resolve_overlay_font_family
 from ..i18n import I18N
 from ..models import ApiProfile, AppConfig
 from .message_boxes import (
@@ -592,7 +593,7 @@ class MainWindowProfilesMixin:
             self.hotkey_edit.setText(self.config.hotkey)
             self.selection_hotkey_edit.setText(self.config.selection_hotkey)
             self.input_hotkey_edit.setText(self.config.input_hotkey)
-            self.overlay_font_combo.setCurrentFont(QFont(self.config.overlay_font_family))
+            self.overlay_font_combo.setCurrentFont(QFont(resolve_overlay_font_family(self.config.overlay_font_family)))
             self.overlay_font_size_spin.setValue(self.config.overlay_font_size)
             self.overlay_width_spin.setValue(self.config.overlay_width)
             self.overlay_height_spin.setValue(self.config.overlay_height)

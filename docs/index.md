@@ -22,6 +22,8 @@
 - [架構說明](architecture.md)
 - [開發指南](development.md)
 - [打包與發佈](packaging.md)
+- [Rust 重構調查與暫緩決策](plans/rust-refactor.md)
+- [Windows 字型與記憶體優化紀錄](performance/memory.md)
 
 ## 協作與治理
 

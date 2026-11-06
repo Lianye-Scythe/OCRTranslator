@@ -400,6 +400,7 @@ class MainWindowLayoutMixin:
         self.selection_hotkey_label.setText(self.tr("selection_hotkey"))
         self.input_hotkey_label.setText(self.tr("input_hotkey"))
         self.overlay_font_label.setText(self.tr("overlay_font_family"))
+        self.overlay_font_combo.setToolTip(self.tr("overlay_font_hint"))
         self.overlay_font_size_label.setText(self.tr("overlay_font_size"))
         self.image_prompt_label.setText(self.tr("image_prompt"))
         self.text_prompt_label.setText(self.tr("text_prompt"))

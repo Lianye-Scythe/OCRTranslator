@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 from .focus_utils import clear_focus_if_alive, install_mouse_click_focus_clear_many
 from .style_utils import load_style_sheet
 from .overlay_positioning import clamp_rect_to_visible_screen
-from .overlay_markdown import style_markdown_document
+from .overlay_markdown import set_styled_markdown
 from .theme_tokens import qcolor
 from ..platform.windows.window_topmost import ensure_window_topmost
 
@@ -197,8 +197,10 @@ class TranslationOverlay(QWidget):
         self.pin_button.clicked.connect(self.toggle_pin)
         self.pin_button.setIconSize(QSize(18, 18))
 
-        self.opacity_down_button = QPushButton("−")
+        self.opacity_down_button = QPushButton()
         self.opacity_down_button.setObjectName("overlayActionButton")
+        self.opacity_down_button.setProperty("iconOnly", True)
+        self.opacity_down_button.setIconSize(QSize(18, 18))
         self.opacity_down_button.setFixedSize(32, 32)
         self.opacity_down_button.clicked.connect(lambda: self.adjust_opacity(-5))
 
@@ -237,9 +239,10 @@ class TranslationOverlay(QWidget):
         self.copy_menu.aboutToShow.connect(self._refresh_copy_menu)
         self.copy_button.setMenu(self.copy_menu)
 
-        self.minimize_button = QPushButton("▴")
+        self.minimize_button = QPushButton()
         self.minimize_button.setObjectName("overlayActionButton")
         self.minimize_button.setProperty("iconOnly", True)
+        self.minimize_button.setIconSize(QSize(18, 18))
         self.minimize_button.setFixedSize(32, 32)
         self.minimize_button.clicked.connect(self.toggle_minimized)
 
@@ -411,6 +414,8 @@ class TranslationOverlay(QWidget):
         theme_name = self.app_window.effective_theme_name()
         base_style = load_style_sheet("translation_overlay.qss", theme_name=theme_name)
         self.setStyleSheet(f"{base_style}\n{self._build_dynamic_style_sheet(theme_name)}")
+        self.opacity_down_button.setIcon(self._build_chrome_icon("minus", self.opacity_down_button))
+        self._refresh_minimize_button()
         if self._body_renders_markdown and self._body_style_key != self._content_style_key():
             position = self._reading_position()
             self._set_body_content(self._body_source_text, render_markdown=True)
@@ -467,17 +472,43 @@ class TranslationOverlay(QWidget):
         self.pin_button.setText("")
         self.pin_button.setAccessibleName(self.app_window.tr("overlay_pinned_short") if self.is_pinned else self.app_window.tr("overlay_pin_short"))
 
+    def _build_chrome_icon(self, name: str, button) -> QIcon:
+        # These symbols are missing from some CJK fonts; painting avoids font fallback.
+        token = "overlay_action_hover_fg" if button.underMouse() else "overlay_action_fg"
+        foreground = qcolor(token, theme_name=self.app_window.effective_theme_name())
+        pixmap = QPixmap(18, 18)
+        pixmap.fill(Qt.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.Antialiasing)
+        if name == "minus":
+            painter.setPen(QPen(foreground, 1.6, Qt.SolidLine, Qt.RoundCap))
+            painter.drawLine(5, 9, 13, 9)
+        else:
+            path = QPainterPath()
+            if name == "expand":
+                path.moveTo(4, 6)
+                path.lineTo(14, 6)
+                path.lineTo(9, 11)
+            else:
+                path.moveTo(4, 11)
+                path.lineTo(14, 11)
+                path.lineTo(9, 6)
+            path.closeSubpath()
+            painter.fillPath(path, foreground)
+        painter.end()
+        return QIcon(pixmap)
+
     @property
     def is_minimized_overlay(self) -> bool:
         return self._is_minimized
 
     def _refresh_minimize_button(self):
+        name = "expand" if self._is_minimized else "collapse"
+        self.minimize_button.setIcon(self._build_chrome_icon(name, self.minimize_button))
         if self._is_minimized:
-            self.minimize_button.setText("▾")
             self.minimize_button.setToolTip(self.app_window.tr("restore_overlay"))
             self.minimize_button.setAccessibleName(self.app_window.tr("overlay_restore_short"))
             return
-        self.minimize_button.setText("▴")
         self.minimize_button.setToolTip(self.app_window.tr("minimize_overlay"))
         self.minimize_button.setAccessibleName(self.app_window.tr("overlay_minimize_short"))
 
@@ -596,6 +627,7 @@ class TranslationOverlay(QWidget):
         self._refresh_copy_menu()
         self.pin_button.setToolTip(self.app_window.tr("toggle_overlay_pin"))
         self.opacity_down_button.setToolTip(self.app_window.tr("decrease_overlay_opacity"))
+        self.opacity_down_button.setAccessibleName(self.opacity_down_button.toolTip())
         self.opacity_up_button.setToolTip(self.app_window.tr("increase_overlay_opacity"))
         self.opacity_value_label.setToolTip(self.app_window.tr("overlay_opacity_set", value=self._current_overlay_opacity()))
         self._refresh_minimize_button()
@@ -620,12 +652,18 @@ class TranslationOverlay(QWidget):
 
     def apply_typography(self):
         font = QFont(self.app_window.current_overlay_font_family(), self.app_window.current_overlay_font_size())
+        changed = self.body.font() != font
+        reading_position = self._reading_position() if changed and self._body_source_text else None
         self.body.setFont(font)
         document_getter = getattr(self.body, "document", None)
         if callable(document_getter):
             document = document_getter()
             if document is not None:
                 document.setDefaultFont(font)
+        if changed and self._body_source_text and self._body_renders_markdown:
+            self._set_body_content(self._body_source_text, render_markdown=True)
+        if reading_position is not None:
+            self._restore_reading_position(reading_position, reflow=True)
 
     @staticmethod
     def _normalized_text(text: str | None) -> str:
@@ -642,8 +680,7 @@ class TranslationOverlay(QWidget):
         normalized_text = self._normalized_text(text)
         set_markdown = getattr(document, "setMarkdown", None)
         if render_markdown and callable(set_markdown):
-            set_markdown(normalized_text)
-            style_markdown_document(document, theme_name=self.app_window.effective_theme_name())
+            set_styled_markdown(document, normalized_text, theme_name=self.app_window.effective_theme_name())
         else:
             document.setPlainText(normalized_text)
         return document
@@ -656,8 +693,7 @@ class TranslationOverlay(QWidget):
         set_markdown = getattr(self.body, "setMarkdown", None)
         used_markdown = bool(render_markdown and callable(set_markdown))
         if used_markdown:
-            set_markdown(normalized_text)
-            style_markdown_document(self.body.document(), theme_name=self.app_window.effective_theme_name())
+            set_styled_markdown(self.body.document(), normalized_text, theme_name=self.app_window.effective_theme_name(), setter=set_markdown)
         else:
             self.body.setPlainText(normalized_text)
         self._body_source_text = normalized_text
@@ -683,15 +719,31 @@ class TranslationOverlay(QWidget):
         )
 
     def _restore_reading_position(self, position, *, reflow: bool = False):
-        self.body.document().documentLayout().documentSize()
-        value, maximum, at_bottom, horizontal = position
-        scrollbar = self.body.verticalScrollBar()
-        if at_bottom:
-            value = scrollbar.maximum()
-        elif reflow and maximum:
-            value = round(value / maximum * scrollbar.maximum())
-        scrollbar.setValue(value)
-        self.body.horizontalScrollBar().setValue(horizontal)
+        self._reading_restore_serial = getattr(self, "_reading_restore_serial", 0) + 1
+        serial = self._reading_restore_serial
+
+        def restore():
+            self.body.document().documentLayout().documentSize()
+            value, maximum, at_bottom, horizontal = position
+            scrollbar = self.body.verticalScrollBar()
+            if at_bottom:
+                value = scrollbar.maximum()
+            elif reflow and maximum:
+                value = round(value / maximum * scrollbar.maximum())
+            scrollbar.setValue(value)
+            self.body.horizontalScrollBar().setValue(horizontal)
+
+        restore()
+        if reflow:
+            source = self._body_source_text
+            style_key = self._content_style_key()
+
+            def restore_after_layout():
+                if serial == self._reading_restore_serial and source == self._body_source_text and style_key == self._content_style_key():
+                    restore()
+
+            # QTextBrowser can finalize its scroll range in a queued layout pass.
+            QTimer.singleShot(0, self, restore_after_layout)
 
     def _body_matches_source(self, text: str, *, render_markdown: bool) -> bool:
         normalized_text = self._normalized_text(text)
@@ -1248,6 +1300,9 @@ class TranslationOverlay(QWidget):
                 QTimer.singleShot(0, self._sync_topbar_hover_state)
             if watched is self.pin_button and event.type() in {QEvent.Type.Enter, QEvent.Type.Leave}:
                 self._refresh_pin_button()
+            elif watched in {self.opacity_down_button, self.minimize_button} and event.type() in {QEvent.Type.Enter, QEvent.Type.Leave}:
+                self.opacity_down_button.setIcon(self._build_chrome_icon("minus", self.opacity_down_button))
+                self._refresh_minimize_button()
             elif isinstance(event, QMouseEvent) and event.type() == QEvent.Type.MouseMove:
                 self._sync_topbar_hover_state(event.globalPosition().toPoint())
         if event.type() == QEvent.Type.Wheel and watched in {self.body, self.body.viewport()}:

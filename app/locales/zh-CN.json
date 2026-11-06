@@ -95,6 +95,7 @@
   "theme_light": "浅色",
   "theme_dark": "深色",
   "overlay_font_family": "结果字体",
+  "overlay_font_hint": "选择电脑已安装的浮窗字体。繁中可选 Noto Sans TC 或 Microsoft JhengHei UI；更改会即时应用到当前浮窗，保存后供下次启动使用。",
   "overlay_font_size": "结果字号",
   "image_prompt": "图片请求提示词",
   "text_prompt": "文本请求提示词",

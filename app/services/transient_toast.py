@@ -4,7 +4,7 @@ from PySide6.QtCore import QPoint, QRect, Qt, QTimer
 from PySide6.QtGui import QCursor, QFontMetrics, QGuiApplication
 from PySide6.QtWidgets import QFrame, QGraphicsDropShadowEffect, QLabel, QVBoxLayout, QWidget
 
-from ..ui.theme_tokens import BASE_STYLE_TOKENS, color, qcolor
+from ..ui.theme_tokens import color, qcolor
 
 
 class _TransientToastWidget(QFrame):
@@ -66,7 +66,6 @@ class _TransientToastWidget(QFrame):
                     "QLabel#TransientToastLabel {",
                     "    background:transparent;",
                     f"    color:{color('text_primary', theme_name=theme_name)};",
-                    f"    font-family:{BASE_STYLE_TOKENS['font_ui']};",
                     "    font-size:12px;",
                     "    font-weight:600;",
                     "}",

@@ -30,6 +30,42 @@ assert 'app.services.image_capture' not in sys.modules
 assert 'app.ui.translation_overlay' not in sys.modules
 """)
 
+    def test_application_respects_an_explicit_offscreen_platform_and_reuses_it(self):
+        self.run_isolated("""
+import os
+os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+from app.main import create_ui_application
+app = create_ui_application()
+assert app.platformName() == 'offscreen'
+assert create_ui_application() is app
+assert os.environ['QT_QPA_PLATFORM'] == 'offscreen'
+""")
+
+    @unittest.skipUnless(sys.platform == "win32", "Checks the native Windows font database")
+    def test_windows_application_preserves_symbol_and_emoji_font_fallback(self):
+        self.run_isolated("""
+import os
+os.environ.pop('QT_QPA_PLATFORM', None)
+from app.main import create_ui_application
+from PySide6.QtGui import QFont, QFontDatabase, QTextLayout
+app = create_ui_application()
+assert app.platformName() == 'windows'
+families = set(QFontDatabase.families())
+for family in ('Segoe UI', 'Noto Sans TC', 'Microsoft JhengHei UI'):
+    if family not in families:
+        continue
+    font = QFont(family, 20)
+    assert not font.styleStrategy() & QFont.NoFontMerging
+    layout = QTextLayout('A\u2705\U0001f600', font)
+    layout.beginLayout()
+    layout.createLine().setLineWidth(300)
+    layout.endLayout()
+    runs = layout.glyphRuns()
+    glyphs = [glyph for run in runs for glyph in run.glyphIndexes()]
+    assert len(glyphs) == 3 and all(glyphs), (family, glyphs)
+    assert any(run.rawFont().familyName() != family for run in runs), family
+""")
+
     def test_cancellation_primitives_do_not_load_requests_but_context_does(self):
         self.run_isolated("""
 import sys

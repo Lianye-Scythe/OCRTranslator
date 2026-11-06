@@ -141,3 +141,11 @@ When Use model default temperature is checked in Advanced Settings, the numeric 
 ## 15. Are results formatted with Markdown?
 
 Markdown rendering is off by default and can be enabled in Advanced Settings. This controls display, not whether a model generates Markdown characters. Copying preserves the original response text.
+
+## 16. Can I choose Windows or Noto fonts for the overlay? Does this increase the download size?
+
+Yes. Choose an installed font under Advanced Settings → Result Font. Changes preview in the current overlay; save settings to keep them for the next launch. Existing custom font preferences are preserved.
+
+New settings prefer Noto Sans TC. If unavailable, the app selects an installed CJK font such as Microsoft JhengHei UI. The interface, runtime log and toast messages inherit the Windows font independently of the overlay.
+
+The app neither bundles nor downloads Noto font files, so this option does not add a font collection to the download. Memory usage still depends on the font and text. Qt may retain font caches after switching; restart the app when comparing memory usage.

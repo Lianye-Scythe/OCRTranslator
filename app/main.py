@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 import sys
 
 from .crash_handling import install_crash_hooks
@@ -106,7 +107,15 @@ def create_ui_application():
 
     QGuiApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     application_class = crash_aware_application_class()
-    app = QApplication.instance() or application_class([])
+    app = QApplication.instance()
+    if app is None:
+        arguments = [sys.argv[0]]
+        if sys.platform == "win32" and not os.environ.get("QT_QPA_PLATFORM"):
+            # DirectWrite's font database can retain hundreds of MiB when a
+            # missing glyph first triggers fallback. The GDI database keeps
+            # fallback and DirectWrite color emoji rendering available.
+            arguments.extend(["-platform", "windows:fontengine=gdi"])
+        app = application_class(arguments)
     app.setQuitOnLastWindowClosed(False)
     app.setApplicationName("OCRTranslator")
     return app

@@ -22,6 +22,8 @@
 - [架构说明](architecture.zh-CN.md)
 - [开发指南](development.zh-CN.md)
 - [打包与发布](packaging.zh-CN.md)
+- [Rust 重构调查与暂缓决定（繁體中文）](plans/rust-refactor.md)
+- [Windows 字体与内存优化记录（繁體中文）](performance/memory.md)
 
 ## 协作与治理
 

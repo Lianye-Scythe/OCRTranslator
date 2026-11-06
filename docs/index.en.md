@@ -22,6 +22,8 @@ This page collects the main OCRTranslator documentation entry points.
 - [Architecture](architecture.en.md)
 - [Development Guide](development.en.md)
 - [Packaging and Distribution](packaging.en.md)
+- [Rust refactor research and deferred decision (Traditional Chinese)](plans/rust-refactor.md)
+- [Windows font and memory measurements (Traditional Chinese)](performance/memory.md)
 
 ## Collaboration and governance
 
