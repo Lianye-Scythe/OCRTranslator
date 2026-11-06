@@ -34,6 +34,7 @@ from ..workers import AppBridge, WorkerThread
 from .theme_tokens import color, resolve_theme_name, set_theme_mode
 from .main_window_layout import MainWindowLayoutMixin
 from .focus_utils import clear_focus_if_alive
+from .font_utils import resolve_overlay_font_family
 from .main_window_settings_layout import MainWindowSettingsLayoutMixin
 from .main_window_prompts import MainWindowPromptPresetsMixin
 from .main_window_profiles import MainWindowProfilesMixin
@@ -904,7 +905,15 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
     def current_overlay_font_family(self) -> str:
         if hasattr(self, "overlay_font_combo"):
             return self.overlay_font_combo.currentFont().family()
-        return self.config.overlay_font_family
+        return resolve_overlay_font_family(self.config.overlay_font_family)
+
+    def handle_overlay_font_setting_changed(self, *_):
+        if self.is_form_tracking_suppressed():
+            return
+        self.on_form_input_changed()
+        overlay = self.existing_translation_overlay()
+        if overlay is not None:
+            overlay.apply_typography()
 
     def current_overlay_font_size(self) -> int:
         if hasattr(self, "overlay_font_size_spin"):

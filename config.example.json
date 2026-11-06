@@ -19,7 +19,7 @@
   "hotkey": "Shift+Win+X",
   "selection_hotkey": "Shift+Win+C",
   "input_hotkey": "Shift+Win+Z",
-  "overlay_font_family": "Microsoft JhengHei UI",
+  "overlay_font_family": "Noto Sans TC",
   "overlay_font_size": 16,
   "overlay_opacity": 95,
   "overlay_pinned": false,

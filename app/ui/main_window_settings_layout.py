@@ -3,6 +3,7 @@ from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QCheckBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QScrollArea, QVBoxLayout, QWidget
 
 from .focus_utils import install_mouse_click_focus_clear_many
+from .font_utils import resolve_overlay_font_family
 from .ime_aware_text_edit import ImeAwarePlainTextEdit
 from .main_window_layout import ScrollSafeComboBox, ScrollSafeDoubleSpinBox, ScrollSafeFontComboBox, ScrollSafeSpinBox
 from .generation_controls import GenerationControls
@@ -386,7 +387,7 @@ class MainWindowSettingsLayoutMixin:
         self.ui_language_combo.currentTextChanged.connect(self.on_ui_language_changed)
         self.overlay_font_label = QLabel()
         self.overlay_font_combo = ScrollSafeFontComboBox()
-        self.overlay_font_combo.setCurrentFont(QFont(self.config.overlay_font_family))
+        self.overlay_font_combo.setCurrentFont(QFont(resolve_overlay_font_family(self.config.overlay_font_family)))
         self.overlay_font_size_label = QLabel()
         self.overlay_font_size_spin = ScrollSafeSpinBox()
         self.overlay_font_size_spin.setRange(10, 32)
@@ -484,8 +485,8 @@ class MainWindowSettingsLayoutMixin:
         self.input_hotkey_edit.textChanged.connect(self.on_form_input_changed)
         self.mode_combo.currentTextChanged.connect(self.on_form_input_changed)
         self.ui_language_combo.currentTextChanged.connect(self.on_form_input_changed)
-        self.overlay_font_combo.currentFontChanged.connect(self.on_form_input_changed)
-        self.overlay_font_size_spin.valueChanged.connect(self.on_form_input_changed)
+        self.overlay_font_combo.currentFontChanged.connect(self.handle_overlay_font_setting_changed)
+        self.overlay_font_size_spin.valueChanged.connect(self.handle_overlay_font_setting_changed)
         self.retry_count_spin.valueChanged.connect(self.on_form_input_changed)
         self.temperature_spin.valueChanged.connect(self.on_form_input_changed)
         self.overlay_width_spin.valueChanged.connect(self.on_form_input_changed)

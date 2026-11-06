@@ -1,7 +1,7 @@
 DEFAULT_TARGET_LANGUAGE = "繁體中文"
 DEFAULT_UI_LANGUAGE = "en"
 DEFAULT_THEME_MODE = "system"
-DEFAULT_OVERLAY_FONT_FAMILY = "Microsoft JhengHei UI"
+DEFAULT_OVERLAY_FONT_FAMILY = "Noto Sans TC"
 
 VALID_THEME_MODES = ("system", "light", "dark")
 

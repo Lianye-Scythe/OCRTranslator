@@ -107,7 +107,8 @@ class TranslationOverlayTests(unittest.TestCase):
         self.assertFalse(self.overlay.pin_button.icon().isNull())
         self.assertEqual(self.overlay.pin_button.toolTip(), "切换是否保留浮窗")
         self.assertEqual(self.overlay.pin_button.accessibleName(), "Pin")
-        self.assertEqual(self.overlay.minimize_button.text(), "▴")
+        self.assertEqual(self.overlay.minimize_button.text(), "")
+        self.assertFalse(self.overlay.minimize_button.icon().isNull())
         self.assertEqual(self.overlay.minimize_button.toolTip(), "折叠浮窗")
         self.assertEqual(self.overlay.minimize_button.accessibleName(), "折叠")
         self.assertTrue(self.overlay.opacity_down_button.isEnabled())
@@ -227,7 +228,8 @@ class TranslationOverlayTests(unittest.TestCase):
         self.assertTrue(self.overlay.pin_button.isHidden())
         self.assertTrue(self.overlay.copy_button.isHidden())
         self.assertLess(self.overlay.height(), 44)
-        self.assertEqual(self.overlay.minimize_button.text(), "▾")
+        self.assertEqual(self.overlay.minimize_button.text(), "")
+        self.assertFalse(self.overlay.minimize_button.icon().isNull())
         self.assertEqual(self.window.status_calls[-1], ("overlay_minimized", {}))
 
         self.overlay.toggle_minimized()
@@ -236,7 +238,8 @@ class TranslationOverlayTests(unittest.TestCase):
         self.assertFalse(self.overlay.body.isHidden())
         self.assertFalse(self.overlay.pin_button.isHidden())
         self.assertFalse(self.overlay.copy_button.isHidden())
-        self.assertEqual(self.overlay.minimize_button.text(), "▴")
+        self.assertEqual(self.overlay.minimize_button.text(), "")
+        self.assertFalse(self.overlay.minimize_button.icon().isNull())
         self.assertEqual(self.overlay.geometry(), original_geometry)
         self.assertEqual(self.window.status_calls[-1], ("overlay_restored", {}))
 
@@ -461,6 +464,41 @@ class TranslationOverlayTests(unittest.TestCase):
         document = self.overlay.body.document()
         self.assertEqual(document.find("Docs").charFormat().foreground().color(), qcolor("primary", theme_name="dark"))
         self.assertEqual(document.find("code").blockFormat().background().color(), qcolor("surface_panel", theme_name="dark"))
+
+    def test_font_preview_updates_markdown_size_without_changing_result_or_geometry(self):
+        self.window.config.render_markdown = True
+        source = "# 閱讀測試\n\n繁體中文與日本語の文章。\n\n```\nprint('hello')\n```"
+        self.overlay.show_text(source, 0, 0, 620, 400)
+        self.app.processEvents()
+        geometry = self.overlay.geometry()
+
+        self.window.config.overlay_font_family = self.app.font().family()
+        self.window.config.overlay_font_size = 20
+        self.overlay.apply_typography()
+
+        document = self.overlay.body.document()
+        self.assertEqual(document.defaultFont().family(), self.window.config.overlay_font_family)
+        self.assertEqual(document.defaultFont().pointSize(), 20)
+        self.assertAlmostEqual(document.find("閱讀測試").charFormat().fontPointSize(), 27)
+        self.assertEqual(self.overlay.last_text, source)
+        self.assertEqual(self.overlay.geometry(), geometry)
+        self.assertIn("日本語の文章", self.overlay.body.toPlainText())
+        self.assertTrue(self.overlay._body_renders_markdown)
+
+    def test_code_fonts_preserve_cjk_and_supplementary_character_positions(self):
+        fixed_font = type("LatinFont", (), {"supportsCharacter": lambda self, codepoint: codepoint < 128})()
+        source = "```\nA中😀Bあ\n```"
+        with patch("app.ui.overlay_markdown.QRawFont.fromFont", return_value=fixed_font):
+            self.overlay._set_body_content(source, render_markdown=True)
+
+        document = self.overlay.body.document()
+        self.assertIn("A中😀Bあ", document.toPlainText())
+        for character in ("A", "B"):
+            self.assertTrue(document.find(character).charFormat().fontFixedPitch())
+        for character in ("中", "😀", "あ"):
+            char_format = document.find(character).charFormat()
+            self.assertFalse(char_format.fontFixedPitch())
+            self.assertEqual(char_format.fontFamilies(), document.defaultFont().families())
 
     def test_markdown_headings_are_compact_and_table_headers_have_consistent_format(self):
         self.window.config.render_markdown = True

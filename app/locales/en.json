@@ -95,6 +95,7 @@
   "theme_light": "Light",
   "theme_dark": "Dark",
   "overlay_font_family": "Result Font",
+  "overlay_font_hint": "Choose an installed font for the result overlay. Noto Sans TC and Microsoft JhengHei UI are options for Traditional Chinese. Changes preview immediately; save to keep them for the next launch.",
   "overlay_font_size": "Result Font Size",
   "image_prompt": "Image Request Prompt",
   "text_prompt": "Text Request Prompt",

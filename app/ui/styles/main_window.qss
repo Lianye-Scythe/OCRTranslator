@@ -2,7 +2,6 @@ QMainWindow,
 QWidget#AppRoot {
     background:{{app_bg}};
     color:{{window_fg}};
-    font-family:{{font_ui}};
     font-size:13px;
 }
 
@@ -700,7 +699,6 @@ QMessageBox[messageBox="true"] QDialogButtonBox {
     border-radius:14px;
     padding:14px;
     color:{{muted_fg}};
-    font-family:{{font_code}};
     font-size:12px;
 }
 

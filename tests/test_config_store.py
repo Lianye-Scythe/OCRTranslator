@@ -7,6 +7,12 @@ from app.config_store import _config_to_dict, _migrate_legacy_config, load_confi
 
 
 class ConfigStoreMigrationTests(unittest.TestCase):
+    def test_existing_overlay_font_preferences_are_preserved(self):
+        for family in ("Microsoft JhengHei UI", "Noto Sans TC", "Custom Reader Font"):
+            with self.subTest(font=family):
+                config = _migrate_legacy_config({"overlay_font_family": family})
+                self.assertEqual(config.overlay_font_family, family)
+
     def test_copy_mode_defaults_and_round_trips_through_config_file(self):
         self.assertEqual(_migrate_legacy_config({}).overlay_copy_mode, "original")
         for invalid in (None, "unknown", 42, [], {}):
@@ -82,7 +88,7 @@ class ConfigStoreMigrationTests(unittest.TestCase):
         self.assertEqual(config.selection_hotkey, "Shift+Win+C")
         self.assertEqual(config.input_hotkey, "Shift+Win+Z")
         self.assertEqual(config.theme_mode, "system")
-        self.assertEqual(config.overlay_font_family, "Microsoft JhengHei UI")
+        self.assertEqual(config.overlay_font_family, "Noto Sans TC")
         self.assertEqual(config.overlay_font_size, 10)
         self.assertEqual(config.overlay_opacity, 5)
         self.assertTrue(config.overlay_pinned)
