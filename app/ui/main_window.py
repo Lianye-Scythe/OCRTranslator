@@ -905,7 +905,7 @@ class MainWindow(MainWindowSettingsLayoutMixin, MainWindowLayoutMixin, MainWindo
     def current_overlay_font_family(self) -> str:
         if hasattr(self, "overlay_font_combo"):
             return self.overlay_font_combo.currentFont().family()
-        return resolve_overlay_font_family(self.config.overlay_font_family)
+        return resolve_overlay_font_family(self.config.overlay_font_family, target_language=self.config.target_language)
 
     def handle_overlay_font_setting_changed(self, *_):
         if self.is_form_tracking_suppressed():

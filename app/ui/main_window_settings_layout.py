@@ -387,7 +387,7 @@ class MainWindowSettingsLayoutMixin:
         self.ui_language_combo.currentTextChanged.connect(self.on_ui_language_changed)
         self.overlay_font_label = QLabel()
         self.overlay_font_combo = ScrollSafeFontComboBox()
-        self.overlay_font_combo.setCurrentFont(QFont(resolve_overlay_font_family(self.config.overlay_font_family)))
+        self.overlay_font_combo.setCurrentFont(QFont(resolve_overlay_font_family(self.config.overlay_font_family, target_language=self.config.target_language)))
         self.overlay_font_size_label = QLabel()
         self.overlay_font_size_spin = ScrollSafeSpinBox()
         self.overlay_font_size_spin.setRange(10, 32)

@@ -146,6 +146,6 @@ Markdown rendering is off by default and can be enabled in Advanced Settings. Th
 
 Yes. Choose an installed font under Advanced Settings → Result Font. Changes preview in the current overlay; save settings to keep them for the next launch. Existing custom font preferences are preserved.
 
-New settings prefer Noto Sans TC. If unavailable, the app selects an installed CJK font such as Microsoft JhengHei UI. The interface, runtime log and toast messages inherit the Windows font independently of the overlay.
+New configurations select fonts by translation target: Noto Sans for English, Noto Sans TC for Traditional Chinese, Noto Sans SC for Simplified Chinese, and Noto Sans JP for Japanese. Matching Windows fallbacks include Segoe UI, Microsoft JhengHei UI, Microsoft YaHei UI, and Yu Gothic UI. Existing choices are preserved when the interface language changes; for an older TC setting, select an installed SC, JP, or English font and save it. The interface, runtime log and toast messages inherit Windows fonts.
 
 The app neither bundles nor downloads Noto font files, so this option does not add a font collection to the download. Memory usage still depends on the font and text. Qt may retain font caches after switching; restart the app when comparing memory usage.
