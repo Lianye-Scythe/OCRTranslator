@@ -6,6 +6,16 @@ This file records important OCRTranslator changes.
 
 ## [Unreleased]
 
+## [1.0.17] - 2026-11-07
+
+### Fixed
+- Choose new overlay font defaults by translation target: Noto Sans for English, Noto Sans TC for Traditional Chinese, Noto Sans SC for Simplified Chinese, and Noto Sans JP for Japanese, replacing the shared TC default.
+- Fall back to matching installed Windows fonts (Segoe UI, Microsoft JhengHei UI, Microsoft YaHei UI, or Yu Gothic UI). Preserve existing choices independently of interface language.
+- Apply the same policy to new configurations, blank or missing fields, installed-font resolution, and all three documentation languages. No fonts are downloaded or bundled.
+
+### Test
+- All 435 tests pass with the native Windows GDI backend, including different target/UI languages, missing regional fonts, preserved preferences, and full overlay flows for the font choices.
+
 ## [1.0.16] - 2026-11-07
 
 ### Changed

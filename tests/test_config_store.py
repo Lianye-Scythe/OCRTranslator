@@ -7,10 +7,27 @@ from app.config_store import _config_to_dict, _migrate_legacy_config, load_confi
 
 
 class ConfigStoreMigrationTests(unittest.TestCase):
+    def test_missing_font_follows_target_language_independently_of_ui(self):
+        for language, expected in (("繁體中文", "Noto Sans TC"), ("简体中文", "Noto Sans SC"), ("日本語", "Noto Sans JP"), ("English", "Noto Sans"), ("zh-Hans", "Noto Sans SC"), ("en-US", "Noto Sans")):
+            for ui in ("en", "zh-CN", "zh-TW"):
+                with self.subTest(language=language, ui=ui):
+                    config = _migrate_legacy_config({"target_language": language, "ui_language": ui})
+                    self.assertEqual(config.overlay_font_family, expected)
+                    config.overlay_font_family = ""
+                    self.assertEqual(_migrate_legacy_config(_config_to_dict(config)).overlay_font_family, expected)
+
+    def test_new_config_and_model_choose_language_specific_font(self):
+        from app.config_store import _default_app_config
+        from app.models import AppConfig
+        for ui, language, font in (("zh-TW", "繁體中文", "Noto Sans TC"), ("zh-CN", "简体中文", "Noto Sans SC"), ("en", "English", "Noto Sans")):
+            with patch("app.config_store.detect_system_ui_language", return_value=ui):
+                self.assertEqual(_default_app_config().overlay_font_family, font)
+            self.assertEqual(AppConfig(target_language=language).overlay_font_family, font)
+
     def test_existing_overlay_font_preferences_are_preserved(self):
-        for family in ("Microsoft JhengHei UI", "Noto Sans TC", "Custom Reader Font"):
+        for family in ("Microsoft JhengHei UI", "Noto Sans TC", "Noto Sans SC", "Noto Sans JP", "Noto Sans", "Custom Reader Font"):
             with self.subTest(font=family):
-                config = _migrate_legacy_config({"overlay_font_family": family})
+                config = _migrate_legacy_config({"overlay_font_family": family, "target_language": "English", "ui_language": "zh-CN"})
                 self.assertEqual(config.overlay_font_family, family)
 
     def test_copy_mode_defaults_and_round_trips_through_config_file(self):
@@ -88,7 +105,7 @@ class ConfigStoreMigrationTests(unittest.TestCase):
         self.assertEqual(config.selection_hotkey, "Shift+Win+C")
         self.assertEqual(config.input_hotkey, "Shift+Win+Z")
         self.assertEqual(config.theme_mode, "system")
-        self.assertEqual(config.overlay_font_family, "Noto Sans TC")
+        self.assertEqual(config.overlay_font_family, "Noto Sans")
         self.assertEqual(config.overlay_font_size, 10)
         self.assertEqual(config.overlay_opacity, 5)
         self.assertTrue(config.overlay_pinned)

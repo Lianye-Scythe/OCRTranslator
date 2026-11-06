@@ -5,7 +5,7 @@ from .app_defaults import (
     DEFAULT_CAPTURE_HOTKEY,
     DEFAULT_INPUT_HOTKEY,
     DEFAULT_MODEL,
-    DEFAULT_OVERLAY_FONT_FAMILY,
+    default_overlay_font_family,
     DEFAULT_SELECTION_HOTKEY,
     DEFAULT_TARGET_LANGUAGE,
     DEFAULT_THEME_MODE,
@@ -62,7 +62,7 @@ class AppConfig:
     hotkey: str = DEFAULT_CAPTURE_HOTKEY
     selection_hotkey: str = DEFAULT_SELECTION_HOTKEY
     input_hotkey: str = DEFAULT_INPUT_HOTKEY
-    overlay_font_family: str = DEFAULT_OVERLAY_FONT_FAMILY
+    overlay_font_family: str = ""
     overlay_font_size: int = 16
     overlay_opacity: int = 95
     overlay_pinned: bool = False
@@ -77,3 +77,7 @@ class AppConfig:
     active_prompt_preset_name: str = DEFAULT_PROMPT_PRESET_DEFINITIONS[0]["name"]
     api_profiles: list[ApiProfile] = field(default_factory=lambda: [ApiProfile()])
     prompt_presets: list[PromptPreset] = field(default_factory=default_prompt_presets)
+
+    def __post_init__(self):
+        if not str(self.overlay_font_family or "").strip():
+            self.overlay_font_family = default_overlay_font_family(self.target_language)

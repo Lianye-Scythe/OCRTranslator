@@ -11,7 +11,7 @@ from .app_defaults import (
     DEFAULT_CAPTURE_HOTKEY,
     DEFAULT_INPUT_HOTKEY,
     DEFAULT_MODEL,
-    DEFAULT_OVERLAY_FONT_FAMILY,
+    default_overlay_font_family,
     DEFAULT_SELECTION_HOTKEY,
     DEFAULT_THEME_MODE,
     DEFAULT_UI_LANGUAGE,
@@ -56,6 +56,7 @@ def _default_app_config() -> AppConfig:
         ui_language=ui_language,
         target_language=default_target_language,
         manual_input_target_language=default_target_language,
+        overlay_font_family=default_overlay_font_family(default_target_language),
         theme_mode=DEFAULT_THEME_MODE,
     )
 
@@ -291,7 +292,7 @@ def _migrate_legacy_config(data: dict) -> AppConfig:
         hotkey=_coerce_text(source.get("hotkey"), DEFAULT_CAPTURE_HOTKEY),
         selection_hotkey=_coerce_text(source.get("selection_hotkey"), DEFAULT_SELECTION_HOTKEY),
         input_hotkey=_coerce_text(source.get("input_hotkey"), DEFAULT_INPUT_HOTKEY),
-        overlay_font_family=_coerce_text(source.get("overlay_font_family"), DEFAULT_OVERLAY_FONT_FAMILY),
+        overlay_font_family=_coerce_text(source.get("overlay_font_family"), default_overlay_font_family(target_language)),
         overlay_font_size=_coerce_int(source.get("overlay_font_size"), 16, min_value=10, max_value=32),
         overlay_opacity=_coerce_int(source.get("overlay_opacity"), 95, min_value=1, max_value=100),
         overlay_pinned=_coerce_bool(source.get("overlay_pinned", False), False),
