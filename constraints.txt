@@ -10,7 +10,7 @@ packaging==26.3
 pefile==2024.8.26; sys_platform == "win32"
 Pillow==13.0.0
 PyInstaller==6.22.3
-pyinstaller-hooks-contrib==2026.9
+pyinstaller-hooks-contrib==2026.10
 pynput==1.8.2
 PySide6==6.12.0
 PySide6_Addons==6.12.0
